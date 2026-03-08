@@ -106,6 +106,23 @@ Return JSON:
   "privacyPolicy": "full privacy policy text",
   "termsOfUse": "full terms of use text"
 }`;
+    } else if (stage === "store-seo") {
+      systemPrompt = "You are a Chrome Web Store SEO expert focused on maximizing extension visibility and installs.";
+      userPrompt = `Optimize this Chrome extension for Chrome Web Store search:
+
+Name: ${spec.name}
+Description: ${spec.description}
+Features: ${spec.features?.join(", ")}
+
+Return JSON:
+{
+  "title": "SEO-optimized title (max 45 chars, include primary keyword)",
+  "summary": "compelling short summary (max 132 chars)",
+  "description": "full SEO-optimized store description with keywords naturally integrated",
+  "keywords": ["primary keyword", "secondary keywords", "long-tail keywords"],
+  "titleScore": 85,
+  "tips": ["actionable SEO improvement tips"]
+}`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

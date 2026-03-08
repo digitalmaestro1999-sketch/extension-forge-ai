@@ -53,6 +53,10 @@ const App = () => (
                     <Route path="/test" element={<TestExtension />} />
                     <Route path="/package" element={<PackageExtension />} />
                     <Route path="/publish" element={<PublishAssistant />} />
+                    <Route path="/portfolio" element={<Portfolio />} />
+                    <Route path="/monetization" element={<MonetizationTemplates />} />
+                    <Route path="/store-seo" element={<StoreSEO />} />
+                    <Route path="/revenue" element={<RevenueTracker />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
