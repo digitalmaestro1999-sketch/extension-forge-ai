@@ -92,6 +92,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
+          <SidebarGroupLabel>Revenue</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{renderItems(revenueItems)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>{renderItems(toolItems)}</SidebarMenu>
