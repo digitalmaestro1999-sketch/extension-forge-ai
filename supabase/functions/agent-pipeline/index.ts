@@ -17,10 +17,17 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (stage === "code") {
-      systemPrompt = `You are an expert Chrome Extension developer. Generate production-ready code for a Chrome extension based on the given specification. 
-Return ONLY valid JSON with file contents. No markdown, no explanation.`;
+      systemPrompt = `You are an expert Chrome Extension developer specializing in Manifest V3. Generate production-ready, fully functional code.
+
+CRITICAL RULES:
+1. NEVER use external CDNs (no Tailwind CDN, no external scripts). All CSS must be inline/bundled. External scripts VIOLATE Manifest V3 Content Security Policy.
+2. All popup/options CSS must use a professional dark theme with CSS custom properties.
+3. All chrome.runtime.sendMessage / onMessage patterns must correctly return true for async responses.
+4. Content scripts must implement ACTUAL functionality for the described features, not just placeholder TODO comments.
+5. Background service workers must properly handle all message types.
+6. Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
       
-      userPrompt = `Generate complete, production-ready Chrome extension code for:
+      userPrompt = `Generate a complete, FUNCTIONAL Chrome extension:
 
 Name: ${spec.name}
 Description: ${spec.description}
@@ -28,32 +35,36 @@ Features: ${spec.features?.join(", ")}
 Permissions: ${spec.permissions?.join(", ")}
 APIs: ${spec.apis?.join(", ") || "None"}
 
-Return JSON with this exact structure (all values must be strings of the file content):
+Return JSON with this structure (all values are strings of file content):
 {
-  "manifest.json": "<full manifest.json content>",
-  "background.js": "<full background service worker code implementing the features>",
-  "content.js": "<full content script code that interacts with web pages>",
-  "popup.html": "<full popup HTML with modern dark UI, Tailwind CDN, responsive 380px width>",
-  "popup.js": "<full popup JavaScript with event listeners, chrome API calls, error handling>",
-  "popup.css": "<full popup CSS with dark theme, modern design>",
-  "options.html": "<options page HTML>",
-  "options.js": "<options page JavaScript>",
-  "styles.css": "<content script CSS if needed>",
-  "utils/api.js": "<API helper functions>",
-  "utils/storage.js": "<chrome.storage wrapper functions>"
+  "manifest.json": "...",
+  "background.js": "...",
+  "content.js": "...",
+  "popup.html": "...",
+  "popup.js": "...",
+  "styles.css": "...",
+  "options.html": "...",
+  "options.js": "..."
 }
 
-Requirements:
-- manifest.json must be valid Manifest V3
-- background.js must use chrome.runtime, chrome.tabs, chrome.storage APIs as needed
-- content.js must implement actual DOM manipulation for the extension's features
-- popup must have a polished dark UI with status indicators, action buttons
-- All chrome.runtime.sendMessage / onMessage patterns must be correctly implemented
-- Include proper error handling everywhere
-- Use async/await patterns
-- popup.html should use inline Tailwind via CDN link for styling`;
+REQUIREMENTS:
+- manifest.json: Valid Manifest V3. Icons at "icons/icon16.png", "icons/icon48.png", "icons/icon128.png". Content scripts must reference "content.js" and "content-styles.css". Action popup is "popup.html".
+- popup.html: Must link to "styles.css" for styling. 380px width. NO external CDN links. Use semantic HTML.
+- styles.css: Complete dark-theme CSS using CSS custom properties. Professional UI with:
+  * Dark background (#09090b), elevated surfaces (#18181b), accent color (#6366f1)
+  * Clean typography, proper spacing, rounded corners
+  * Status indicators, hover states, smooth transitions
+  * Scrollbar styling, focus states
+  * 380px popup width, min-height 480px
+- popup.js: Full event handling, chrome API calls, async/await, error handling. Wire up ALL buttons.
+- background.js: Service worker with chrome.runtime.onInstalled, message handling, storage management. Must handle messages from content.js and popup.js.
+- content.js: MUST implement actual DOM manipulation for the described features. Wrap in IIFE with double-injection guard. Must respond to messages with sendResponse.
+- options.html: Full settings page with dark theme (inline CSS or link to a CSS file). Include toggles for enable/disable, notification preferences. NO external CDNs.
+- options.js: Load/save settings with chrome.storage.local. Wire up all form elements.
+
+The extension must ACTUALLY WORK when loaded in Chrome. Every button must do something. Every feature must have real implementation.`;
     } else if (stage === "compliance") {
-      systemPrompt = "You are a Chrome Web Store compliance expert. Analyze extensions for policy violations.";
+      systemPrompt = "You are a Chrome Web Store compliance expert. Analyze extensions for policy violations. Return ONLY valid JSON.";
       userPrompt = `Analyze this Chrome extension for Chrome Web Store compliance:
 
 Name: ${spec.name}
@@ -72,7 +83,7 @@ Return JSON:
   "permissionJustifications": {"permission_name": "justification text"}
 }`;
     } else if (stage === "security") {
-      systemPrompt = "You are a security auditor for Chrome extensions.";
+      systemPrompt = "You are a security auditor for Chrome extensions. Return ONLY valid JSON.";
       userPrompt = `Perform a security audit on this Chrome extension:
 
 Name: ${spec.name}
@@ -89,7 +100,7 @@ Return JSON:
   "permissionAnalysis": {"permission": {"risk": "low|medium|high", "justification": "why needed", "alternative": "safer alternative if exists"}}
 }`;
     } else if (stage === "store-assets") {
-      systemPrompt = "You are a Chrome Web Store marketing expert.";
+      systemPrompt = "You are a Chrome Web Store marketing expert. Return ONLY valid JSON.";
       userPrompt = `Generate Chrome Web Store listing assets for:
 
 Name: ${spec.name}
@@ -107,7 +118,7 @@ Return JSON:
   "termsOfUse": "full terms of use text"
 }`;
     } else if (stage === "store-seo") {
-      systemPrompt = "You are a Chrome Web Store SEO expert focused on maximizing extension visibility and installs.";
+      systemPrompt = "You are a Chrome Web Store SEO expert focused on maximizing extension visibility and installs. Return ONLY valid JSON.";
       userPrompt = `Optimize this Chrome extension for Chrome Web Store search:
 
 Name: ${spec.name}

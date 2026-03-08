@@ -117,7 +117,33 @@ export default function CreateExtension() {
 
       if (codeError) throw new Error("Code generation failed: " + codeError.message);
 
-      const files = codeData.result as Record<string, string>;
+      const aiFiles = codeData.result as Record<string, string>;
+      
+      // Merge AI-generated files with local high-quality templates as fallbacks
+      const { generateAllFiles } = await import("@/lib/generate-extension");
+      const localFiles = generateAllFiles(extSpec);
+      
+      // AI files take priority, but fall back to local templates for missing files
+      const files: Record<string, string> = { ...localFiles };
+      for (const [name, content] of Object.entries(aiFiles)) {
+        // Only use AI file if it has substantial content (not just comments/empty)
+        if (content && content.trim().length > 50) {
+          files[name] = content;
+        }
+      }
+      
+      // Always use local manifest to ensure correct icon paths and structure
+      files["manifest.json"] = localFiles["manifest.json"];
+      
+      // Ensure no Tailwind CDN references snuck through from AI
+      for (const [name, content] of Object.entries(files)) {
+        if (content.includes("cdn.tailwindcss.com") || content.includes("cdn.tailwind")) {
+          files[name] = content
+            .replace(/<script[^>]*cdn\.tailwindcss\.com[^>]*><\/script>/g, '')
+            .replace(/<script[^>]*cdn\.tailwind[^>]*><\/script>/g, '');
+        }
+      }
+      
       setGeneratedFiles(files);
 
       updateStage("codegen", {
