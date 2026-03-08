@@ -101,11 +101,7 @@ export default function CreateExtension() {
       updateStage("intent", { status: "running" });
       const startIntent = Date.now();
 
-      const { data: specData, error: specError } = await supabase.functions.invoke("generate-extension", {
-        body: { idea: idea.trim(), audience: "", functionality: "" },
-      });
-
-      if (specError) throw new Error("Intent analysis failed: " + specError.message);
+      const specData = await invokeWithRetry("generate-extension", { idea: idea.trim(), audience: "", functionality: "" });
       const extSpec = specData.spec as ExtensionSpec;
       setSpec(extSpec);
 
