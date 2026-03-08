@@ -200,9 +200,13 @@ export default function CreateExtension() {
       updateStage("compliance", { status: "running" });
       const startComp = Date.now();
 
-      const { data: compData, error: compError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "compliance" },
-      });
+      let compData: any = null;
+      let compError: any = null;
+      try {
+        compData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "compliance" });
+      } catch (e: any) {
+        compError = e;
+      }
 
       if (compError) {
         updateStage("compliance", { status: "error", error: "Compliance check skipped", duration: Date.now() - startComp });
