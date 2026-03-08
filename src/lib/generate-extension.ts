@@ -1574,7 +1574,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });`;
 }
-}
 
 export interface GeneratedFiles {
   [filename: string]: string;
