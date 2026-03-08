@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { ExtensionSpec } from "@/lib/generate-extension";
+import { generateExtensionIcons } from "@/lib/generate-icons";
 
 export default function PackageExtension() {
   const [files, setFiles] = useState<Record<string, string>>({});
