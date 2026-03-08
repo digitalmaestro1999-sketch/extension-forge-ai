@@ -177,9 +177,13 @@ export default function CreateExtension() {
       updateStage("security", { status: "running" });
       const startSec = Date.now();
 
-      const { data: secData, error: secError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "security" },
-      });
+      let secData: any = null;
+      let secError: any = null;
+      try {
+        secData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "security" });
+      } catch (e: any) {
+        secError = e;
+      }
 
       if (secError) {
         updateStage("security", { status: "error", error: "Security audit skipped", duration: Date.now() - startSec });
