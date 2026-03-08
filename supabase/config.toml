@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.discover-trends]
 verify_jwt = false
+
+[functions.generate-icons]
+verify_jwt = false
