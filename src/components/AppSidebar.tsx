@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
-  Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User
+  Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
+  Briefcase, DollarSign, Search, BarChart3
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -18,6 +19,13 @@ const mainItems = [
   { title: "Create Extension", url: "/create", icon: Wand2 },
   { title: "AI Builder", url: "/ai-builder", icon: Zap },
   { title: "Batch Queue", url: "/batch", icon: Layers },
+];
+
+const revenueItems = [
+  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
+  { title: "Revenue Tracker", url: "/revenue", icon: BarChart3 },
+  { title: "Monetization", url: "/monetization", icon: DollarSign },
+  { title: "Store SEO", url: "/store-seo", icon: Search },
 ];
 
 const toolItems = [
@@ -81,6 +89,12 @@ export function AppSidebar() {
           <SidebarGroupLabel>Factory</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>{renderItems(mainItems)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Revenue</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{renderItems(revenueItems)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
