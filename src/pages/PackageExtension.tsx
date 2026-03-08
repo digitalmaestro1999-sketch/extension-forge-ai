@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree } from "lucide-react";
+import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -8,10 +8,13 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import { generateExtensionIcons } from "@/lib/generate-icons";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function PackageExtension() {
   const [files, setFiles] = useState<Record<string, string>>({});
   const [spec, setSpec] = useState<ExtensionSpec | null>(null);
+  const [aiIconBase64, setAiIconBase64] = useState<string | null>(null);
+  const [generatingIcons, setGeneratingIcons] = useState(false);
 
   useEffect(() => {
     const storedFiles = sessionStorage.getItem("extension-files");
@@ -19,6 +22,60 @@ export default function PackageExtension() {
     if (storedFiles) try { setFiles(JSON.parse(storedFiles)); } catch {}
     if (storedSpec) try { setSpec(JSON.parse(storedSpec)); } catch {}
   }, []);
+
+  const generateAIIcons = async () => {
+    if (!spec) return;
+    setGeneratingIcons(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-icons", {
+        body: { name: spec.name, description: spec.description },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.imageBase64) {
+        setAiIconBase64(data.imageBase64);
+        toast.success("AI icons generated! They'll be included in your download.");
+      } else {
+        throw new Error("No image returned");
+      }
+    } catch (e: any) {
+      console.error("Icon generation error:", e);
+      toast.error(e.message || "Failed to generate icons");
+    } finally {
+      setGeneratingIcons(false);
+    }
+  };
+
+  const base64ToUint8Array = (base64DataUrl: string): Uint8Array => {
+    const base64 = base64DataUrl.split(",")[1] || base64DataUrl;
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const resizeIcon = async (base64DataUrl: string, size: number): Promise<Uint8Array> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, size, size);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+          } else {
+            resolve(base64ToUint8Array(base64DataUrl));
+          }
+        }, "image/png");
+      };
+      img.src = base64DataUrl;
+    });
+  };
 
   const handleDownload = async () => {
     const zip = new JSZip();
@@ -31,12 +88,26 @@ export default function PackageExtension() {
         zip.file(name, content);
       }
     });
-    // Add placeholder icon PNGs
-    const icons = generateExtensionIcons();
+
     const iconsFolder = zip.folder("icons")!;
-    iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
-    iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
-    iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
+
+    if (aiIconBase64) {
+      // Use AI-generated icons, resized to each required dimension
+      const [icon16, icon48, icon128] = await Promise.all([
+        resizeIcon(aiIconBase64, 16),
+        resizeIcon(aiIconBase64, 48),
+        resizeIcon(aiIconBase64, 128),
+      ]);
+      iconsFolder.file("icon16.png", icon16);
+      iconsFolder.file("icon48.png", icon48);
+      iconsFolder.file("icon128.png", icon128);
+    } else {
+      // Fallback to solid-color placeholder icons
+      const icons = generateExtensionIcons();
+      iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
+      iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
+      iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
+    }
 
     const blob = await zip.generateAsync({ type: "blob" });
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
@@ -68,16 +139,71 @@ export default function PackageExtension() {
         <>
           {spec && (
             <div className="rounded-xl border border-primary/20 bg-card p-5 glow-primary">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="font-bold text-lg">{spec.name}</h2>
                   <p className="text-sm text-muted-foreground">{spec.description}</p>
                 </div>
-                <Button onClick={handleDownload} className="bg-gradient-cyber text-primary-foreground">
-                  <Download className="h-4 w-4 mr-2" /> Download .zip
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={generateAIIcons}
+                    disabled={generatingIcons}
+                    className="border-primary/30"
+                  >
+                    {generatingIcons ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    {generatingIcons ? "Generating..." : "AI Icons"}
+                  </Button>
+                  <Button onClick={handleDownload} className="bg-gradient-cyber text-primary-foreground">
+                    <Download className="h-4 w-4 mr-2" /> Download .zip
+                  </Button>
+                </div>
               </div>
             </div>
+          )}
+
+          {/* AI Icon Preview */}
+          {aiIconBase64 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-xl border border-primary/20 bg-card p-5"
+            >
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Image className="h-4 w-4 text-primary" />
+                AI-Generated Icons
+              </h3>
+              <div className="flex items-end gap-6">
+                <div className="text-center">
+                  <div className="rounded-lg border border-border bg-muted/50 p-2 inline-block mb-1">
+                    <img src={aiIconBase64} alt="Icon 128" className="w-32 h-32 object-contain" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">128×128</p>
+                </div>
+                <div className="text-center">
+                  <div className="rounded-lg border border-border bg-muted/50 p-2 inline-block mb-1">
+                    <img src={aiIconBase64} alt="Icon 48" className="w-12 h-12 object-contain" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">48×48</p>
+                </div>
+                <div className="text-center">
+                  <div className="rounded-lg border border-border bg-muted/50 p-2 inline-block mb-1">
+                    <img src={aiIconBase64} alt="Icon 16" className="w-4 h-4 object-contain" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">16×16</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button variant="ghost" size="sm" onClick={generateAIIcons} disabled={generatingIcons}>
+                  {generatingIcons ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                  Regenerate
+                </Button>
+              </div>
+            </motion.div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
