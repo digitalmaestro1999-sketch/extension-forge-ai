@@ -15,6 +15,34 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 
+async function invokeWithRetry(
+  fnName: string,
+  body: any,
+  maxRetries = 3,
+  baseDelay = 5000
+): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { data, error } = await supabase.functions.invoke(fnName, { body });
+
+    const isRateLimit =
+      error?.message?.includes("429") ||
+      error?.message?.toLowerCase?.().includes("rate limit") ||
+      data?.error?.toLowerCase?.().includes("rate limit");
+
+    if (isRateLimit && attempt < maxRetries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      toast.info(`Rate limited — retrying in ${Math.round(delay / 1000)}s...`, { duration: delay });
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  throw new Error("Rate limit exceeded after retries. Please wait a moment and try again.");
+}
+
 type StageStatus = "idle" | "running" | "done" | "error";
 
 interface AgentStage {
