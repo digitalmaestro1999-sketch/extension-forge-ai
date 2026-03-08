@@ -21,6 +21,13 @@ const mainItems = [
   { title: "Batch Queue", url: "/batch", icon: Layers },
 ];
 
+const revenueItems = [
+  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
+  { title: "Revenue Tracker", url: "/revenue", icon: BarChart3 },
+  { title: "Monetization", url: "/monetization", icon: DollarSign },
+  { title: "Store SEO", url: "/store-seo", icon: Search },
+];
+
 const toolItems = [
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Code Editor", url: "/editor", icon: Code2 },
