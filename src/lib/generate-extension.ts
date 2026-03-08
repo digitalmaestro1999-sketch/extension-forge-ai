@@ -586,16 +586,22 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
     :root {
       --accent: #6366f1;
       --accent-hover: #818cf8;
+      --accent-subtle: rgba(99, 102, 241, 0.08);
+      --accent-border: rgba(99, 102, 241, 0.18);
       --bg: #09090b;
       --bg-elevated: #18181b;
       --surface: #1c1c20;
+      --surface-hover: #232327;
       --text: #fafafa;
       --text-secondary: #a1a1aa;
       --text-muted: #71717a;
       --border: #27272a;
+      --border-subtle: #1f1f23;
       --success: #22c55e;
-      --radius: 10px;
-      --radius-sm: 6px;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --radius: 12px;
+      --radius-sm: 8px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -606,12 +612,20 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       line-height: 1.6;
     }
     .container {
-      max-width: 520px;
+      max-width: 600px;
       margin: 0 auto;
-      padding: 40px 24px;
+      padding: 40px 24px 60px;
     }
     .page-header {
       margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .page-header img {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
     }
     .page-header h1 {
       font-size: 22px;
@@ -619,10 +633,39 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       letter-spacing: -0.02em;
     }
     .page-header p {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 2px;
     }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab:hover { color: var(--text-secondary); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Sections */
     .section {
       background: var(--bg-elevated);
       border: 1px solid var(--border);
@@ -631,10 +674,10 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       margin-bottom: 16px;
     }
     .section-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--text-muted);
       margin-bottom: 16px;
     }
@@ -642,10 +685,12 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 16px;
     }
     .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; }
     .setting-label {
       font-size: 14px;
       font-weight: 500;
@@ -653,13 +698,14 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
     .setting-desc {
       font-size: 12px;
       color: var(--text-muted);
-      margin-top: 2px;
+      margin-top: 3px;
     }
+
     /* Toggle Switch */
     .toggle {
       position: relative;
-      width: 40px;
-      height: 22px;
+      width: 42px;
+      height: 24px;
       flex-shrink: 0;
     }
     .toggle input { opacity: 0; width: 0; height: 0; }
@@ -667,7 +713,7 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       position: absolute;
       inset: 0;
       background: var(--border);
-      border-radius: 11px;
+      border-radius: 12px;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -676,8 +722,8 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       position: absolute;
       top: 3px;
       left: 3px;
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       background: var(--text-muted);
       border-radius: 50%;
       transition: transform 0.2s, background 0.2s;
@@ -689,75 +735,593 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
       transform: translateX(18px);
       background: white;
     }
-    .save-btn {
+
+    /* Inputs */
+    .input, .select {
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input:focus, .select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-subtle);
+    }
+    .input { width: 100%; }
+    .select {
+      min-width: 140px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+
+    /* Kbd */
+    .kbd-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kbd {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
+      justify-content: center;
+      min-width: 28px;
+      height: 26px;
+      padding: 0 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', 'Cascadia Code', monospace;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    .save-btn:hover { background: var(--accent-hover); }
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 10px 18px;
-      background: var(--success);
-      color: white;
+    .shortcut-record-btn {
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .shortcut-record-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+    }
+    .shortcut-record-btn.recording {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-subtle);
+      animation: recording-pulse 1s ease-in-out infinite;
+    }
+    @keyframes recording-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 var(--accent-subtle); }
+      50% { box-shadow: 0 0 0 4px var(--accent-subtle); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border: none;
       border-radius: var(--radius-sm);
       font-size: 13px;
       font-weight: 500;
-      transform: translateY(80px);
+      cursor: pointer;
+      transition: all 0.15s;
+      outline: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Data table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .data-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--surface); }
+
+    /* Footer bar */
+    .footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .footer-bar .version-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 72px;
+      right: 24px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      transform: translateY(20px);
       opacity: 0;
       transition: all 0.3s ease;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .toast.show {
       transform: translateY(0);
       opacity: 1;
     }
+    .toast-success { background: var(--success); color: white; }
+    .toast-error { background: var(--error); color: white; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 90%;
+      max-width: 420px;
+    }
+    .modal h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .modal p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="page-header">
-      <h1>${spec.name}</h1>
-      <p>Configure your extension preferences</p>
-    </div>
-
-    <div class="section">
-      <div class="section-title">General</div>
-      <div class="setting-row">
-        <div>
-          <div class="setting-label">Enable Extension</div>
-          <div class="setting-desc">Turn the extension on or off</div>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-enabled" checked />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <div class="setting-row">
-        <div>
-          <div class="setting-label">Notifications</div>
-          <div class="setting-desc">Show desktop notifications</div>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-notifications" checked />
-          <span class="toggle-slider"></span>
-        </label>
+      <img src="icons/icon48.png" alt="" />
+      <div>
+        <h1>${spec.name}</h1>
+        <p>Settings &amp; Preferences</p>
       </div>
     </div>
 
-    <button class="save-btn" id="save-btn">Save Settings</button>
-    <div class="toast" id="toast">Settings saved ✓</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="general">General</button>
+      <button class="tab" data-tab="shortcuts">Shortcuts</button>
+      <button class="tab" data-tab="automation">Automation</button>
+      <button class="tab" data-tab="data">Data</button>
+      <button class="tab" data-tab="about">About</button>
+    </div>
+
+    <!-- ═══ General Tab ═══ -->
+    <div class="tab-panel active" id="panel-general">
+      <div class="section">
+        <div class="section-title">Core</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Enable Extension</div>
+            <div class="setting-desc">Turn the extension on or off globally</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-enabled" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Notifications</div>
+            <div class="setting-desc">Show desktop notifications for events</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-notifications" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Badge Counter</div>
+            <div class="setting-desc">Show action count on toolbar icon</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-badge" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Appearance</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Theme</div>
+            <div class="setting-desc">Choose popup color scheme</div>
+          </div>
+          <select class="select" id="select-theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Popup Width</div>
+            <div class="setting-desc">Set popup window width in pixels</div>
+          </div>
+          <select class="select" id="select-popup-width">
+            <option value="360">Compact (360px)</option>
+            <option value="380" selected>Default (380px)</option>
+            <option value="420">Wide (420px)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Shortcuts Tab ═══ -->
+    <div class="tab-panel" id="panel-shortcuts">
+      <div class="section">
+        <div class="section-title">Keyboard Shortcuts</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Run Action</div>
+            <div class="setting-desc">Execute primary extension action</div>
+          </div>
+          <div class="kbd-input-group">
+            <span class="shortcut-display" id="shortcut-run">
+              <span class="kbd">Ctrl</span>
+              <span class="kbd">Shift</span>
+              <span class="kbd">E</span>
+            </span>
+            <button class="shortcut-record-btn" data-shortcut="run" title="Click to re-record">⌨</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Toggle Extension</div>
+            <div class="setting-desc">Enable or disable the extension</div>
+          </div>
+          <div class="kbd-input-group">
+            <span class="shortcut-display" id="shortcut-toggle">
+              <span class="kbd">Ctrl</span>
+              <span class="kbd">Shift</span>
+              <span class="kbd">D</span>
+            </span>
+            <button class="shortcut-record-btn" data-shortcut="toggle" title="Click to re-record">⌨</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Open Settings</div>
+            <div class="setting-desc">Open this settings page</div>
+          </div>
+          <div class="kbd-input-group">
+            <span class="shortcut-display" id="shortcut-settings">
+              <span class="kbd">Ctrl</span>
+              <span class="kbd">Shift</span>
+              <span class="kbd">,</span>
+            </span>
+            <button class="shortcut-record-btn" data-shortcut="settings" title="Click to re-record">⌨</button>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+        💡 Click the ⌨ button then press your desired key combination. Press Escape to cancel.
+      </p>
+    </div>
+
+    <!-- ═══ Automation Tab ═══ -->
+    <div class="tab-panel" id="panel-automation">
+      <div class="section">
+        <div class="section-title">Auto-Run</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Run on Page Load</div>
+            <div class="setting-desc">Automatically execute the action when a page loads</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-autorun" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Auto-Run Delay</div>
+            <div class="setting-desc">Wait before auto-running (milliseconds)</div>
+          </div>
+          <select class="select" id="select-autorun-delay">
+            <option value="0">Instant</option>
+            <option value="500">500ms</option>
+            <option value="1000" selected>1 second</option>
+            <option value="3000">3 seconds</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">URL Filters</div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;">
+          <div class="setting-info" style="margin-bottom:10px;">
+            <div class="setting-label">Auto-Run Only On</div>
+            <div class="setting-desc">Enter URL patterns, one per line. Leave empty for all sites. Supports wildcards (*).</div>
+          </div>
+          <textarea class="input" id="url-patterns" rows="4" placeholder="https://www.youtube.com/*&#10;https://github.com/*" style="resize:vertical;font-family:'SF Mono','Cascadia Code',monospace;font-size:12px;"></textarea>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Schedule</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Active Hours Only</div>
+            <div class="setting-desc">Restrict auto-run to specific hours</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-schedule" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row" id="schedule-times" style="display:none;">
+          <div class="setting-info">
+            <div class="setting-label">Time Range</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="time" class="input" id="schedule-start" value="09:00" style="width:auto;" />
+            <span style="color:var(--text-muted);">→</span>
+            <input type="time" class="input" id="schedule-end" value="17:00" style="width:auto;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Data Tab ═══ -->
+    <div class="tab-panel" id="panel-data">
+      <div class="section">
+        <div class="section-title">Usage Statistics</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-runs">0</div>
+            <div class="stat-label">Total Runs</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-pages">0</div>
+            <div class="stat-label">Pages</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-days">0</div>
+            <div class="stat-label">Days Active</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Recent Activity</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Action</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="activity-log">
+            <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">No activity yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Export &amp; Import</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Export All Data</div>
+            <div class="setting-desc">Download settings, logs, and history as JSON</div>
+          </div>
+          <button class="btn btn-secondary" id="btn-export">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Import Data</div>
+            <div class="setting-desc">Restore from a previously exported JSON file</div>
+          </div>
+          <label class="btn btn-secondary" style="cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+            <input type="file" id="btn-import" accept=".json" style="display:none;" />
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Clear All Data</div>
+            <div class="setting-desc">Remove all stored data and reset to defaults</div>
+          </div>
+          <button class="btn btn-danger" id="btn-clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Clear Data
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ About Tab ═══ -->
+    <div class="tab-panel" id="panel-about">
+      <div class="section">
+        <div class="section-title">Extension Info</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Name</div>
+          </div>
+          <span style="font-size:13px;color:var(--text-secondary);">${spec.name}</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Version</div>
+          </div>
+          <span class="kbd">1.0.0</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Manifest</div>
+          </div>
+          <span class="kbd">v3</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Description</div>
+          </div>
+          <span style="font-size:13px;color:var(--text-secondary);max-width:280px;text-align:right;">${spec.description}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Permissions</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${spec.permissions.map((p) => `<span class="kbd">${p}</span>`).join('\n          ')}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Support</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Found a bug or have feedback?</p>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="chrome.tabs.create({url:'mailto:support@example.com'})">Contact Support</button>
+          <button class="btn btn-secondary" onclick="chrome.tabs.create({url:'https://chrome.google.com/webstore'})">Rate Extension</button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Footer Bar -->
+  <div class="footer-bar">
+    <span class="version-text">${spec.name} v1.0.0</span>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="save-btn">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- Clear Data Confirmation Modal -->
+  <div class="modal-overlay" id="clear-modal">
+    <div class="modal">
+      <h3>Clear All Data?</h3>
+      <p>This will permanently delete all stored settings, activity logs, and cached data. This cannot be undone.</p>
+      <div class="btn-group" style="justify-content:flex-end;">
+        <button class="btn btn-secondary" id="clear-cancel">Cancel</button>
+        <button class="btn btn-danger" id="clear-confirm">Clear Everything</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
   <script src="options.js"></script>
 </body>
 </html>`;
@@ -767,28 +1331,245 @@ export function generateOptionsJs(spec: ExtensionSpec): string {
   return `// ${spec.name} — Options Controller
 
 document.addEventListener('DOMContentLoaded', () => {
-  const enabledToggle = document.getElementById('toggle-enabled');
-  const notifToggle   = document.getElementById('toggle-notifications');
-  const saveBtn       = document.getElementById('save-btn');
-  const toast         = document.getElementById('toast');
-
-  // Load settings
-  chrome.storage.local.get(['settings'], (result) => {
-    const s = result.settings || {};
-    enabledToggle.checked = s.enabled !== false;
-    notifToggle.checked   = s.notifications !== false;
+  // ── Tab navigation ──
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.tab-panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
   });
 
-  // Save
-  saveBtn.addEventListener('click', () => {
-    chrome.storage.local.set({
-      settings: {
-        enabled: enabledToggle.checked,
-        notifications: notifToggle.checked
+  // ── Elements ──
+  const els = {
+    enabled:      document.getElementById('toggle-enabled'),
+    notifications: document.getElementById('toggle-notifications'),
+    badge:        document.getElementById('toggle-badge'),
+    theme:        document.getElementById('select-theme'),
+    popupWidth:   document.getElementById('select-popup-width'),
+    autorun:      document.getElementById('toggle-autorun'),
+    autorunDelay: document.getElementById('select-autorun-delay'),
+    urlPatterns:  document.getElementById('url-patterns'),
+    schedule:     document.getElementById('toggle-schedule'),
+    scheduleRow:  document.getElementById('schedule-times'),
+    schedStart:   document.getElementById('schedule-start'),
+    schedEnd:     document.getElementById('schedule-end'),
+    saveBtn:      document.getElementById('save-btn'),
+    exportBtn:    document.getElementById('btn-export'),
+    importInput:  document.getElementById('btn-import'),
+    clearBtn:     document.getElementById('btn-clear'),
+    clearModal:   document.getElementById('clear-modal'),
+    clearCancel:  document.getElementById('clear-cancel'),
+    clearConfirm: document.getElementById('clear-confirm'),
+    toast:        document.getElementById('toast'),
+    statRuns:     document.getElementById('stat-runs'),
+    statPages:    document.getElementById('stat-pages'),
+    statDays:     document.getElementById('stat-days'),
+    activityLog:  document.getElementById('activity-log'),
+  };
+
+  // ── Default settings ──
+  const defaults = {
+    enabled: true,
+    notifications: true,
+    badge: true,
+    theme: 'dark',
+    popupWidth: '380',
+    autorun: false,
+    autorunDelay: '1000',
+    urlPatterns: '',
+    schedule: false,
+    scheduleStart: '09:00',
+    scheduleEnd: '17:00',
+    shortcuts: {
+      run: 'Ctrl+Shift+E',
+      toggle: 'Ctrl+Shift+D',
+      settings: 'Ctrl+Shift+,',
+    }
+  };
+
+  // ── Show/hide schedule times row ──
+  els.schedule.addEventListener('change', () => {
+    els.scheduleRow.style.display = els.schedule.checked ? 'flex' : 'none';
+  });
+
+  // ── Load settings ──
+  chrome.storage.local.get(['settings', 'stats', 'activityLog'], (result) => {
+    const s = { ...defaults, ...(result.settings || {}) };
+    els.enabled.checked      = s.enabled;
+    els.notifications.checked = s.notifications;
+    els.badge.checked        = s.badge;
+    els.theme.value          = s.theme;
+    els.popupWidth.value     = s.popupWidth;
+    els.autorun.checked      = s.autorun;
+    els.autorunDelay.value   = s.autorunDelay;
+    els.urlPatterns.value    = s.urlPatterns;
+    els.schedule.checked     = s.schedule;
+    els.schedStart.value     = s.scheduleStart;
+    els.schedEnd.value       = s.scheduleEnd;
+    els.scheduleRow.style.display = s.schedule ? 'flex' : 'none';
+
+    // Render shortcuts
+    if (s.shortcuts) {
+      Object.entries(s.shortcuts).forEach(([key, combo]) => {
+        renderShortcut(key, combo);
+      });
+    }
+
+    // Stats
+    const stats = result.stats || { runs: 0, pages: 0, firstUse: Date.now() };
+    els.statRuns.textContent  = stats.runs || 0;
+    els.statPages.textContent = stats.pages || 0;
+    const days = Math.max(1, Math.floor((Date.now() - (stats.firstUse || Date.now())) / 86400000));
+    els.statDays.textContent  = days;
+
+    // Activity log
+    const log = result.activityLog || [];
+    if (log.length > 0) {
+      els.activityLog.innerHTML = log.slice(-10).reverse().map(entry =>
+        '<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+        (entry.url || '—') + '</td><td>' + (entry.action || 'run') +
+        '</td><td>' + new Date(entry.time).toLocaleString() + '</td></tr>'
+      ).join('');
+    }
+  });
+
+  // ── Keyboard shortcut recording ──
+  let recordingTarget = null;
+  document.querySelectorAll('.shortcut-record-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (recordingTarget) {
+        document.querySelector('.shortcut-record-btn.recording')?.classList.remove('recording');
       }
-    }, () => {
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
+      recordingTarget = btn.dataset.shortcut;
+      btn.classList.add('recording');
+      btn.textContent = '…';
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!recordingTarget) return;
+    e.preventDefault();
+    if (e.key === 'Escape') {
+      const btn = document.querySelector('.shortcut-record-btn.recording');
+      btn?.classList.remove('recording');
+      btn.textContent = '⌨';
+      recordingTarget = null;
+      return;
+    }
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+    const parts = [];
+    if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.altKey) parts.push('Alt');
+    parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+
+    const combo = parts.join('+');
+    renderShortcut(recordingTarget, combo);
+
+    const btn = document.querySelector('.shortcut-record-btn.recording');
+    btn?.classList.remove('recording');
+    btn.textContent = '⌨';
+    recordingTarget = null;
+  });
+
+  function renderShortcut(name, combo) {
+    const display = document.getElementById('shortcut-' + name);
+    if (display) {
+      display.innerHTML = combo.split('+').map(k =>
+        '<span class="kbd">' + k + '</span>'
+      ).join(' ');
+    }
+  }
+
+  // ── Get current settings from UI ──
+  function gatherSettings() {
+    const shortcuts = {};
+    ['run', 'toggle', 'settings'].forEach(name => {
+      const el = document.getElementById('shortcut-' + name);
+      if (el) {
+        shortcuts[name] = Array.from(el.querySelectorAll('.kbd')).map(k => k.textContent).join('+');
+      }
+    });
+    return {
+      enabled: els.enabled.checked,
+      notifications: els.notifications.checked,
+      badge: els.badge.checked,
+      theme: els.theme.value,
+      popupWidth: els.popupWidth.value,
+      autorun: els.autorun.checked,
+      autorunDelay: els.autorunDelay.value,
+      urlPatterns: els.urlPatterns.value,
+      schedule: els.schedule.checked,
+      scheduleStart: els.schedStart.value,
+      scheduleEnd: els.schedEnd.value,
+      shortcuts,
+    };
+  }
+
+  // ── Toast helper ──
+  function showToast(msg, type = 'success') {
+    els.toast.textContent = msg;
+    els.toast.className = 'toast toast-' + type + ' show';
+    setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  // ── Save ──
+  els.saveBtn.addEventListener('click', () => {
+    chrome.storage.local.set({ settings: gatherSettings() }, () => {
+      showToast('Settings saved ✓');
+    });
+  });
+
+  // ── Export ──
+  els.exportBtn.addEventListener('click', () => {
+    chrome.storage.local.get(null, (allData) => {
+      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '${spec.name.toLowerCase().replace(/\\s+/g, '-')}-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Data exported ✓');
+    });
+  });
+
+  // ── Import ──
+  els.importInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        chrome.storage.local.set(data, () => {
+          showToast('Data imported ✓');
+          setTimeout(() => location.reload(), 800);
+        });
+      } catch {
+        showToast('Invalid JSON file', 'error');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ── Clear Data ──
+  els.clearBtn.addEventListener('click', () => {
+    els.clearModal.classList.add('open');
+  });
+  els.clearCancel.addEventListener('click', () => {
+    els.clearModal.classList.remove('open');
+  });
+  els.clearConfirm.addEventListener('click', () => {
+    chrome.storage.local.clear(() => {
+      els.clearModal.classList.remove('open');
+      showToast('All data cleared');
+      setTimeout(() => location.reload(), 800);
     });
   });
 });`;
