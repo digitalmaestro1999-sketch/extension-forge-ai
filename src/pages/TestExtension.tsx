@@ -293,7 +293,7 @@ export default function TestExtension() {
                   AI Security Audit
                 </h3>
                 {securityAudit.grade && (
-                  <Badge className={`font-mono ${securityAudit.grade === "A" ? "bg-primary/20 text-primary" : "bg-amber-500/20 text-amber-400"}`}>
+                  <Badge className={`font-mono ${securityAudit.grade === "A" ? "bg-primary/20 text-primary" : "bg-warning/20 text-warning"}`}>
                     Grade: {securityAudit.grade}
                   </Badge>
                 )}
