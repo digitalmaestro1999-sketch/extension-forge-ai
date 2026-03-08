@@ -39,7 +39,12 @@ const initialStages: AgentStage[] = [
 
 export default function CreateExtension() {
   const navigate = useNavigate();
-  const [idea, setIdea] = useState("");
+  const { user } = useAuth();
+  const [idea, setIdea] = useState(() => {
+    const pending = sessionStorage.getItem("pending-idea");
+    if (pending) { sessionStorage.removeItem("pending-idea"); return pending; }
+    return "";
+  });
   const [stages, setStages] = useState<AgentStage[]>(initialStages);
   const [isRunning, setIsRunning] = useState(false);
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
