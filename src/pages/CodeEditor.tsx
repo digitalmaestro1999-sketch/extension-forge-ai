@@ -92,7 +92,11 @@ export default function CodeEditorPage() {
         zip.file(name, content);
       }
     });
-    zip.folder("icons");
+    const icons = generateExtensionIcons();
+    const iconsFolder = zip.folder("icons")!;
+    iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
+    iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
+    iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
     const blob = await zip.generateAsync({ type: "blob" });
     saveAs(blob, `${specName}.zip`);
     toast.success("Extension package downloaded!");
