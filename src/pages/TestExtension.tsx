@@ -205,7 +205,7 @@ export default function TestExtension() {
     switch (status) {
       case "pass": return <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />;
       case "fail": return <XCircle className="h-4 w-4 text-destructive shrink-0" />;
-      case "warn": return <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />;
+      case "warn": return <AlertTriangle className="h-4 w-4 text-warning shrink-0" />;
       default: return null;
     }
   };
