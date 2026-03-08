@@ -174,6 +174,20 @@ export default function CreateExtension() {
       // Store everything for the editor
       sessionStorage.setItem("extension-spec", JSON.stringify(extSpec));
       sessionStorage.setItem("extension-files", JSON.stringify(files));
+
+      // Save to DB if logged in
+      if (user) {
+        await supabase.from("extension_projects").insert({
+          user_id: user.id,
+          name: extSpec.name,
+          description: extSpec.description,
+          spec: extSpec as any,
+          files: files as any,
+          security_audit: secData?.result || null,
+          compliance_report: compData?.result || null,
+          status: "generated",
+        });
+      }
       if (secData?.result) sessionStorage.setItem("security-audit", JSON.stringify(secData.result));
       if (compData?.result) sessionStorage.setItem("compliance-report", JSON.stringify(compData.result));
 
