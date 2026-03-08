@@ -9,7 +9,11 @@ import CreateExtension from "./pages/CreateExtension";
 import AIBuilder from "./pages/AIBuilder";
 import CodeEditorPage from "./pages/CodeEditor";
 import Templates from "./pages/Templates";
-import ComingSoon from "./pages/ComingSoon";
+import TestExtension from "./pages/TestExtension";
+import PackageExtension from "./pages/PackageExtension";
+import PublishAssistant from "./pages/PublishAssistant";
+import ApiManager from "./pages/ApiManager";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,11 +31,11 @@ const App = () => (
             <Route path="/ai-builder" element={<AIBuilder />} />
             <Route path="/editor" element={<CodeEditorPage />} />
             <Route path="/templates" element={<Templates />} />
-            <Route path="/api-manager" element={<ComingSoon />} />
-            <Route path="/test" element={<ComingSoon />} />
-            <Route path="/package" element={<ComingSoon />} />
-            <Route path="/publish" element={<ComingSoon />} />
-            <Route path="/settings" element={<ComingSoon />} />
+            <Route path="/api-manager" element={<ApiManager />} />
+            <Route path="/test" element={<TestExtension />} />
+            <Route path="/package" element={<PackageExtension />} />
+            <Route path="/publish" element={<PublishAssistant />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </DashboardLayout>

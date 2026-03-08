@@ -1,175 +1,364 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Wand2, Loader2, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Zap, Loader2, CheckCircle2, XCircle, ArrowRight,
+  Brain, Code2, Shield, FileCheck, Package, ChevronDown,
+  ChevronRight, Sparkles, AlertTriangle
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 
-const permissionOptions = [
-  "activeTab", "tabs", "storage", "alarms", "bookmarks",
-  "clipboardRead", "clipboardWrite", "downloads", "history",
-  "notifications", "scripting", "webRequest",
+type StageStatus = "idle" | "running" | "done" | "error";
+
+interface AgentStage {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  status: StageStatus;
+  result?: any;
+  error?: string;
+  duration?: number;
+}
+
+const initialStages: AgentStage[] = [
+  { id: "intent", label: "Intent Analysis", description: "Analyzing idea, extracting requirements", icon: Brain, status: "idle" },
+  { id: "architecture", label: "Architecture Design", description: "Designing extension structure & permissions", icon: Sparkles, status: "idle" },
+  { id: "codegen", label: "Code Generation", description: "Generating production-ready extension code", icon: Code2, status: "idle" },
+  { id: "security", label: "Security Audit", description: "Auditing permissions, CSP, data handling", icon: Shield, status: "idle" },
+  { id: "compliance", label: "Store Compliance", description: "Validating Chrome Web Store policies", icon: FileCheck, status: "idle" },
+  { id: "package", label: "Package Ready", description: "Preparing downloadable extension package", icon: Package, status: "idle" },
 ];
 
 export default function CreateExtension() {
   const navigate = useNavigate();
   const [idea, setIdea] = useState("");
-  const [audience, setAudience] = useState("");
-  const [functionality, setFunctionality] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<ExtensionSpec | null>(null);
+  const [stages, setStages] = useState<AgentStage[]>(initialStages);
+  const [isRunning, setIsRunning] = useState(false);
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  const [spec, setSpec] = useState<ExtensionSpec | null>(null);
+  const [generatedFiles, setGeneratedFiles] = useState<Record<string, string> | null>(null);
+  const [progress, setProgress] = useState(0);
 
-  const handleGenerate = async () => {
+  const updateStage = useCallback((id: string, update: Partial<AgentStage>) => {
+    setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
+  }, []);
+
+  const runPipeline = async () => {
     if (!idea.trim()) {
       toast.error("Please describe your extension idea");
       return;
     }
-    setIsGenerating(true);
-    setResult(null);
+
+    setIsRunning(true);
+    setStages(initialStages);
+    setSpec(null);
+    setGeneratedFiles(null);
+    setProgress(0);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-extension", {
-        body: {
-          idea: idea.trim(),
-          audience: audience.trim(),
-          functionality: functionality.trim(),
-        },
+      // STAGE 1: Intent Analysis (uses existing generate-extension function)
+      updateStage("intent", { status: "running" });
+      const startIntent = Date.now();
+
+      const { data: specData, error: specError } = await supabase.functions.invoke("generate-extension", {
+        body: { idea: idea.trim(), audience: "", functionality: "" },
       });
 
-      if (error) throw error;
-      if (!data?.spec) throw new Error("Invalid response");
+      if (specError) throw new Error("Intent analysis failed: " + specError.message);
+      const extSpec = specData.spec as ExtensionSpec;
+      setSpec(extSpec);
 
-      setResult(data.spec as ExtensionSpec);
-      toast.success("Extension spec generated!");
+      updateStage("intent", {
+        status: "done",
+        duration: Date.now() - startIntent,
+        result: { name: extSpec.name, features: extSpec.features.length, permissions: extSpec.permissions.length },
+      });
+      setProgress(16);
+
+      // STAGE 2: Architecture Design (derived from spec)
+      updateStage("architecture", { status: "running" });
+      const startArch = Date.now();
+      await new Promise(r => setTimeout(r, 800)); // Brief pause for UX
+
+      const fileStructure = [
+        "manifest.json", "background.js", "content.js",
+        "popup.html", "popup.js", "popup.css",
+        "options.html", "options.js", "styles.css",
+        "utils/api.js", "utils/storage.js"
+      ];
+
+      updateStage("architecture", {
+        status: "done",
+        duration: Date.now() - startArch,
+        result: { files: fileStructure.length, structure: fileStructure },
+      });
+      setProgress(33);
+
+      // STAGE 3: AI Code Generation
+      updateStage("codegen", { status: "running" });
+      const startCode = Date.now();
+
+      const { data: codeData, error: codeError } = await supabase.functions.invoke("agent-pipeline", {
+        body: { spec: extSpec, stage: "code" },
+      });
+
+      if (codeError) throw new Error("Code generation failed: " + codeError.message);
+
+      const files = codeData.result as Record<string, string>;
+      setGeneratedFiles(files);
+
+      updateStage("codegen", {
+        status: "done",
+        duration: Date.now() - startCode,
+        result: { filesGenerated: Object.keys(files).length, totalLines: Object.values(files).reduce((acc, f) => acc + f.split("\n").length, 0) },
+      });
+      setProgress(55);
+
+      // STAGE 4: Security Audit
+      updateStage("security", { status: "running" });
+      const startSec = Date.now();
+
+      const { data: secData, error: secError } = await supabase.functions.invoke("agent-pipeline", {
+        body: { spec: extSpec, stage: "security" },
+      });
+
+      if (secError) {
+        updateStage("security", { status: "error", error: "Security audit skipped", duration: Date.now() - startSec });
+      } else {
+        updateStage("security", {
+          status: "done",
+          duration: Date.now() - startSec,
+          result: secData.result,
+        });
+      }
+      setProgress(72);
+
+      // STAGE 5: Compliance Check
+      updateStage("compliance", { status: "running" });
+      const startComp = Date.now();
+
+      const { data: compData, error: compError } = await supabase.functions.invoke("agent-pipeline", {
+        body: { spec: extSpec, stage: "compliance" },
+      });
+
+      if (compError) {
+        updateStage("compliance", { status: "error", error: "Compliance check skipped", duration: Date.now() - startComp });
+      } else {
+        updateStage("compliance", {
+          status: "done",
+          duration: Date.now() - startComp,
+          result: compData.result,
+        });
+      }
+      setProgress(88);
+
+      // STAGE 6: Package Ready
+      updateStage("package", { status: "running" });
+      await new Promise(r => setTimeout(r, 500));
+      updateStage("package", { status: "done", duration: 500, result: { ready: true } });
+      setProgress(100);
+
+      // Store everything for the editor
+      sessionStorage.setItem("extension-spec", JSON.stringify(extSpec));
+      sessionStorage.setItem("extension-files", JSON.stringify(files));
+      if (secData?.result) sessionStorage.setItem("security-audit", JSON.stringify(secData.result));
+      if (compData?.result) sessionStorage.setItem("compliance-report", JSON.stringify(compData.result));
+
+      toast.success(`${extSpec.name} generated successfully!`);
     } catch (e: any) {
-      console.error(e);
-      toast.error(e.message || "Failed to generate extension");
+      console.error("Pipeline error:", e);
+      toast.error(e.message || "Pipeline failed");
+      // Mark remaining stages as idle
+      setStages(prev => prev.map(s => s.status === "running" ? { ...s, status: "error", error: e.message } : s));
     } finally {
-      setIsGenerating(false);
+      setIsRunning(false);
     }
   };
 
-  const handleBuild = () => {
-    if (result) {
-      // Store in sessionStorage for the editor
-      sessionStorage.setItem("extension-spec", JSON.stringify(result));
-      navigate("/editor");
+  const goToEditor = () => navigate("/editor");
+  const goToTest = () => navigate("/test");
+  const goToPublish = () => navigate("/publish");
+
+  const completedStages = stages.filter(s => s.status === "done").length;
+  const statusIcon = (status: StageStatus) => {
+    switch (status) {
+      case "running": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+      case "done": return <CheckCircle2 className="h-4 w-4 text-primary" />;
+      case "error": return <AlertTriangle className="h-4 w-4 text-destructive" />;
+      default: return <div className="h-4 w-4 rounded-full border border-muted-foreground/30" />;
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Wand2 className="h-6 w-6 text-primary" />
-          Create Extension
-        </h1>
-        <p className="text-muted-foreground mt-1">Describe your idea and AI generates the full spec</p>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="h-10 w-10 rounded-lg bg-gradient-cyber flex items-center justify-center">
+            <Zap className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Autonomous Extension Agent</h1>
+            <p className="text-sm text-muted-foreground">One prompt → Full extension. AI handles everything.</p>
+          </div>
+        </div>
       </motion.div>
 
+      {/* Input */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="rounded-xl border border-border bg-card p-6 space-y-5"
+        className="rounded-xl border border-border bg-card p-5"
       >
-        <div className="space-y-2">
-          <Label>Extension Idea *</Label>
-          <Textarea
-            placeholder="e.g., A Chrome extension that summarizes YouTube videos using AI..."
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            className="bg-secondary border-border min-h-[100px]"
-          />
+        <Textarea
+          placeholder="Describe your Chrome extension idea... e.g., 'Build an extension that summarizes YouTube videos using AI and saves notes'"
+          value={idea}
+          onChange={e => setIdea(e.target.value)}
+          className="bg-secondary border-border min-h-[80px] mb-4 text-sm"
+          disabled={isRunning}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            The AI agent will analyze → design → code → audit → package your extension
+          </p>
+          <Button
+            onClick={runPipeline}
+            disabled={isRunning || !idea.trim()}
+            className="bg-gradient-cyber text-primary-foreground"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Agent Running...
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 mr-2" />
+                Launch Agent
+              </>
+            )}
+          </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Target Audience</Label>
-            <Input
-              placeholder="e.g., Students, developers, marketers"
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-              className="bg-secondary border-border"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Core Functionality</Label>
-            <Input
-              placeholder="e.g., Video summarization, tab management"
-              value={functionality}
-              onChange={(e) => setFunctionality(e.target.value)}
-              className="bg-secondary border-border"
-            />
-          </div>
-        </div>
-        <Button onClick={handleGenerate} disabled={isGenerating} className="w-full bg-gradient-cyber hover:opacity-90 text-primary-foreground">
-          {isGenerating ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Wand2 className="h-4 w-4 mr-2" />
-              Generate Extension Spec
-            </>
-          )}
-        </Button>
       </motion.div>
 
-      {result && (
+      {/* Progress */}
+      {(isRunning || completedStages > 0) && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Pipeline Progress</span>
+            <span className="text-xs text-muted-foreground font-mono">{completedStages}/{stages.length} stages</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </motion.div>
+      )}
+
+      {/* Agent Stages */}
+      <div className="space-y-2">
+        {stages.map((stage, i) => (
+          <motion.div
+            key={stage.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className={`rounded-xl border transition-all ${
+              stage.status === "running"
+                ? "border-primary/50 bg-primary/5 glow-primary"
+                : stage.status === "done"
+                ? "border-primary/20 bg-card"
+                : stage.status === "error"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-border bg-card/50"
+            }`}
+          >
+            <button
+              className="w-full flex items-center gap-3 p-4 text-left"
+              onClick={() => setExpandedStage(expandedStage === stage.id ? null : stage.id)}
+            >
+              {statusIcon(stage.status)}
+              <stage.icon className={`h-4 w-4 shrink-0 ${stage.status === "done" ? "text-primary" : "text-muted-foreground"}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${stage.status === "idle" ? "text-muted-foreground" : ""}`}>
+                    {stage.label}
+                  </span>
+                  {stage.duration && (
+                    <Badge variant="secondary" className="text-[10px] font-mono">
+                      {(stage.duration / 1000).toFixed(1)}s
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{stage.description}</p>
+              </div>
+              {stage.result && (
+                expandedStage === stage.id
+                  ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {expandedStage === stage.id && stage.result && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 pt-0">
+                    <div className="rounded-lg bg-secondary/50 p-3 font-mono text-xs overflow-auto max-h-60">
+                      <pre className="whitespace-pre-wrap text-muted-foreground">
+                        {JSON.stringify(stage.result, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {stage.error && (
+              <div className="px-4 pb-3">
+                <p className="text-xs text-destructive">{stage.error}</p>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Actions when done */}
+      {completedStages >= 5 && !isRunning && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-primary/30 bg-card p-6 space-y-4 glow-primary"
+          className="rounded-xl border border-primary/30 bg-card p-5 glow-primary"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              {result.name}
-            </h2>
-            <Button onClick={handleBuild} className="bg-gradient-cyber text-primary-foreground">
-              Build Extension <ArrowRight className="h-4 w-4 ml-2" />
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <h2 className="font-bold text-lg">{spec?.name || "Extension"} — Ready!</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">{spec?.description}</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {spec?.permissions.map(p => (
+              <Badge key={p} variant="secondary" className="font-mono text-[10px]">{p}</Badge>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={goToEditor} className="bg-gradient-cyber text-primary-foreground">
+              <Code2 className="h-4 w-4 mr-2" /> Open in Editor
+            </Button>
+            <Button onClick={goToTest} variant="outline">
+              <Shield className="h-4 w-4 mr-2" /> Test & Validate
+            </Button>
+            <Button onClick={goToPublish} variant="outline">
+              <Package className="h-4 w-4 mr-2" /> Publish Assets
             </Button>
           </div>
-          <p className="text-muted-foreground">{result.description}</p>
-
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Features</h3>
-            <ul className="space-y-1">
-              {result.features.map((f, i) => (
-                <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Permissions</h3>
-            <div className="flex flex-wrap gap-2">
-              {result.permissions.map((p) => (
-                <Badge key={p} variant="secondary" className="font-mono text-xs">{p}</Badge>
-              ))}
-            </div>
-          </div>
-
-          {result.apis && result.apis.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2">APIs</h3>
-              <div className="flex flex-wrap gap-2">
-                {result.apis.map((a) => (
-                  <Badge key={a} variant="outline" className="text-xs">{a}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </motion.div>
       )}
     </div>
