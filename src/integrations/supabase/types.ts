@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      batch_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          idea: string
+          project_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idea: string
+          project_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idea?: string
+          project_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_queue_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "extension_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extension_projects: {
+        Row: {
+          compliance_report: Json | null
+          created_at: string
+          description: string | null
+          files: Json
+          id: string
+          name: string
+          security_audit: Json | null
+          spec: Json
+          status: string
+          store_assets: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          compliance_report?: Json | null
+          created_at?: string
+          description?: string | null
+          files?: Json
+          id?: string
+          name: string
+          security_audit?: Json | null
+          spec?: Json
+          status?: string
+          store_assets?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          compliance_report?: Json | null
+          created_at?: string
+          description?: string | null
+          files?: Json
+          id?: string
+          name?: string
+          security_audit?: Json | null
+          spec?: Json
+          status?: string
+          store_assets?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trend_discoveries: {
+        Row: {
+          category: string | null
+          competition_score: number
+          created_at: string
+          demand_score: number
+          description: string | null
+          id: string
+          opportunity: string
+          revenue_potential: string
+          sources: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          competition_score?: number
+          created_at?: string
+          demand_score?: number
+          description?: string | null
+          id?: string
+          opportunity: string
+          revenue_potential?: string
+          sources?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          competition_score?: number
+          created_at?: string
+          demand_score?: number
+          description?: string | null
+          id?: string
+          opportunity?: string
+          revenue_potential?: string
+          sources?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
