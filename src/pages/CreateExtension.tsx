@@ -15,6 +15,34 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 
+async function invokeWithRetry(
+  fnName: string,
+  body: any,
+  maxRetries = 3,
+  baseDelay = 5000
+): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { data, error } = await supabase.functions.invoke(fnName, { body });
+
+    const isRateLimit =
+      error?.message?.includes("429") ||
+      error?.message?.toLowerCase?.().includes("rate limit") ||
+      data?.error?.toLowerCase?.().includes("rate limit");
+
+    if (isRateLimit && attempt < maxRetries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      toast.info(`Rate limited — retrying in ${Math.round(delay / 1000)}s...`, { duration: delay });
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  throw new Error("Rate limit exceeded after retries. Please wait a moment and try again.");
+}
+
 type StageStatus = "idle" | "running" | "done" | "error";
 
 interface AgentStage {
@@ -73,11 +101,7 @@ export default function CreateExtension() {
       updateStage("intent", { status: "running" });
       const startIntent = Date.now();
 
-      const { data: specData, error: specError } = await supabase.functions.invoke("generate-extension", {
-        body: { idea: idea.trim(), audience: "", functionality: "" },
-      });
-
-      if (specError) throw new Error("Intent analysis failed: " + specError.message);
+      const specData = await invokeWithRetry("generate-extension", { idea: idea.trim(), audience: "", functionality: "" });
       const extSpec = specData.spec as ExtensionSpec;
       setSpec(extSpec);
 
@@ -111,11 +135,7 @@ export default function CreateExtension() {
       updateStage("codegen", { status: "running" });
       const startCode = Date.now();
 
-      const { data: codeData, error: codeError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "code" },
-      });
-
-      if (codeError) throw new Error("Code generation failed: " + codeError.message);
+      const codeData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "code" });
 
       const aiFiles = codeData.result as Record<string, string>;
       
@@ -157,9 +177,13 @@ export default function CreateExtension() {
       updateStage("security", { status: "running" });
       const startSec = Date.now();
 
-      const { data: secData, error: secError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "security" },
-      });
+      let secData: any = null;
+      let secError: any = null;
+      try {
+        secData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "security" });
+      } catch (e: any) {
+        secError = e;
+      }
 
       if (secError) {
         updateStage("security", { status: "error", error: "Security audit skipped", duration: Date.now() - startSec });
@@ -176,9 +200,13 @@ export default function CreateExtension() {
       updateStage("compliance", { status: "running" });
       const startComp = Date.now();
 
-      const { data: compData, error: compError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "compliance" },
-      });
+      let compData: any = null;
+      let compError: any = null;
+      try {
+        compData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "compliance" });
+      } catch (e: any) {
+        compError = e;
+      }
 
       if (compError) {
         updateStage("compliance", { status: "error", error: "Compliance check skipped", duration: Date.now() - startComp });
