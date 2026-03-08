@@ -136,9 +136,10 @@ Return JSON:
 }`;
     }
 
-    // Retry up to 2 times on empty/unparseable responses
+    // Retry on rate limits + empty/unparseable responses
     let result;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const maxAttempts = 4;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -157,15 +158,26 @@ Return JSON:
 
       if (!response.ok) {
         if (response.status === 429) {
+          const isLastAttempt = attempt === maxAttempts - 1;
+          if (!isLastAttempt) {
+            const retryDelayMs = 1500 * Math.pow(2, attempt);
+            console.warn(`AI rate limited (attempt ${attempt + 1}/${maxAttempts}), retrying in ${retryDelayMs}ms`);
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+            continue;
+          }
+
           return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
         if (response.status === 402) {
           return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
             status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
         const t = await response.text();
         console.error("AI error:", response.status, t);
         throw new Error("AI gateway error");
