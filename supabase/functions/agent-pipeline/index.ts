@@ -171,7 +171,18 @@ Return JSON:
         throw new Error("AI gateway error");
       }
 
-      const data = await response.json();
+      const rawText = await response.text();
+      if (!rawText || rawText.trim().length === 0) {
+        console.warn("Empty response body from AI gateway, retrying...");
+        continue;
+      }
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (bodyParseErr) {
+        console.warn("Failed to parse AI gateway response body, retrying...", bodyParseErr);
+        continue;
+      }
       const content = data.choices?.[0]?.message?.content || "";
       console.log("AI response length:", content.length, "attempt:", attempt);
 
