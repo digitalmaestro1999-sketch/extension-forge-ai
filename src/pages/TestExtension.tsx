@@ -239,7 +239,7 @@ export default function TestExtension() {
             {total > 0 && (
               <div className="flex gap-2 ml-auto">
                 <Badge className="bg-primary/20 text-primary">{passes} passed</Badge>
-                {warns > 0 && <Badge className="bg-amber-500/20 text-amber-400">{warns} warnings</Badge>}
+                {warns > 0 && <Badge className="bg-warning/20 text-warning">{warns} warnings</Badge>}
                 {fails > 0 && <Badge className="bg-destructive/20 text-destructive">{fails} failed</Badge>}
               </div>
             )}
