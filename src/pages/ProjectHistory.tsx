@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { generateExtensionIcons } from "@/lib/generate-icons";
 
 interface Project {
   id: string;
