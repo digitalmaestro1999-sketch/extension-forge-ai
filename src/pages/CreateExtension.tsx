@@ -135,11 +135,7 @@ export default function CreateExtension() {
       updateStage("codegen", { status: "running" });
       const startCode = Date.now();
 
-      const { data: codeData, error: codeError } = await supabase.functions.invoke("agent-pipeline", {
-        body: { spec: extSpec, stage: "code" },
-      });
-
-      if (codeError) throw new Error("Code generation failed: " + codeError.message);
+      const codeData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "code" });
 
       const aiFiles = codeData.result as Record<string, string>;
       
