@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import { generateAllFiles, type GeneratedFiles } from "@/lib/generate-extension";
+import { generateExtensionIcons } from "@/lib/generate-icons";
 
 const fileIcons: Record<string, string> = {
   "manifest.json": "📋",
