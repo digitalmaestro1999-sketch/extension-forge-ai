@@ -19,6 +19,10 @@ import PackageExtension from "./pages/PackageExtension";
 import PublishAssistant from "./pages/PublishAssistant";
 import ApiManager from "./pages/ApiManager";
 import SettingsPage from "./pages/SettingsPage";
+import Portfolio from "./pages/Portfolio";
+import MonetizationTemplates from "./pages/MonetizationTemplates";
+import StoreSEO from "./pages/StoreSEO";
+import RevenueTracker from "./pages/RevenueTracker";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
