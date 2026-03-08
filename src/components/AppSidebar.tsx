@@ -1,39 +1,28 @@
 import {
-  LayoutDashboard,
-  Wand2,
-  Code2,
-  FileCode,
-  Plug,
-  TestTube2,
-  Package,
-  Upload,
-  Settings,
-  Blocks,
-  Zap,
+  LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
+  Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Trend Discovery", url: "/trends", icon: TrendingUp },
   { title: "Create Extension", url: "/create", icon: Wand2 },
   { title: "AI Builder", url: "/ai-builder", icon: Zap },
-  { title: "Code Editor", url: "/editor", icon: Code2 },
+  { title: "Batch Queue", url: "/batch", icon: Layers },
 ];
 
 const toolItems = [
+  { title: "Projects", url: "/projects", icon: FolderOpen },
+  { title: "Code Editor", url: "/editor", icon: Code2 },
   { title: "Templates", url: "/templates", icon: Blocks },
   { title: "API Manager", url: "/api-manager", icon: Plug },
   { title: "Test Extension", url: "/test", icon: TestTube2 },
@@ -48,7 +37,8 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const renderItems = (items: typeof mainItems) =>
     items.map((item) => (
@@ -77,7 +67,7 @@ export function AppSidebar() {
             </div>
             <div>
               <h2 className="text-sm font-bold text-gradient-cyber">Extension Forge</h2>
-              <p className="text-[10px] text-muted-foreground">AI-Powered Builder</p>
+              <p className="text-[10px] text-muted-foreground">AI Extension Factory</p>
             </div>
           </div>
         ) : (
@@ -88,7 +78,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>Factory</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>{renderItems(mainItems)}</SidebarMenu>
           </SidebarGroupContent>
@@ -106,6 +96,30 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-3">
+        {user ? (
+          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2"}`}>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{user.email}</p>
+              </div>
+            )}
+            <Button size="sm" variant="ghost" onClick={signOut} className="shrink-0 h-7 w-7 p-0">
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate("/auth")}
+            className={collapsed ? "w-7 h-7 p-0" : "w-full"}
+          >
+            <User className="h-3.5 w-3.5" />
+            {!collapsed && <span className="ml-1.5">Sign In</span>}
+          </Button>
+        )}
+      </SidebarFooter>
     </Sidebar>
   );
 }
