@@ -136,51 +136,72 @@ Return JSON:
 }`;
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
+    // Retry up to 2 times on empty/unparseable responses
+    let result;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+        }),
+      });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const t = await response.text();
+        console.error("AI error:", response.status, t);
+        throw new Error("AI gateway error");
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      console.log("AI response length:", content.length, "attempt:", attempt);
+
+      if (!content || content.trim().length === 0) {
+        console.warn("Empty AI response, retrying...");
+        continue;
       }
-      const t = await response.text();
-      console.error("AI error:", response.status, t);
-      throw new Error("AI gateway error");
+
+      try {
+        // Try to extract JSON - handle markdown code fences
+        let cleaned = content;
+        const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenceMatch) {
+          cleaned = fenceMatch[1];
+        }
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+          break;
+        } else {
+          console.warn("No JSON object found in response, retrying...");
+        }
+      } catch (parseError) {
+        console.error("Parse error attempt", attempt, ":", parseError);
+        if (attempt === 1) throw new Error("Failed to parse AI response after retries");
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    let result;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
-    } catch (parseError) {
-      console.error("Parse error:", parseError, "Content:", content.slice(0, 500));
-      throw new Error("Failed to parse AI response");
+    if (!result) {
+      throw new Error("Failed to get valid AI response after retries");
     }
 
     return new Response(JSON.stringify({ result }), {
