@@ -1,0 +1,7 @@
+project_id = "nufksbhydjhqaqqfxkdp"
+
+[functions.generate-extension]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
