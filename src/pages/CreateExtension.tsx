@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 
 type StageStatus = "idle" | "running" | "done" | "error";
