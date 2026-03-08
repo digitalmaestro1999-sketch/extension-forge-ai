@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.agent-pipeline]
 verify_jwt = false
+
+[functions.discover-trends]
+verify_jwt = false
