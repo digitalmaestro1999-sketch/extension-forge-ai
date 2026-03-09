@@ -86,6 +86,29 @@ export default function Dashboard() {
         </div>
       )}
 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        onClick={() => navigate("/manual")}
+        className="group cursor-pointer rounded-xl border border-primary/30 bg-card p-6 hover:border-primary/60 hover:glow-primary transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-lg bg-gradient-cyber flex items-center justify-center shrink-0">
+            <BookOpen className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              Getting Started
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              New here? Read the User Manual to learn how to discover trends, generate extensions, and publish to the Chrome Web Store — all powered by AI.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
       <div>
         <h2 className="text-lg font-semibold mb-4">Agent Modules</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
