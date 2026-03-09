@@ -94,8 +94,12 @@ Focus on:
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({
+          warning: "AI credits are currently unavailable. Showing fallback opportunities.",
+          results: buildFallbackResults(niche),
+          fallback: true,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       throw new Error("AI gateway error");

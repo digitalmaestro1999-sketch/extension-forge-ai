@@ -48,6 +48,10 @@ export default function TrendDiscovery() {
 
       setResults(data.results);
 
+      if (data?.warning) {
+        toast.warning(data.warning);
+      }
+
       // Save to DB if logged in
       if (user) {
         for (const r of data.results) {
@@ -65,7 +69,8 @@ export default function TrendDiscovery() {
 
       toast.success(`Found ${data.results.length} opportunities!`);
     } catch (e: any) {
-      toast.error(e.message || "Discovery failed");
+      const message = e?.message || "Discovery failed";
+      toast.error(message.includes("Payment required") ? "AI credits are currently unavailable for trend discovery" : message);
     } finally {
       setIsDiscovering(false);
     }
