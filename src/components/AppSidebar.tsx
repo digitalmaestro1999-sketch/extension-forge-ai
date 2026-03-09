@@ -40,6 +40,7 @@ const toolItems = [
 
 const settingsItems = [
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "User Manual", url: "/manual", icon: BookOpen },
 ];
 
 export function AppSidebar() {

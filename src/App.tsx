@@ -59,6 +59,7 @@ const App = () => (
                     <Route path="/store-seo" element={<StoreSEO />} />
                     <Route path="/revenue" element={<RevenueTracker />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/manual" element={<UserManual />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </DashboardLayout>
