@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, Loader2, Search, Sparkles, ArrowRight,
-  BarChart3, Target, DollarSign, RefreshCw
+  BarChart3, Target, DollarSign, RefreshCw, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
