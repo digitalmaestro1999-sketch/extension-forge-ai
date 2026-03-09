@@ -23,6 +23,7 @@ import Portfolio from "./pages/Portfolio";
 import MonetizationTemplates from "./pages/MonetizationTemplates";
 import StoreSEO from "./pages/StoreSEO";
 import RevenueTracker from "./pages/RevenueTracker";
+import UserManual from "./pages/UserManual";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
                     <Route path="/store-seo" element={<StoreSEO />} />
                     <Route path="/revenue" element={<RevenueTracker />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/manual" element={<UserManual />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </DashboardLayout>

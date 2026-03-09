@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
-  Briefcase, DollarSign, Search, BarChart3
+  Briefcase, DollarSign, Search, BarChart3, BookOpen
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -40,6 +40,7 @@ const toolItems = [
 
 const settingsItems = [
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "User Manual", url: "/manual", icon: BookOpen },
 ];
 
 export function AppSidebar() {
