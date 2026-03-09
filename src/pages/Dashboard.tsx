@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Zap, Package, Code2, TestTube2, ArrowRight, TrendingUp, Layers, FolderOpen } from "lucide-react";
+import { Zap, Package, Code2, TestTube2, ArrowRight, TrendingUp, Layers, FolderOpen, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
