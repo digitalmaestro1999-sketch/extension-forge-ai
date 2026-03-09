@@ -116,6 +116,13 @@ export default function TrendDiscovery() {
         </p>
       </motion.div>
 
+      {creditsUnavailable && (
+        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>AI credits are currently unavailable — results will use fallback data.</span>
+        </div>
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
