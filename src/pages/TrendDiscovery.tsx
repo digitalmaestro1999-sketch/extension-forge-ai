@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, Loader2, Search, Sparkles, ArrowRight,
-  BarChart3, Target, DollarSign, RefreshCw
+  BarChart3, Target, DollarSign, RefreshCw, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,20 @@ export default function TrendDiscovery() {
   const [niche, setNiche] = useState("");
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [results, setResults] = useState<TrendResult[]>([]);
+  const [creditsUnavailable, setCreditsUnavailable] = useState(false);
+
+  const checkCredits = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("discover-trends", {
+        body: { niche: "__ping__" },
+      });
+      setCreditsUnavailable(!!data?.fallback);
+    } catch {
+      // ignore
+    }
+  };
+
+  useState(() => { checkCredits(); });
 
   const discover = async () => {
     if (!niche.trim()) {
@@ -47,6 +61,7 @@ export default function TrendDiscovery() {
       if (!data?.results) throw new Error("No results");
 
       setResults(data.results);
+      setCreditsUnavailable(!!data?.fallback);
 
       if (data?.warning) {
         toast.warning(data.warning);
@@ -101,6 +116,13 @@ export default function TrendDiscovery() {
           AI analyzes markets to find profitable Chrome extension opportunities
         </p>
       </motion.div>
+
+      {creditsUnavailable && (
+        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>AI credits are currently unavailable — results will use fallback data.</span>
+        </div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
