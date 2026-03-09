@@ -5,6 +5,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const buildFallbackResults = (niche: string) => {
+  const normalized = niche.trim() || "productivity";
+  const titleBase = normalized
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return [
+    {
+      opportunity: `${titleBase} Workflow Copilot`,
+      description: `Guided daily workflows and automation suggestions for ${normalized} users.`,
+      demand_score: 72,
+      competition_score: 46,
+      revenue_potential: "medium",
+      category: normalized,
+      features: ["Workflow templates", "Usage analytics", "One-click automations"],
+    },
+    {
+      opportunity: `${titleBase} Insight Tracker`,
+      description: `Tracks key signals, trends, and performance benchmarks in the ${normalized} space.`,
+      demand_score: 78,
+      competition_score: 41,
+      revenue_potential: "high",
+      category: normalized,
+      features: ["Trend alerts", "Competitor snapshots", "Weekly digest"],
+    },
+  ];
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
