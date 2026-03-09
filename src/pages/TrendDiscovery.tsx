@@ -29,6 +29,20 @@ export default function TrendDiscovery() {
   const [niche, setNiche] = useState("");
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [results, setResults] = useState<TrendResult[]>([]);
+  const [creditsUnavailable, setCreditsUnavailable] = useState(false);
+
+  const checkCredits = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("discover-trends", {
+        body: { niche: "__ping__" },
+      });
+      setCreditsUnavailable(!!data?.fallback);
+    } catch {
+      // ignore
+    }
+  };
+
+  useState(() => { checkCredits(); });
 
   const discover = async () => {
     if (!niche.trim()) {
