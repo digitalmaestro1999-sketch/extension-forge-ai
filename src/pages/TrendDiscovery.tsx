@@ -61,6 +61,7 @@ export default function TrendDiscovery() {
       if (!data?.results) throw new Error("No results");
 
       setResults(data.results);
+      setCreditsUnavailable(!!data?.fallback);
 
       if (data?.warning) {
         toast.warning(data.warning);
