@@ -444,6 +444,39 @@ export default function ManageExtension() {
           <AICopilot />
         </aside>
       </div>
+      <Dialog open={!!showSecret} onOpenChange={(o) => !o && setShowSecret(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary" /> One-time install secret</DialogTitle>
+            <DialogDescription>
+              Copy this now — it is hashed server-side and cannot be retrieved again. The embedded shim already contains it; this copy is only for your records.
+            </DialogDescription>
+          </DialogHeader>
+          {showSecret && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <Label className="text-xs">Install ID</Label>
+                <Input readOnly value={showSecret.id} className="font-mono text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">HMAC secret (256-bit)</Label>
+                <Input readOnly value={showSecret.secret} className="font-mono text-xs mt-1" />
+              </div>
+              <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground space-y-1">
+                <p className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Server stores only SHA-256 of the secret.</p>
+                <p>• Kill-switch, license expiry, daily/weekly quotas & schedule windows are enforced server-side on every heartbeat.</p>
+                <p>• Manage this install from <Link to="/control" className="text-primary underline">Live Control</Link>.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { if (showSecret) { navigator.clipboard.writeText(showSecret.secret); toast.success("Secret copied"); } }}>
+              <Copy className="h-4 w-4 mr-2" /> Copy secret
+            </Button>
+            <Button onClick={() => setShowSecret(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ExtCtx.Provider>
   );
 }
