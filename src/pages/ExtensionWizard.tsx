@@ -95,6 +95,8 @@ export default function ExtensionWizard() {
 
   const manifest = useMemo(() => buildManifest(spec), [spec]);
   const manifestJson = useMemo(() => JSON.stringify(manifest, null, 2), [manifest]);
+  const health = useMemo<HealthReport>(() => runHealthScan(spec), [spec]);
+  const [healthOpen, setHealthOpen] = useState(false);
 
   const handleIconUpload = (file: File) => {
     if (!file.type.startsWith("image/")) {
