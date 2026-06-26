@@ -5,6 +5,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Escape raw control chars (\n, \r, \t, etc.) that appear *inside* JSON string
+// literals. Required because LLMs frequently return file contents with literal
+// newlines instead of \n, which breaks strict JSON.parse.
+function sanitizeJsonControlChars(input: string): string {
+  let out = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (escape) {
+      out += ch;
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      out += ch;
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      out += ch;
+      continue;
+    }
+    if (inString) {
+      const code = ch.charCodeAt(0);
+      if (code < 0x20) {
+        if (ch === "\n") out += "\\n";
+        else if (ch === "\r") out += "\\r";
+        else if (ch === "\t") out += "\\t";
+        else if (ch === "\b") out += "\\b";
+        else if (ch === "\f") out += "\\f";
+        else out += "\\u" + code.toString(16).padStart(4, "0");
+        continue;
+      }
+    }
+    out += ch;
+  }
+  return out;
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -212,14 +254,23 @@ Return JSON:
         }
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
+          const raw = jsonMatch[0];
+          try {
+            result = JSON.parse(raw);
+          } catch {
+            // AI often emits raw control chars (newlines/tabs) inside string
+            // literals (file contents). Escape control chars only when we're
+            // inside a JSON string, respecting backslash escapes.
+            result = JSON.parse(sanitizeJsonControlChars(raw));
+          }
           break;
         } else {
           console.warn("No JSON object found in response, retrying...");
         }
       } catch (parseError) {
         console.error("Parse error attempt", attempt, ":", parseError);
-        if (attempt === 1) throw new Error("Failed to parse AI response after retries");
+        // Don't burn the full 150s timeout looping on unparseable mega-responses
+        if (attempt >= 1) throw new Error("Failed to parse AI response after retries");
       }
     }
 
