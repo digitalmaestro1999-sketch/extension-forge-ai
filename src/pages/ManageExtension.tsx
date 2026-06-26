@@ -710,7 +710,10 @@ function CloneView() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={clone} className="bg-gradient-cyber">Clone Now</Button>
+            <Button onClick={clone} disabled={cloning} className="bg-gradient-cyber">
+              {cloning ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Cloning…</> : isImported ? "Clone & Download ZIP" : "Clone Now"}
+            </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
