@@ -396,10 +396,19 @@ export default function ManageExtension() {
                 {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
                 {imported ? "Replace" : "Upload .zip / .crx"}
               </Button>
+              <div className="flex items-center gap-2 px-2 py-1 rounded-md border border-border/60 bg-background/40">
+                <ShieldHalf className="h-3.5 w-3.5 text-primary" />
+                <Label htmlFor="auto-inject" className="text-xs cursor-pointer whitespace-nowrap">Auto-secure on upload</Label>
+                <Switch id="auto-inject" checked={autoInject} onCheckedChange={setAutoInject} />
+              </div>
               {imported && (
                 <>
-                  <Button size="sm" className="bg-gradient-cyber" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" /> Export Modified ZIP
+                  <Button size="sm" className="bg-gradient-cyber" onClick={handleSecureAndDeploy} disabled={securing}>
+                    {securing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
+                    Secure & Deploy
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-2" /> Export ZIP
                   </Button>
                   <Button variant="ghost" size="sm" onClick={clearImport}>
                     <X className="h-4 w-4 mr-1" /> Unload
@@ -408,6 +417,21 @@ export default function ManageExtension() {
               )}
             </CardContent>
           </Card>
+
+          {lastInstall && (
+            <Card className="bg-primary/5 border-primary/30">
+              <CardContent className="p-3 flex flex-wrap items-center gap-3 text-xs">
+                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-mono truncate">
+                  Install <span className="text-primary">{lastInstall.id.slice(0, 8)}…</span> registered ·
+                  HMAC key minted · telemetry shim embedded
+                </span>
+                <Link to="/control" className="ml-auto">
+                  <Button size="sm" variant="outline">Open Live Control →</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {section === "analytics" && <AnalyticsView />}
           {section === "security" && <SecurityView />}
