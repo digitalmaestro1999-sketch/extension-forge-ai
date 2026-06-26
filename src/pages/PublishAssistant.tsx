@@ -22,7 +22,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { runPackageQA, type QAReport } from "@/lib/package-qa";
 import { autoFixAndValidate } from "@/lib/package-autofix";
-import { runPolicyCheck, type PolicyReport } from "@/lib/cws-policy-check";
+import { runPolicyCheck, type PolicyReport, type PolicyCheck } from "@/lib/cws-policy-check";
+import { applyDeterministicPolicyFix } from "@/lib/cws-policy-autofix";
 
 const STORAGE_KEY = "cws-credentials";
 const REQUIRED_SCOPE = "https://www.googleapis.com/auth/chromewebstore";
