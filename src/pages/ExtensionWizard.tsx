@@ -226,6 +226,18 @@ export default function ExtensionWizard() {
             <Button size="sm" variant="outline" onClick={downloadManifest}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> manifest.json
             </Button>
+            <Button
+              size="sm"
+              onClick={compileAndDownload}
+              disabled={compiling}
+              className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            >
+              {compiling ? (
+                <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Compiling…</>
+              ) : (
+                <><Package className="h-3.5 w-3.5 mr-1.5" /> Compile & Download (.zip)</>
+              )}
+            </Button>
           </div>
         </div>
       </div>
