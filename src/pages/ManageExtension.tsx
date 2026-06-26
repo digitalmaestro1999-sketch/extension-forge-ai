@@ -129,7 +129,13 @@ header { display: flex; justify-content: space-between; align-items: center; }
 };
 
 type Section = "analytics" | "security" | "editor" | "clone" | "settings";
-type ChatMsg = { role: "user" | "ai"; text: string; code?: { file: string; content: string } };
+type Patch = { file: string; action: "update" | "create" | "delete"; content?: string; reason?: string };
+type ChatMsg = {
+  role: "user" | "ai";
+  text: string;
+  patches?: Patch[];
+  appliedAt?: number;
+};
 
 // ---------------- Active Extension Context ----------------
 type ActiveExt = {
