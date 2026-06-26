@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info } from "lucide-react";
+import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info, Wand2, Store, Upload } from "lucide-react";
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
+import { autoFixAndValidate } from "@/lib/package-autofix";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -16,6 +20,16 @@ export default function PackageExtension() {
   const [spec, setSpec] = useState<ExtensionSpec | null>(null);
   const [aiIconBase64, setAiIconBase64] = useState<string | null>(null);
   const [generatingIcons, setGeneratingIcons] = useState(false);
+  const [autoFixing, setAutoFixing] = useState(false);
+
+  // Chrome Web Store upload state
+  const [cwsOpen, setCwsOpen] = useState(false);
+  const [cwsUploading, setCwsUploading] = useState(false);
+  const [cwsClientId, setCwsClientId] = useState("");
+  const [cwsClientSecret, setCwsClientSecret] = useState("");
+  const [cwsRefreshToken, setCwsRefreshToken] = useState("");
+  const [cwsExtensionId, setCwsExtensionId] = useState("");
+  const [cwsPublish, setCwsPublish] = useState(false);
 
   useEffect(() => {
     const storedFiles = sessionStorage.getItem("extension-files");
