@@ -161,6 +161,11 @@ export default function ExtensionWizard() {
 
   const compileAndDownload = async () => {
     if (compiling) return;
+    if (health.status === "blocked") {
+      toast.error(`Fix ${health.counts.errors} blocking error${health.counts.errors === 1 ? "" : "s"} before downloading.`);
+      setHealthOpen(true);
+      return;
+    }
     setCompiling(true);
     const toastId = toast.loading("Compiling Manifest...");
     try {
