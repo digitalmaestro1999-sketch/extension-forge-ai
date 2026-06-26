@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   Upload, ShieldCheck, KeyRound, ExternalLink, Loader2, CheckCircle2,
   AlertTriangle, RefreshCw, Rocket, FileArchive, Eye, EyeOff,
-  Trash2, ClipboardCopy, Wand2, FileSearch,
+  Trash2, ClipboardCopy, Wand2, FileSearch, Sparkles, ScrollText,
 } from "lucide-react";
 import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { runPackageQA, type QAReport } from "@/lib/package-qa";
 import { autoFixAndValidate } from "@/lib/package-autofix";
+import { runPolicyCheck, type PolicyReport } from "@/lib/cws-policy-check";
 
 const STORAGE_KEY = "cws-credentials";
 const REQUIRED_SCOPE = "https://www.googleapis.com/auth/chromewebstore";
@@ -95,6 +97,23 @@ export default function PublishAssistant() {
   const [qa, setQA] = useState<QAReport | null>(null);
   const [autoFixApplied, setAutoFixApplied] = useState<string[]>([]);
 
+  // Store listing (auto-generated, user editable)
+  const [listing, setListing] = useState({
+    title: "",
+    summary: "",
+    description: "",
+    category: "",
+    keywords: [] as string[],
+    singlePurpose: "",
+    privacyPolicyUrl: "",
+    homepageUrl: "",
+    privacyPolicyText: "",
+    termsOfUse: "",
+    permissionJustifications: {} as Record<string, string>,
+  });
+  const [generatingListing, setGeneratingListing] = useState(false);
+  const [policy, setPolicy] = useState<PolicyReport | null>(null);
+
   const [publishTarget, setPublishTarget] =
     useState<"default" | "trustedTesters">("trustedTesters");
   const [autoPublish, setAutoPublish] = useState(false);
@@ -120,10 +139,11 @@ export default function PublishAssistant() {
   const log = (level: LogEntry["level"], msg: string) =>
     setLogs((l) => [...l, { ts: Date.now(), level, msg }]);
 
-  // Run QA whenever files change
+  // Run QA + policy check whenever files or listing change
   useEffect(() => {
     if (!files) {
       setQA(null);
+      setPolicy(null);
       return;
     }
     try {
@@ -131,7 +151,73 @@ export default function PublishAssistant() {
     } catch {
       setQA(null);
     }
+    try {
+      setPolicy(runPolicyCheck({ files, listing }));
+    } catch {
+      setPolicy(null);
+    }
+  }, [files, listing]);
+
+  // Detect sensitive permissions from manifest so the UI can collect justifications.
+  const sensitivePerms = useMemo<string[]>(() => {
+    if (!files?.["manifest.json"]) return [];
+    try {
+      const m = JSON.parse(files["manifest.json"]);
+      const all: string[] = [...(m.permissions ?? []), ...(m.host_permissions ?? [])];
+      const sensitive = new Set([
+        "tabs", "history", "bookmarks", "cookies", "downloads", "geolocation",
+        "management", "nativeMessaging", "pageCapture", "privacy", "proxy",
+        "tabCapture", "topSites", "webNavigation", "webRequest",
+        "<all_urls>", "*://*/*", "http://*/*", "https://*/*",
+      ]);
+      return all.filter((p) => sensitive.has(p));
+    } catch { return []; }
   }, [files]);
+
+  const generateListing = async () => {
+    if (!files?.["manifest.json"]) {
+      toast.error("Load an extension first");
+      return;
+    }
+    setGeneratingListing(true);
+    log("info", "Generating Chrome Web Store listing with AI…");
+    try {
+      const manifest = JSON.parse(files["manifest.json"]);
+      const spec = {
+        name: manifest.name,
+        description: manifest.description,
+        features: manifest.permissions ?? [],
+      };
+      const { data, error } = await supabase.functions.invoke("agent-pipeline", {
+        body: { spec, stage: "store-assets" },
+      });
+      if (error) throw error;
+      const r = data?.result ?? {};
+      setListing((l) => ({
+        ...l,
+        title: r.title ?? l.title ?? manifest.name,
+        summary: r.summary ?? l.summary,
+        description: r.description ?? l.description,
+        category: r.category ?? l.category,
+        keywords: r.keywords ?? l.keywords,
+        singlePurpose: r.singlePurpose ?? l.singlePurpose ?? manifest.description,
+        privacyPolicyText: r.privacyPolicy ?? l.privacyPolicyText,
+        termsOfUse: r.termsOfUse ?? l.termsOfUse,
+      }));
+      toast.success("Listing generated");
+      log("ok", "Listing assets ready — review & edit before publishing.");
+    } catch (e: any) {
+      log("err", `Listing generation failed: ${e.message}`);
+      toast.error(e.message || "Failed to generate listing");
+    } finally {
+      setGeneratingListing(false);
+    }
+  };
+
+  const copy = (txt: string, label: string) => {
+    navigator.clipboard.writeText(txt);
+    toast.success(`${label} copied`);
+  };
 
   const credsComplete = useMemo(
     () => !!(creds.clientId && creds.clientSecret && creds.refreshToken),
@@ -202,6 +288,7 @@ export default function PublishAssistant() {
   const canPublish =
     credsComplete &&
     (zipBase64Override || (files && (!qa || qa.errors === 0))) &&
+    (zipBase64Override || !policy || policy.errors === 0) &&
     stage !== "uploading" &&
     stage !== "publishing";
 
@@ -320,7 +407,7 @@ export default function PublishAssistant() {
       </motion.div>
 
       <Tabs defaultValue="connect" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="connect">
             <KeyRound className="h-3.5 w-3.5 mr-1.5" />
             1. Connect
@@ -329,9 +416,13 @@ export default function PublishAssistant() {
             <FileArchive className="h-3.5 w-3.5 mr-1.5" />
             2. Package
           </TabsTrigger>
+          <TabsTrigger value="listing">
+            <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+            3. Listing
+          </TabsTrigger>
           <TabsTrigger value="publish">
             <Upload className="h-3.5 w-3.5 mr-1.5" />
-            3. Publish
+            4. Publish
           </TabsTrigger>
         </TabsList>
 
@@ -581,6 +672,234 @@ export default function PublishAssistant() {
           )}
         </TabsContent>
 
+        {/* LISTING ------------------------------------------------------- */}
+        <TabsContent value="listing" className="space-y-4 mt-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <ScrollText className="h-4 w-4 text-primary" />
+                  Auto-Generated Store Listing
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Title, summary, description, category, keywords, privacy policy
+                  and terms — drafted from your manifest, then editable.
+                </p>
+              </div>
+              <Button size="sm" onClick={generateListing} disabled={generatingListing || !files}>
+                {generatingListing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Generating…</>
+                  : <><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Auto-Generate Listing</>}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs flex justify-between">
+                  Title <span className="text-muted-foreground">{listing.title.length}/45</span>
+                </Label>
+                <Input
+                  value={listing.title}
+                  onChange={(e) => setListing({ ...listing, title: e.target.value })}
+                  maxLength={45}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Category</Label>
+                <Select
+                  value={listing.category}
+                  onValueChange={(v) => setListing({ ...listing, category: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Accessibility", "Communication", "Developer Tools", "Education",
+                      "Entertainment", "Games", "Household", "News & Weather",
+                      "Productivity", "Search Tools", "Shopping", "Social",
+                      "Sports", "Travel", "Well-being",
+                    ].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs flex justify-between">
+                Summary <span className="text-muted-foreground">{listing.summary.length}/132</span>
+              </Label>
+              <Input
+                value={listing.summary}
+                onChange={(e) => setListing({ ...listing, summary: e.target.value })}
+                maxLength={132}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs flex justify-between">
+                Detailed description
+                <span className="text-muted-foreground">{listing.description.length}/16000</span>
+              </Label>
+              <Textarea
+                value={listing.description}
+                onChange={(e) => setListing({ ...listing, description: e.target.value })}
+                className="min-h-[140px] text-xs"
+                maxLength={16000}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">
+                Single-purpose statement <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                value={listing.singlePurpose}
+                onChange={(e) => setListing({ ...listing, singlePurpose: e.target.value })}
+                placeholder="One sentence: what does this extension do?"
+                className="min-h-[60px] text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Privacy policy URL (HTTPS)</Label>
+                <Input
+                  value={listing.privacyPolicyUrl}
+                  onChange={(e) => setListing({ ...listing, privacyPolicyUrl: e.target.value })}
+                  placeholder="https://yoursite.com/privacy"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Homepage URL (optional)</Label>
+                <Input
+                  value={listing.homepageUrl}
+                  onChange={(e) => setListing({ ...listing, homepageUrl: e.target.value })}
+                  placeholder="https://yoursite.com"
+                />
+              </div>
+            </div>
+
+            {listing.keywords.length > 0 && (
+              <div>
+                <Label className="text-xs mb-1 block">SEO Keywords</Label>
+                <div className="flex flex-wrap gap-1">
+                  {listing.keywords.map((k) => (
+                    <Badge key={k} variant="outline" className="text-xs">{k}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Permission justifications */}
+            {sensitivePerms.length > 0 && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                  Sensitive permissions — justifications required by CWS review
+                </p>
+                {sensitivePerms.map((p) => (
+                  <div key={p}>
+                    <Label className="text-[10px] font-mono">{p}</Label>
+                    <Textarea
+                      value={listing.permissionJustifications[p] ?? ""}
+                      onChange={(e) => setListing({
+                        ...listing,
+                        permissionJustifications: {
+                          ...listing.permissionJustifications,
+                          [p]: e.target.value,
+                        },
+                      })}
+                      placeholder={`Why does this extension need "${p}"? (min 15 chars)`}
+                      className="min-h-[50px] text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Generated docs */}
+            {listing.privacyPolicyText && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">Generated Privacy Policy text</Label>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => copy(listing.privacyPolicyText, "Privacy policy")}>
+                    <ClipboardCopy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <Textarea
+                  value={listing.privacyPolicyText}
+                  onChange={(e) => setListing({ ...listing, privacyPolicyText: e.target.value })}
+                  className="min-h-[100px] text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Host this text on an HTTPS page, then paste the URL above.
+                </p>
+              </div>
+            )}
+            {listing.termsOfUse && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">Generated Terms of Use</Label>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => copy(listing.termsOfUse, "Terms")}>
+                    <ClipboardCopy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <Textarea
+                  value={listing.termsOfUse}
+                  onChange={(e) => setListing({ ...listing, termsOfUse: e.target.value })}
+                  className="min-h-[80px] text-xs"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Policy compliance scorecard */}
+          {policy && (
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  CWS Program Policy Compliance
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant={policy.storeReady ? "default" : "destructive"}>
+                    Score {policy.score}/100
+                  </Badge>
+                  <Badge variant="outline">{policy.errors} errors</Badge>
+                  <Badge variant="outline">{policy.warnings} warnings</Badge>
+                </div>
+              </div>
+              <div className="max-h-80 overflow-auto space-y-1">
+                {policy.checks.map((c) => (
+                  <div key={c.id}
+                    className={`flex items-start gap-2 text-xs rounded-md p-2 ${
+                      c.passed ? "bg-secondary/30" : "bg-secondary/60"
+                    }`}>
+                    {c.passed ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                    ) : c.severity === "error" ? (
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    ) : (
+                      <FileSearch className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{c.label}</p>
+                      <p className="text-muted-foreground text-[11px]">{c.policy}</p>
+                      {c.detail && (
+                        <p className="text-[11px] mt-0.5">{c.detail}</p>
+                      )}
+                      {!c.passed && c.fix && (
+                        <p className="text-[11px] text-primary mt-0.5">→ {c.fix}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
         {/* PUBLISH ------------------------------------------------------- */}
         <TabsContent value="publish" className="space-y-4 mt-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -611,6 +930,20 @@ export default function PublishAssistant() {
                 <Switch checked={autoPublish} onCheckedChange={setAutoPublish} />
               </div>
             </div>
+
+            {policy && policy.errors > 0 && !zipBase64Override && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">
+                    {policy.errors} policy error(s) blocking publish (score {policy.score}/100)
+                  </p>
+                  <p className="text-muted-foreground">
+                    Fix them in the Listing tab — submitting now will be rejected by review.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <Button
               size="lg"
