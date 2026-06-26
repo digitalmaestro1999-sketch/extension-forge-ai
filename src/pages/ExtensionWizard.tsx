@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wand2, Image as ImageIcon, AppWindow, PanelRight, FileCode2, Cog,
-  ShieldCheck, Check, Eye, Code2, Download, Lock, Globe, X, Plus,
+  ShieldCheck, Check, Eye, Code2, Download, Lock, Globe, X, Plus, Package, Loader2,
 } from "lucide-react";
+import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { buildAllFiles, buildManifest, type WizardSpec } from "@/lib/wizard-codegen";
+import { generateExtensionIcons } from "@/lib/generate-icons";
 
 type ExtensionType = "popup" | "sidepanel" | "content" | "background";
 
@@ -68,35 +71,24 @@ export default function ExtensionWizard() {
   });
   const [hostInput, setHostInput] = useState("");
   const [hosts, setHosts] = useState<string[]>(["https://*.example.com/*"]);
+  const [matchInput, setMatchInput] = useState("");
+  const [matches, setMatches] = useState<string[]>(["https://*.example.com/*"]);
+  const [compiling, setCompiling] = useState(false);
 
   // Preview tab
   const [previewTab, setPreviewTab] = useState<"ui" | "manifest">("ui");
 
-  const manifest = useMemo(() => {
-    const selectedPerms = Object.entries(perms).filter(([, v]) => v).map(([k]) => k);
-    const m: Record<string, unknown> = {
-      manifest_version: 3,
-      name: name || "Untitled Extension",
-      version: /^\d+(\.\d+){0,3}$/.test(version) ? version : "1.0.0",
-      description: description || "",
-      icons: { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
-    };
-    if (selectedPerms.length) m.permissions = selectedPerms;
-    if (hosts.length) m.host_permissions = hosts;
+  const spec = useMemo<WizardSpec>(() => ({
+    name,
+    version,
+    description,
+    extType,
+    permissions: Object.entries(perms).filter(([, v]) => v).map(([k]) => k),
+    hosts,
+    matches,
+  }), [name, version, description, extType, perms, hosts, matches]);
 
-    if (extType === "popup") {
-      m.action = { default_popup: "popup.html", default_icon: "icons/icon48.png", default_title: name };
-    } else if (extType === "sidepanel") {
-      m.side_panel = { default_path: "sidepanel.html" };
-      m.permissions = Array.from(new Set([...(selectedPerms), "sidePanel"]));
-    } else if (extType === "content") {
-      m.content_scripts = [{ matches: hosts.length ? hosts : ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
-    } else if (extType === "background") {
-      m.background = { service_worker: "background.js", type: "module" };
-    }
-    return m;
-  }, [name, version, description, perms, hosts, extType]);
-
+  const manifest = useMemo(() => buildManifest(spec), [spec]);
   const manifestJson = useMemo(() => JSON.stringify(manifest, null, 2), [manifest]);
 
   const handleIconUpload = (file: File) => {
@@ -120,6 +112,17 @@ export default function ExtensionWizard() {
     setHostInput("");
   };
 
+  const addMatch = () => {
+    const v = matchInput.trim();
+    if (!v) return;
+    if (matches.includes(v)) {
+      toast.info("That match pattern is already added");
+      return;
+    }
+    setMatches(m => [...m, v]);
+    setMatchInput("");
+  };
+
   const downloadManifest = () => {
     const blob = new Blob([manifestJson], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -128,6 +131,75 @@ export default function ExtensionWizard() {
     a.download = "manifest.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Rasterize the uploaded icon to a given size; falls back to placeholder.
+  const rasterIconFromDataUrl = (dataUrl: string, size: number): Promise<Uint8Array> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas unavailable"));
+        ctx.drawImage(img, 0, 0, size, size);
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject(new Error("Encode failed"));
+          resolve(new Uint8Array(await blob.arrayBuffer()));
+        }, "image/png");
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+      img.src = dataUrl;
+    });
+
+  const compileAndDownload = async () => {
+    if (compiling) return;
+    setCompiling(true);
+    const toastId = toast.loading("Compiling Manifest...");
+    try {
+      const files = buildAllFiles(spec);
+      toast.loading("Structuring Assets...", { id: toastId });
+
+      const zip = new JSZip();
+      for (const [path, content] of Object.entries(files)) {
+        zip.file(path, content);
+      }
+
+      // Icons
+      if (iconDataUrl) {
+        try {
+          const [i16, i48, i128] = await Promise.all([
+            rasterIconFromDataUrl(iconDataUrl, 16),
+            rasterIconFromDataUrl(iconDataUrl, 48),
+            rasterIconFromDataUrl(iconDataUrl, 128),
+          ]);
+          zip.file("icons/icon16.png", i16);
+          zip.file("icons/icon48.png", i48);
+          zip.file("icons/icon128.png", i128);
+        } catch {
+          const icons = generateExtensionIcons();
+          Object.entries(icons).forEach(([p, b]) => zip.file(p, b));
+        }
+      } else {
+        const icons = generateExtensionIcons();
+        Object.entries(icons).forEach(([p, b]) => zip.file(p, b));
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(spec.name || "extension").toLowerCase().replace(/\s+/g, "-")}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("Ready to Download!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Compile failed: " + (err instanceof Error ? err.message : "Unknown error"), { id: toastId });
+    } finally {
+      setCompiling(false);
+    }
   };
 
   const stepValid = step === 1 ? !!name.trim() && /^\d+(\.\d+){0,3}$/.test(version) : true;
@@ -153,6 +225,18 @@ export default function ExtensionWizard() {
             </Badge>
             <Button size="sm" variant="outline" onClick={downloadManifest}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> manifest.json
+            </Button>
+            <Button
+              size="sm"
+              onClick={compileAndDownload}
+              disabled={compiling}
+              className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            >
+              {compiling ? (
+                <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Compiling…</>
+              ) : (
+                <><Package className="h-3.5 w-3.5 mr-1.5" /> Compile & Download (.zip)</>
+              )}
             </Button>
           </div>
         </div>
@@ -301,6 +385,46 @@ export default function ExtensionWizard() {
                       );
                     })}
                   </div>
+
+                  {extType === "content" && (
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <Label className="text-xs flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5" /> Target matches (URLs)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pages where <span className="font-mono">content.js</span> will be injected.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={matchInput}
+                          onChange={e => setMatchInput(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addMatch())}
+                          placeholder="https://*.example.com/*"
+                          className="font-mono text-xs"
+                        />
+                        <Button size="sm" variant="outline" onClick={addMatch}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matches.length === 0 && (
+                          <p className="text-[11px] text-muted-foreground italic">Defaults to &lt;all_urls&gt;.</p>
+                        )}
+                        {matches.map(h => (
+                          <Badge key={h} variant="secondary" className="font-mono text-[10px] gap-1 pl-2 pr-1 py-0.5">
+                            {h}
+                            <button
+                              onClick={() => setMatches(list => list.filter(x => x !== h))}
+                              className="ml-0.5 hover:text-destructive"
+                              aria-label={`Remove ${h}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
