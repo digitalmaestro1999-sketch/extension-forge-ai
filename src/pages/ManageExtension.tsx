@@ -3,8 +3,12 @@ import {
   BarChart3, ShieldCheck, Code2, Copy, Settings as SettingsIcon,
   Send, Sparkles, AlertTriangle, CheckCircle2, Loader2, FileCode2,
   Users, Star, TrendingUp, Activity, Bot, User as UserIcon, Play,
-  Upload, Download, X,
+  Upload, Download, X, ShieldHalf, KeyRound,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { injectShimIntoFiles, newInstallSecret, sha256Hex, buildTelemetryShim } from "@/lib/telemetry-shim";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -171,18 +175,98 @@ export default function ManageExtension() {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuth();
+  const [autoInject, setAutoInject] = useState<boolean>(() => {
+    try { return localStorage.getItem("lv_auto_inject") === "1"; } catch { return false; }
+  });
+  const [securing, setSecuring] = useState(false);
+  const [lastInstall, setLastInstall] = useState<{ id: string; secret: string } | null>(null);
+  const [showSecret, setShowSecret] = useState<{ id: string; secret: string; shim: string } | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem("lv_auto_inject", autoInject ? "1" : "0"); } catch { /* noop */ }
+  }, [autoInject]);
+
+  // Core: register a fresh install + inject the shim into the current file map.
+  // Returns the patched file contents and the new install id/secret.
+  const secureExtension = async (
+    ext: ImportedExtension,
+    files: Record<string, string>,
+  ): Promise<{ files: Record<string, string>; installId: string; secret: string } | null> => {
+    if (!user) {
+      toast.error("Sign in required", { description: "Live-control deployment needs an account." });
+      return null;
+    }
+    const secret = newInstallSecret();
+    const hash = await sha256Hex(secret);
+    const { data, error } = await supabase
+      .from("extension_installs")
+      .insert({
+        owner_id: user.id,
+        extension_name: ext.name,
+        extension_version: ext.version,
+        source: "imported",
+        status: "active",
+        token_hash: hash,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      toast.error("Could not register install", { description: error?.message ?? "unknown" });
+      return null;
+    }
+    const installId = data.id as string;
+    const { files: patched, manifest } = injectShimIntoFiles(files, ext.manifest, installId, secret);
+    // Reflect the manifest update inside the imported extension's parsed copy too
+    ext.manifest = manifest as ImportedExtension["manifest"];
+    return { files: patched, installId, secret };
+  };
+
   const handleImport = async (file: File) => {
     setImporting(true);
     try {
       const ext = await importExtensionFile(file);
+      let nextFiles: Record<string, string> = { ...ext.files };
+      if (autoInject) {
+        const res = await secureExtension(ext, nextFiles);
+        if (res) {
+          nextFiles = res.files;
+          setLastInstall({ id: res.installId, secret: res.secret });
+          toast.success("Auto-secured", { description: `Install ${res.installId.slice(0, 8)}… registered with fresh HMAC key.` });
+        }
+      }
       setImported(ext);
-      setFileContents({ ...ext.files });
-      toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(ext.files).length} editable files` });
+      setFileContents(nextFiles);
+      toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(nextFiles).length} editable files` });
     } catch (e) {
       toast.error("Import failed", { description: (e as Error).message });
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSecureAndDeploy = async () => {
+    if (!imported) return;
+    setSecuring(true);
+    try {
+      const res = await secureExtension(imported, fileContents);
+      if (!res) return;
+      setFileContents(res.files);
+      setLastInstall({ id: res.installId, secret: res.secret });
+      const blob = await exportImportedExtension(imported, res.files);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${imported.name.replace(/[^a-z0-9-_]+/gi, "_")}-secured.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowSecret({ id: res.installId, secret: res.secret, shim: buildTelemetryShim(res.installId, res.secret) });
+      toast.success("Secured ZIP exported", { description: "Fresh HMAC key minted. Manage it under Live Control." });
+    } catch (e) {
+      toast.error("Secure & deploy failed", { description: (e as Error).message });
+    } finally {
+      setSecuring(false);
     }
   };
 
@@ -205,6 +289,7 @@ export default function ManageExtension() {
   const clearImport = () => {
     setImported(null);
     setFileContents(DEFAULT_FILE_CONTENTS);
+    setLastInstall(null);
     toast.info("Reverted to demo extension");
   };
 
@@ -311,10 +396,19 @@ export default function ManageExtension() {
                 {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
                 {imported ? "Replace" : "Upload .zip / .crx"}
               </Button>
+              <div className="flex items-center gap-2 px-2 py-1 rounded-md border border-border/60 bg-background/40">
+                <ShieldHalf className="h-3.5 w-3.5 text-primary" />
+                <Label htmlFor="auto-inject" className="text-xs cursor-pointer whitespace-nowrap">Auto-secure on upload</Label>
+                <Switch id="auto-inject" checked={autoInject} onCheckedChange={setAutoInject} />
+              </div>
               {imported && (
                 <>
-                  <Button size="sm" className="bg-gradient-cyber" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" /> Export Modified ZIP
+                  <Button size="sm" className="bg-gradient-cyber" onClick={handleSecureAndDeploy} disabled={securing}>
+                    {securing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
+                    Secure & Deploy
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-2" /> Export ZIP
                   </Button>
                   <Button variant="ghost" size="sm" onClick={clearImport}>
                     <X className="h-4 w-4 mr-1" /> Unload
@@ -323,6 +417,21 @@ export default function ManageExtension() {
               )}
             </CardContent>
           </Card>
+
+          {lastInstall && (
+            <Card className="bg-primary/5 border-primary/30">
+              <CardContent className="p-3 flex flex-wrap items-center gap-3 text-xs">
+                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-mono truncate">
+                  Install <span className="text-primary">{lastInstall.id.slice(0, 8)}…</span> registered ·
+                  HMAC key minted · telemetry shim embedded
+                </span>
+                <Link to="/control" className="ml-auto">
+                  <Button size="sm" variant="outline">Open Live Control →</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {section === "analytics" && <AnalyticsView />}
           {section === "security" && <SecurityView />}
@@ -335,6 +444,39 @@ export default function ManageExtension() {
           <AICopilot />
         </aside>
       </div>
+      <Dialog open={!!showSecret} onOpenChange={(o) => !o && setShowSecret(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary" /> One-time install secret</DialogTitle>
+            <DialogDescription>
+              Copy this now — it is hashed server-side and cannot be retrieved again. The embedded shim already contains it; this copy is only for your records.
+            </DialogDescription>
+          </DialogHeader>
+          {showSecret && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <Label className="text-xs">Install ID</Label>
+                <Input readOnly value={showSecret.id} className="font-mono text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">HMAC secret (256-bit)</Label>
+                <Input readOnly value={showSecret.secret} className="font-mono text-xs mt-1" />
+              </div>
+              <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground space-y-1">
+                <p className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Server stores only SHA-256 of the secret.</p>
+                <p>• Kill-switch, license expiry, daily/weekly quotas & schedule windows are enforced server-side on every heartbeat.</p>
+                <p>• Manage this install from <Link to="/control" className="text-primary underline">Live Control</Link>.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { if (showSecret) { navigator.clipboard.writeText(showSecret.secret); toast.success("Secret copied"); } }}>
+              <Copy className="h-4 w-4 mr-2" /> Copy secret
+            </Button>
+            <Button onClick={() => setShowSecret(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ExtCtx.Provider>
   );
 }
