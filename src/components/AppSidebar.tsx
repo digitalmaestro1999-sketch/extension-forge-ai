@@ -14,23 +14,25 @@ import {
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 
-const mainItems = [
+type NavItem = { title: string; url: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
+
+const mainItems: NavItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Trend Discovery", url: "/trends", icon: TrendingUp },
+  { title: "Trend Discovery", url: "/trends", icon: TrendingUp, adminOnly: true },
   { title: "Create Extension", url: "/create", icon: Wand2 },
   { title: "Wizard Workspace", url: "/wizard", icon: Blocks },
   { title: "AI Builder", url: "/ai-builder", icon: Zap },
-  { title: "Batch Queue", url: "/batch", icon: Layers },
+  { title: "Batch Queue", url: "/batch", icon: Layers, adminOnly: true },
 ];
 
-const revenueItems = [
+const revenueItems: NavItem[] = [
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
-  { title: "Revenue Tracker", url: "/revenue", icon: BarChart3 },
+  { title: "Revenue Tracker", url: "/revenue", icon: BarChart3, adminOnly: true },
   { title: "Monetization", url: "/monetization", icon: DollarSign },
   { title: "Store SEO", url: "/store-seo", icon: Search },
 ];
 
-const toolItems = [
+const toolItems: NavItem[] = [
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Code Editor", url: "/editor", icon: Code2 },
   { title: "Templates", url: "/templates", icon: Blocks },
