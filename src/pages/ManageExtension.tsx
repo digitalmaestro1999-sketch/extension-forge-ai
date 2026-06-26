@@ -533,8 +533,17 @@ function SecurityView() {
 
 // ---------------- Editor ----------------
 function EditorView() {
-  const [active, setActive] = useState("manifest.json");
-  const [contents, setContents] = useState<Record<string, string>>(FILE_CONTENTS);
+  const ext = useExt();
+  const firstFile = ext.files[0]?.name ?? "manifest.json";
+  const [active, setActive] = useState(firstFile);
+  // Keep active selection valid when extension changes
+  useEffect(() => {
+    if (!ext.fileContents[active]) setActive(ext.files[0]?.name ?? "manifest.json");
+  }, [ext.files, ext.fileContents, active]);
+
+  const contents = ext.fileContents;
+  const updateFile = (name: string, value: string) =>
+    ext.setFileContents({ ...contents, [name]: value });
 
   return (
     <div className="space-y-4">
@@ -544,19 +553,19 @@ function EditorView() {
       </header>
 
       <div className="grid grid-cols-12 gap-3 h-[calc(100vh-14rem)]">
-        <Card className="col-span-3 bg-card/40 backdrop-blur border-border/60 overflow-hidden">
-          <CardHeader className="py-3"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Explorer</CardTitle></CardHeader>
-          <CardContent className="p-2 space-y-0.5">
-            {FILES.map((f) => (
+        <Card className="col-span-3 bg-card/40 backdrop-blur border-border/60 overflow-hidden flex flex-col">
+          <CardHeader className="py-3"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Explorer ({ext.files.length})</CardTitle></CardHeader>
+          <CardContent className="p-2 space-y-0.5 overflow-auto flex-1">
+            {ext.files.map((f) => (
               <button
                 key={f.name}
                 onClick={() => setActive(f.name)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono transition-colors ${
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono text-left transition-colors ${
                   active === f.name ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/40"
                 }`}
               >
-                <FileCode2 className="h-3.5 w-3.5" />
-                {f.name}
+                <FileCode2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{f.name}</span>
               </button>
             ))}
           </CardContent>
@@ -578,8 +587,8 @@ function EditorView() {
             </Button>
           </div>
           <Textarea
-            value={contents[active]}
-            onChange={(e) => setContents({ ...contents, [active]: e.target.value })}
+            value={contents[active] ?? ""}
+            onChange={(e) => updateFile(active, e.target.value)}
             className="flex-1 rounded-none border-0 font-mono text-xs bg-[#0d1117] text-[#e6edf3] resize-none focus-visible:ring-0"
             spellCheck={false}
           />
@@ -588,6 +597,7 @@ function EditorView() {
     </div>
   );
 }
+
 
 // ---------------- Clone ----------------
 function CloneView() {
