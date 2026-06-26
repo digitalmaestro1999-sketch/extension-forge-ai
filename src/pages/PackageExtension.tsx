@@ -92,7 +92,7 @@ export default function PackageExtension() {
     });
   };
 
-  const handleDownload = async () => {
+  const buildZipBlob = async (): Promise<Blob> => {
     const zip = new JSZip();
     Object.entries(files).forEach(([name, content]) => {
       if (name.includes("/")) {
@@ -105,9 +105,7 @@ export default function PackageExtension() {
     });
 
     const iconsFolder = zip.folder("icons")!;
-
     if (aiIconBase64) {
-      // Use AI-generated icons, resized to each required dimension
       const [icon16, icon48, icon128] = await Promise.all([
         resizeIcon(aiIconBase64, 16),
         resizeIcon(aiIconBase64, 48),
@@ -117,17 +115,87 @@ export default function PackageExtension() {
       iconsFolder.file("icon48.png", icon48);
       iconsFolder.file("icon128.png", icon128);
     } else {
-      // Fallback to solid-color placeholder icons
       const icons = generateExtensionIcons();
       iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
       iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
       iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
+    return zip.generateAsync({ type: "blob" });
+  };
+
+  const handleDownload = async () => {
+    const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
     toast.success("Extension package downloaded!");
+  };
+
+  const handleAutoFix = () => {
+    if (Object.keys(files).length === 0) return;
+    setAutoFixing(true);
+    try {
+      const { files: fixed, fixes, report } = autoFixAndValidate(files);
+      if (fixes.length === 0) {
+        toast.info("Nothing to fix — bundle is already clean.");
+        return;
+      }
+      setFiles(fixed);
+      sessionStorage.setItem("extension-files", JSON.stringify(fixed));
+      toast.success(
+        `Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"} · ${report.errors} errors remaining`,
+      );
+    } finally {
+      setAutoFixing(false);
+    }
+  };
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1] ?? result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+  const handleCwsUpload = async () => {
+    if (!cwsClientId || !cwsClientSecret || !cwsRefreshToken) {
+      toast.error("Client ID, secret and refresh token are required");
+      return;
+    }
+    setCwsUploading(true);
+    try {
+      const blob = await buildZipBlob();
+      const zipBase64 = await blobToBase64(blob);
+      const { data, error } = await supabase.functions.invoke("chrome-store-upload", {
+        body: {
+          zipBase64,
+          clientId: cwsClientId,
+          clientSecret: cwsClientSecret,
+          refreshToken: cwsRefreshToken,
+          extensionId: cwsExtensionId || undefined,
+          publish: cwsPublish,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        cwsPublish
+          ? "Uploaded and submitted to the Chrome Web Store!"
+          : "Uploaded to the Chrome Web Store as a draft.",
+      );
+      if (data?.dashboardUrl) {
+        window.open(data.dashboardUrl, "_blank", "noopener");
+      }
+    } catch (e: any) {
+      console.error("CWS upload error:", e);
+      toast.error(e.message || "Chrome Web Store upload failed");
+    } finally {
+      setCwsUploading(false);
+    }
   };
 
   const fileList = Object.keys(files);
