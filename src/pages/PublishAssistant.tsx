@@ -186,7 +186,7 @@ export default function PublishAssistant() {
     const { files: fixed, fixes } = autoFixAndValidate(files);
     setFiles(fixed);
     sessionStorage.setItem("extension-files", JSON.stringify(fixed));
-    setAutoFixApplied(fixes.map((f) => f.description));
+    setAutoFixApplied(fixes.map((f) => f.label));
     toast.success(`Applied ${fixes.length} auto-fixes`);
     log("ok", `Auto-fixed ${fixes.length} issue(s)`);
   };
@@ -566,7 +566,7 @@ export default function PublishAssistant() {
                         <FileSearch className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       )}
                       <div>
-                        <p className="font-medium">{c.title}</p>
+                        <p className="font-medium">{c.label}</p>
                         <p className="text-muted-foreground">{c.detail}</p>
                       </div>
                     </div>
