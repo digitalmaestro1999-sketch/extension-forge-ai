@@ -112,6 +112,18 @@ export function AppSidebar() {
             <SidebarMenu>{renderItems(settingsItems)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {isSuperadmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-amber-400">Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {renderItems([
+                  { title: "User Management", url: "/admin/users", icon: Crown },
+                ])}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-3">
         {user ? (
