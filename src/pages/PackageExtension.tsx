@@ -1,13 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info, Wand2, Store, Upload } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2,
+  Image, ShieldCheck, AlertTriangle, XCircle, Info, Wand2, Store, Upload,
+  Lock, Trash2, History, ChevronDown,
+} from "lucide-react";
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
-import { autoFixAndValidate } from "@/lib/package-autofix";
+import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -15,12 +20,42 @@ import type { ExtensionSpec } from "@/lib/generate-extension";
 import { generateExtensionIcons } from "@/lib/generate-icons";
 import { supabase } from "@/integrations/supabase/client";
 
+// Session-only storage key for OAuth creds. NEVER use localStorage — credentials
+// would persist after the tab closes and survive across users on shared machines.
+const CWS_SESSION_KEY = "cws-oauth-session-v1";
+
+interface CwsSessionCreds {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  extensionId: string;
+}
+
+type UploadStage =
+  | { step: "idle"; pct: 0 }
+  | { step: "building"; pct: number; label: string }
+  | { step: "encoding"; pct: number; label: string }
+  | { step: "authenticating"; pct: number; label: string }
+  | { step: "uploading"; pct: number; label: string }
+  | { step: "publishing"; pct: number; label: string }
+  | { step: "done"; pct: 100; label: string }
+  | { step: "error"; pct: number; label: string };
+
+interface LastAutoFix {
+  ranAt: number;
+  fixes: AutoFix[];
+  before: { errors: number; warnings: number };
+  after: { errors: number; warnings: number };
+}
+
 export default function PackageExtension() {
   const [files, setFiles] = useState<Record<string, string>>({});
   const [spec, setSpec] = useState<ExtensionSpec | null>(null);
   const [aiIconBase64, setAiIconBase64] = useState<string | null>(null);
   const [generatingIcons, setGeneratingIcons] = useState(false);
   const [autoFixing, setAutoFixing] = useState(false);
+  const [lastFix, setLastFix] = useState<LastAutoFix | null>(null);
+  const [fixReportOpen, setFixReportOpen] = useState(true);
 
   // Chrome Web Store upload state
   const [cwsOpen, setCwsOpen] = useState(false);
@@ -30,12 +65,56 @@ export default function PackageExtension() {
   const [cwsRefreshToken, setCwsRefreshToken] = useState("");
   const [cwsExtensionId, setCwsExtensionId] = useState("");
   const [cwsPublish, setCwsPublish] = useState(false);
+  const [cwsRemember, setCwsRemember] = useState(false);
+  const [cwsLoadedFromSession, setCwsLoadedFromSession] = useState(false);
+  const [uploadStage, setUploadStage] = useState<UploadStage>({ step: "idle", pct: 0 });
 
   useEffect(() => {
     const storedFiles = sessionStorage.getItem("extension-files");
     const storedSpec = sessionStorage.getItem("extension-spec");
-    if (storedFiles) try { setFiles(JSON.parse(storedFiles)); } catch {}
-    if (storedSpec) try { setSpec(JSON.parse(storedSpec)); } catch {}
+    if (storedFiles) try { setFiles(JSON.parse(storedFiles)); } catch { /* ignore */ }
+    if (storedSpec) try { setSpec(JSON.parse(storedSpec)); } catch { /* ignore */ }
+
+    // Restore OAuth creds only from sessionStorage (cleared on tab close).
+    const raw = sessionStorage.getItem(CWS_SESSION_KEY);
+    if (raw) {
+      try {
+        const c = JSON.parse(raw) as CwsSessionCreds;
+        setCwsClientId(c.clientId ?? "");
+        setCwsClientSecret(c.clientSecret ?? "");
+        setCwsRefreshToken(c.refreshToken ?? "");
+        setCwsExtensionId(c.extensionId ?? "");
+        setCwsRemember(true);
+        setCwsLoadedFromSession(true);
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  // Persist OAuth creds to sessionStorage only while the user opts in. Cleared
+  // immediately when the toggle is turned off so creds don't linger in memory storage.
+  useEffect(() => {
+    if (!cwsRemember) {
+      sessionStorage.removeItem(CWS_SESSION_KEY);
+      return;
+    }
+    const payload: CwsSessionCreds = {
+      clientId: cwsClientId,
+      clientSecret: cwsClientSecret,
+      refreshToken: cwsRefreshToken,
+      extensionId: cwsExtensionId,
+    };
+    sessionStorage.setItem(CWS_SESSION_KEY, JSON.stringify(payload));
+  }, [cwsRemember, cwsClientId, cwsClientSecret, cwsRefreshToken, cwsExtensionId]);
+
+  const clearCwsCreds = useCallback(() => {
+    setCwsClientId("");
+    setCwsClientSecret("");
+    setCwsRefreshToken("");
+    setCwsExtensionId("");
+    setCwsRemember(false);
+    setCwsLoadedFromSession(false);
+    sessionStorage.removeItem(CWS_SESSION_KEY);
+    toast.success("Cleared stored OAuth credentials");
   }, []);
 
   const generateAIIcons = async () => {
@@ -53,9 +132,9 @@ export default function PackageExtension() {
       } else {
         throw new Error("No image returned");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Icon generation error:", e);
-      toast.error(e.message || "Failed to generate icons");
+      toast.error(e instanceof Error ? e.message : "Failed to generate icons");
     } finally {
       setGeneratingIcons(false);
     }
@@ -65,9 +144,7 @@ export default function PackageExtension() {
     const base64 = base64DataUrl.split(",")[1] || base64DataUrl;
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
     return bytes;
   };
 
@@ -81,11 +158,8 @@ export default function PackageExtension() {
         const ctx = canvas.getContext("2d")!;
         ctx.drawImage(img, 0, 0, size, size);
         canvas.toBlob((blob) => {
-          if (blob) {
-            blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
-          } else {
-            resolve(base64ToUint8Array(base64DataUrl));
-          }
+          if (blob) blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+          else resolve(base64ToUint8Array(base64DataUrl));
         }, "image/png");
       };
       img.src = base64DataUrl;
@@ -135,6 +209,7 @@ export default function PackageExtension() {
     if (Object.keys(files).length === 0) return;
     setAutoFixing(true);
     try {
+      const before = qaReport ? { errors: qaReport.errors, warnings: qaReport.warnings } : { errors: 0, warnings: 0 };
       const { files: fixed, fixes, report } = autoFixAndValidate(files);
       if (fixes.length === 0) {
         toast.info("Nothing to fix — bundle is already clean.");
@@ -142,6 +217,13 @@ export default function PackageExtension() {
       }
       setFiles(fixed);
       sessionStorage.setItem("extension-files", JSON.stringify(fixed));
+      setLastFix({
+        ranAt: Date.now(),
+        fixes,
+        before,
+        after: { errors: report.errors, warnings: report.warnings },
+      });
+      setFixReportOpen(true);
       toast.success(
         `Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"} · ${report.errors} errors remaining`,
       );
@@ -167,9 +249,17 @@ export default function PackageExtension() {
       return;
     }
     setCwsUploading(true);
+    setUploadStage({ step: "building", pct: 10, label: "Building extension package…" });
     try {
       const blob = await buildZipBlob();
+      setUploadStage({ step: "encoding", pct: 30, label: `Encoding ${(blob.size / 1024).toFixed(1)} KB…` });
       const zipBase64 = await blobToBase64(blob);
+
+      setUploadStage({ step: "authenticating", pct: 50, label: "Exchanging refresh token…" });
+      // Small visual pause so the step is readable even on fast networks
+      await new Promise(r => setTimeout(r, 150));
+
+      setUploadStage({ step: "uploading", pct: 70, label: "Uploading to Chrome Web Store…" });
       const { data, error } = await supabase.functions.invoke("chrome-store-upload", {
         body: {
           zipBase64,
@@ -182,19 +272,28 @@ export default function PackageExtension() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      if (cwsPublish) {
+        setUploadStage({ step: "publishing", pct: 90, label: "Submitting for review…" });
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      setUploadStage({ step: "done", pct: 100, label: cwsPublish ? "Submitted for review" : "Draft uploaded" });
       toast.success(
         cwsPublish
           ? "Uploaded and submitted to the Chrome Web Store!"
           : "Uploaded to the Chrome Web Store as a draft.",
       );
-      if (data?.dashboardUrl) {
-        window.open(data.dashboardUrl, "_blank", "noopener");
-      }
-    } catch (e: any) {
+      if (data?.dashboardUrl) window.open(data.dashboardUrl, "_blank", "noopener");
+    } catch (e: unknown) {
       console.error("CWS upload error:", e);
-      toast.error(e.message || "Chrome Web Store upload failed");
+      const msg = e instanceof Error ? e.message : "Chrome Web Store upload failed";
+      setUploadStage({ step: "error", pct: 0, label: msg });
+      toast.error(msg);
     } finally {
       setCwsUploading(false);
+      // Auto-hide the bar a few seconds after completion
+      setTimeout(() => setUploadStage(s => (s.step === "done" ? { step: "idle", pct: 0 } : s)), 4000);
     }
   };
 
@@ -202,7 +301,6 @@ export default function PackageExtension() {
   const totalSize = Object.values(files).reduce((acc, f) => acc + new Blob([f]).size, 0);
   const totalLines = Object.values(files).reduce((acc, f) => acc + f.split("\n").length, 0);
 
-  // QA runs against the *final* bundle, so include the icons we'll inject at zip time.
   const qaReport = useMemo(() => {
     if (fileList.length === 0) return null;
     const withIcons: Record<string, string> = {
@@ -213,6 +311,28 @@ export default function PackageExtension() {
     };
     return runPackageQA(withIcons);
   }, [files, fileList.length]);
+
+  // Group repeated fixes by id for a tidier report
+  const groupedFixes = useMemo(() => {
+    if (!lastFix) return [];
+    const map = new Map<string, { id: string; label: string; details: string[]; count: number }>();
+    for (const f of lastFix.fixes) {
+      const existing = map.get(f.id);
+      if (existing) {
+        existing.count += 1;
+        if (f.detail) existing.details.push(f.detail);
+        else existing.details.push(f.label);
+      } else {
+        map.set(f.id, {
+          id: f.id,
+          label: f.label.replace(/ in [^ ]+$|from [^ ]+$/, "").trim() || f.label,
+          details: [f.detail ?? f.label],
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [lastFix]);
 
   const sevIcon = (sev: QASeverity, passed: boolean) => {
     if (passed) return <CheckCircle2 className="h-4 w-4 text-success" />;
@@ -253,11 +373,7 @@ export default function PackageExtension() {
                     disabled={generatingIcons}
                     className="border-primary/30"
                   >
-                    {generatingIcons ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
+                    {generatingIcons ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                     {generatingIcons ? "Generating..." : "AI Icons"}
                   </Button>
                   <Button
@@ -296,10 +412,7 @@ export default function PackageExtension() {
                       Auto-Fix
                     </Button>
                   )}
-                  <Badge
-                    variant={qaReport.chromeReady ? "default" : "destructive"}
-                    className="font-mono text-[10px]"
-                  >
+                  <Badge variant={qaReport.chromeReady ? "default" : "destructive"} className="font-mono text-[10px]">
                     {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
                   </Badge>
                 </div>
@@ -314,14 +427,87 @@ export default function PackageExtension() {
                         <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">{c.detail}</p>
                       )}
                     </div>
-                    <Badge variant="secondary" className="text-[10px] font-mono uppercase">
-                      {c.severity}
-                    </Badge>
+                    <Badge variant="secondary" className="text-[10px] font-mono uppercase">{c.severity}</Badge>
                   </div>
                 ))}
               </div>
             </motion.div>
           )}
+
+          {/* Auto-Fix Report */}
+          <AnimatePresence>
+            {lastFix && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-xl border border-primary/20 bg-card overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setFixReportOpen(o => !o)}
+                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/30 transition"
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="h-5 w-5 text-primary" />
+                    <div className="text-left">
+                      <h3 className="text-sm font-semibold">Auto-Fix Report</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {lastFix.fixes.length} fix{lastFix.fixes.length === 1 ? "" : "es"} applied ·
+                        {" "}errors {lastFix.before.errors} → <span className="text-success">{lastFix.after.errors}</span> ·
+                        {" "}warnings {lastFix.before.warnings} → <span className="text-success">{lastFix.after.warnings}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${fixReportOpen ? "rotate-180" : ""}`} />
+                </button>
+                {fixReportOpen && (
+                  <div className="px-5 py-4 border-t border-border space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <Stat label="Fixes" value={lastFix.fixes.length} tone="primary" />
+                      <Stat label="Errors fixed" value={Math.max(0, lastFix.before.errors - lastFix.after.errors)} tone="success" />
+                      <Stat label="Warnings fixed" value={Math.max(0, lastFix.before.warnings - lastFix.after.warnings)} tone="success" />
+                      <Stat label="Remaining" value={lastFix.after.errors + lastFix.after.warnings} tone={lastFix.after.errors > 0 ? "danger" : "muted"} />
+                    </div>
+                    <div className="divide-y divide-border rounded-md border border-border overflow-hidden">
+                      {groupedFixes.map(g => (
+                        <div key={g.id} className="px-4 py-2.5 flex items-start gap-3">
+                          <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{g.label}</p>
+                              {g.count > 1 && (
+                                <Badge variant="secondary" className="text-[10px] font-mono">×{g.count}</Badge>
+                              )}
+                            </div>
+                            {g.details.length > 0 && (
+                              <ul className="mt-1 space-y-0.5">
+                                {g.details.slice(0, 5).map((d, i) => (
+                                  <li key={i} className="text-xs text-muted-foreground font-mono break-all">• {d}</li>
+                                ))}
+                                {g.details.length > 5 && (
+                                  <li className="text-xs text-muted-foreground italic">…and {g.details.length - 5} more</li>
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-[10px] font-mono uppercase">{g.id}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Ran {new Date(lastFix.ranAt).toLocaleTimeString()}
+                      </p>
+                      <Button variant="ghost" size="sm" onClick={() => setLastFix(null)}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Chrome Web Store Upload */}
           <motion.div
@@ -356,44 +542,118 @@ export default function PackageExtension() {
                     <li>Enable the <span className="font-mono">Chrome Web Store API</span>.</li>
                     <li>Generate a refresh token (scope <span className="font-mono">https://www.googleapis.com/auth/chromewebstore</span>).</li>
                   </ol>
-                  <p className="pt-1">Credentials stay in your browser — they're sent directly to the upload edge function, never stored.</p>
+                </div>
+
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1.5">
+                  <p className="font-medium text-foreground flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-primary" /> Credential handling
+                  </p>
+                  <ul className="space-y-0.5 text-muted-foreground list-disc list-inside">
+                    <li>Credentials are sent <strong>only</strong> to the upload edge function over HTTPS — they are never logged or persisted server-side.</li>
+                    <li>In the browser they live in <strong>sessionStorage</strong> (cleared when this tab closes) and only when "Remember for this session" is on.</li>
+                    <li>We never write your refresh token to localStorage, cookies, or the URL.</li>
+                    {cwsLoadedFromSession && (
+                      <li className="text-primary">Loaded from this tab's session. Clear at any time.</li>
+                    )}
+                  </ul>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="cws-client-id" className="text-xs">Client ID</Label>
-                    <Input id="cws-client-id" value={cwsClientId} onChange={e => setCwsClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" />
+                    <Input id="cws-client-id" autoComplete="off" value={cwsClientId} onChange={e => setCwsClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="cws-client-secret" className="text-xs">Client Secret</Label>
-                    <Input id="cws-client-secret" type="password" value={cwsClientSecret} onChange={e => setCwsClientSecret(e.target.value)} placeholder="GOCSPX-…" />
+                    <Input id="cws-client-secret" type="password" autoComplete="new-password" value={cwsClientSecret} onChange={e => setCwsClientSecret(e.target.value)} placeholder="GOCSPX-…" />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label htmlFor="cws-refresh" className="text-xs">Refresh Token</Label>
-                    <Input id="cws-refresh" type="password" value={cwsRefreshToken} onChange={e => setCwsRefreshToken(e.target.value)} placeholder="1//0g…" />
+                    <Input id="cws-refresh" type="password" autoComplete="new-password" value={cwsRefreshToken} onChange={e => setCwsRefreshToken(e.target.value)} placeholder="1//0g…" />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label htmlFor="cws-ext-id" className="text-xs">Extension ID <span className="text-muted-foreground">(leave blank to create a new draft)</span></Label>
-                    <Input id="cws-ext-id" value={cwsExtensionId} onChange={e => setCwsExtensionId(e.target.value)} placeholder="32-character item id" />
+                    <Input id="cws-ext-id" autoComplete="off" value={cwsExtensionId} onChange={e => setCwsExtensionId(e.target.value)} placeholder="32-character item id" />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
-                    <Switch id="cws-publish" checked={cwsPublish} onCheckedChange={setCwsPublish} />
-                    <Label htmlFor="cws-publish" className="text-sm cursor-pointer">
-                      Submit for review after upload
-                    </Label>
+                <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Switch id="cws-remember" checked={cwsRemember} onCheckedChange={setCwsRemember} />
+                      <Label htmlFor="cws-remember" className="text-sm cursor-pointer">
+                        Remember for this session
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch id="cws-publish" checked={cwsPublish} onCheckedChange={setCwsPublish} />
+                      <Label htmlFor="cws-publish" className="text-sm cursor-pointer">
+                        Submit for review after upload
+                      </Label>
+                    </div>
                   </div>
-                  <Button
-                    onClick={handleCwsUpload}
-                    disabled={cwsUploading || (!!qaReport && !qaReport.chromeReady)}
-                    className="bg-gradient-cyber text-primary-foreground"
-                  >
-                    {cwsUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                    {cwsUploading ? "Uploading…" : cwsPublish ? "Upload & Submit" : "Upload Draft"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {(cwsClientId || cwsClientSecret || cwsRefreshToken || cwsExtensionId) && (
+                      <Button variant="ghost" size="sm" onClick={clearCwsCreds} disabled={cwsUploading}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Clear
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleCwsUpload}
+                      disabled={cwsUploading || (!!qaReport && !qaReport.chromeReady)}
+                      className="bg-gradient-cyber text-primary-foreground"
+                    >
+                      {cwsUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                      {cwsUploading ? "Uploading…" : cwsPublish ? "Upload & Submit" : "Upload Draft"}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Upload progress */}
+                <AnimatePresence>
+                  {uploadStage.step !== "idle" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 mt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium flex items-center gap-1.5">
+                            {uploadStage.step === "done" ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                            ) : uploadStage.step === "error" ? (
+                              <XCircle className="h-3.5 w-3.5 text-destructive" />
+                            ) : (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                            )}
+                            {"label" in uploadStage ? uploadStage.label : ""}
+                          </span>
+                          <span className="font-mono text-muted-foreground">{uploadStage.pct}%</span>
+                        </div>
+                        <Progress
+                          value={uploadStage.pct}
+                          className={uploadStage.step === "error" ? "[&>div]:bg-destructive" : ""}
+                        />
+                        <div className="flex justify-between text-[10px] font-mono uppercase text-muted-foreground">
+                          {(["building", "encoding", "authenticating", "uploading", cwsPublish ? "publishing" : "done"] as const).map(step => {
+                            const order = ["building", "encoding", "authenticating", "uploading", "publishing", "done"];
+                            const currentIdx = order.indexOf(uploadStage.step);
+                            const stepIdx = order.indexOf(step);
+                            const reached = currentIdx >= stepIdx || uploadStage.step === "done";
+                            return (
+                              <span key={step} className={reached ? "text-primary" : ""}>
+                                {step === "done" ? "complete" : step}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {qaReport && !qaReport.chromeReady && (
                   <p className="text-xs text-warning flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -403,7 +663,6 @@ export default function PackageExtension() {
               </div>
             )}
           </motion.div>
-
 
           {/* AI Icon Preview */}
           {aiIconBase64 && (
@@ -488,6 +747,21 @@ export default function PackageExtension() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone: "primary" | "success" | "danger" | "muted" }) {
+  const toneClass = {
+    primary: "text-primary",
+    success: "text-success",
+    danger: "text-destructive",
+    muted: "text-muted-foreground",
+  }[tone];
+  return (
+    <div className="rounded-md border border-border bg-muted/20 p-2.5">
+      <p className={`text-xl font-bold font-mono ${toneClass}`}>{value}</p>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );
 }
