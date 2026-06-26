@@ -26,6 +26,9 @@ export function buildManifest(spec: WizardSpec): Record<string, unknown> {
       "48": "icons/icon48.png",
       "128": "icons/icon128.png",
     },
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+    },
   };
   if (spec.permissions.length) m.permissions = [...spec.permissions];
   if (spec.hosts.length) m.host_permissions = spec.hosts;

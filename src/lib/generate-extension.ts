@@ -47,6 +47,9 @@ export function generateManifest(spec: ExtensionSpec): string {
         description: "Toggle extension on/off",
       },
     },
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+    },
   };
   return JSON.stringify(manifest, null, 2);
 }
