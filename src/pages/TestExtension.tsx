@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import type { ExtensionSpec } from "@/lib/generate-extension";
+import { autoFixPackage } from "@/lib/package-autofix";
+import { Wrench } from "lucide-react";
 
 interface TestResult {
   name: string;
@@ -202,6 +204,23 @@ export default function TestExtension() {
     }, 1000);
   };
 
+  const runAutoFix = () => {
+    if (!Object.keys(files).length) return;
+    const { files: fixed, fixes } = autoFixPackage(files);
+    if (!fixes.length) {
+      toast.info("Nothing to fix — package already clean");
+      return;
+    }
+    setFiles(fixed);
+    sessionStorage.setItem("extension-files", JSON.stringify(fixed));
+    const cspFix = fixes.find(f => f.id === "csp-hardened");
+    toast.success(`Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"}`, {
+      description: cspFix ? cspFix.label : fixes[0].label,
+    });
+    setResults(runManifestTests(fixed));
+  };
+
+
   const passes = results.filter(r => r.status === "pass").length;
   const fails = results.filter(r => r.status === "fail").length;
   const warns = results.filter(r => r.status === "warn").length;
@@ -242,6 +261,10 @@ export default function TestExtension() {
             <Button onClick={runTests} disabled={isRunning} className="bg-gradient-cyber text-primary-foreground">
               {isRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
               {isRunning ? "Running Tests..." : "Run All Tests"}
+            </Button>
+            <Button onClick={runAutoFix} variant="outline" disabled={isRunning}>
+              <Wrench className="h-4 w-4 mr-2" />
+              Auto-Fix Issues
             </Button>
             {spec && <Badge variant="secondary">{spec.name}</Badge>}
             {total > 0 && (
