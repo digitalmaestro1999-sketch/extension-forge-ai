@@ -63,6 +63,7 @@ const App = () => (
                     <Route path="/revenue" element={<RevenueTracker />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/manual" element={<UserManual />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </DashboardLayout>
