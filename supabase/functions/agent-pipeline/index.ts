@@ -212,14 +212,23 @@ Return JSON:
         }
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
+          const raw = jsonMatch[0];
+          try {
+            result = JSON.parse(raw);
+          } catch {
+            // AI often emits raw control chars (newlines/tabs) inside string
+            // literals (file contents). Escape control chars only when we're
+            // inside a JSON string, respecting backslash escapes.
+            result = JSON.parse(sanitizeJsonControlChars(raw));
+          }
           break;
         } else {
           console.warn("No JSON object found in response, retrying...");
         }
       } catch (parseError) {
         console.error("Parse error attempt", attempt, ":", parseError);
-        if (attempt === 1) throw new Error("Failed to parse AI response after retries");
+        // Don't burn the full 150s timeout looping on unparseable mega-responses
+        if (attempt >= 1) throw new Error("Failed to parse AI response after retries");
       }
     }
 
