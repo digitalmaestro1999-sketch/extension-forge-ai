@@ -22,7 +22,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { runPackageQA, type QAReport } from "@/lib/package-qa";
 import { autoFixAndValidate } from "@/lib/package-autofix";
-import { runPolicyCheck, type PolicyReport } from "@/lib/cws-policy-check";
+import { runPolicyCheck, type PolicyReport, type PolicyCheck } from "@/lib/cws-policy-check";
+import { applyDeterministicPolicyFix } from "@/lib/cws-policy-autofix";
 
 const STORAGE_KEY = "cws-credentials";
 const REQUIRED_SCOPE = "https://www.googleapis.com/auth/chromewebstore";
@@ -113,6 +114,7 @@ export default function PublishAssistant() {
   });
   const [generatingListing, setGeneratingListing] = useState(false);
   const [policy, setPolicy] = useState<PolicyReport | null>(null);
+  const [fixingCheckId, setFixingCheckId] = useState<string | null>(null);
 
   const [publishTarget, setPublishTarget] =
     useState<"default" | "trustedTesters">("trustedTesters");
@@ -284,6 +286,116 @@ export default function PublishAssistant() {
     setQA(null);
     log("info", `Loaded ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
   };
+
+  /** Apply a single policy check fix — deterministic patch or AI rewrite. */
+  const applyPolicyFix = async (check: PolicyCheck) => {
+    if (!check.autoFix || !files) return;
+    setFixingCheckId(check.id);
+    try {
+      // 1) Deterministic path — patches files / listing without AI.
+      if (check.autoFix.mode === "deterministic") {
+        const res = applyDeterministicPolicyFix(check, files, listing);
+        if (!res) throw new Error("No deterministic fix available");
+        if (res.files) {
+          setFiles(res.files);
+          sessionStorage.setItem("extension-files", JSON.stringify(res.files));
+        }
+        if (res.listing) {
+          setListing((l) => ({ ...l, ...res.listing }));
+        }
+        log("ok", `Fixed "${check.label}": ${res.applied}`);
+        toast.success(res.applied);
+        return;
+      }
+
+      // 2) AI rewrite path — rewrite listing.field or a permission justification.
+      const af = check.autoFix;
+      const manifest = JSON.parse(files["manifest.json"] ?? "{}");
+      const { data, error } = await supabase.functions.invoke("agent-pipeline", {
+        body: {
+          stage: "policy-fix",
+          spec: {
+            kind: af.kind,
+            field: af.field,
+            permission: af.permission,
+            policy: check.policy,
+            detail: check.detail,
+            manifest,
+            listing,
+          },
+        },
+      });
+      if (error) throw error;
+      const value: string = data?.result?.value ?? "";
+      if (!value) throw new Error("AI returned no value");
+
+      if (af.kind === "rewrite-justification" && af.permission) {
+        setListing((l) => ({
+          ...l,
+          permissionJustifications: {
+            ...l.permissionJustifications,
+            [af.permission!]: value,
+          },
+        }));
+      } else if (af.kind === "rewrite-all-justifications") {
+        // Batch: rewrite every missing one in series.
+        const updated = { ...listing.permissionJustifications };
+        for (const p of sensitivePerms) {
+          if ((updated[p] ?? "").trim().length >= 15) continue;
+          const r = await supabase.functions.invoke("agent-pipeline", {
+            body: {
+              stage: "policy-fix",
+              spec: {
+                kind: "rewrite-justification",
+                permission: p,
+                policy: check.policy,
+                manifest,
+                listing,
+              },
+            },
+          });
+          if (r.data?.result?.value) updated[p] = r.data.result.value;
+        }
+        setListing((l) => ({ ...l, permissionJustifications: updated }));
+      } else if (af.kind === "rewrite-manifest-name") {
+        manifest.name = value.slice(0, 75);
+        const next = { ...files, "manifest.json": JSON.stringify(manifest, null, 2) };
+        setFiles(next);
+        sessionStorage.setItem("extension-files", JSON.stringify(next));
+      } else if (af.kind === "rewrite-manifest-description") {
+        manifest.description = value.slice(0, 132);
+        const next = { ...files, "manifest.json": JSON.stringify(manifest, null, 2) };
+        setFiles(next);
+        sessionStorage.setItem("extension-files", JSON.stringify(next));
+      } else if (af.target === "listing" && af.field) {
+        setListing((l) => ({ ...l, [af.field!]: value } as typeof l));
+      }
+      log("ok", `AI fixed "${check.label}"`);
+      toast.success(`Applied AI fix: ${check.label}`);
+    } catch (e: any) {
+      log("err", `Auto-fix failed for "${check.label}": ${e.message}`);
+      toast.error(e.message || "Auto-fix failed");
+    } finally {
+      setFixingCheckId(null);
+    }
+  };
+
+  /** Apply every available auto-fix in order. */
+  const applyAllPolicyFixes = async () => {
+    if (!policy) return;
+    const fixable = policy.checks.filter((c) => !c.passed && c.autoFix);
+    if (!fixable.length) {
+      toast.info("Nothing to auto-fix");
+      return;
+    }
+    log("info", `Applying ${fixable.length} auto-fix(es)…`);
+    for (const c of fixable) {
+      // eslint-disable-next-line no-await-in-loop
+      await applyPolicyFix(c);
+    }
+    toast.success("All available fixes applied");
+  };
+
 
   const canPublish =
     credsComplete &&
@@ -868,6 +980,17 @@ export default function PublishAssistant() {
                   </Badge>
                   <Badge variant="outline">{policy.errors} errors</Badge>
                   <Badge variant="outline">{policy.warnings} warnings</Badge>
+                  {policy.checks.some((c) => !c.passed && c.autoFix) && (
+                    <Button
+                      size="sm"
+                      onClick={applyAllPolicyFixes}
+                      disabled={!!fixingCheckId}
+                    >
+                      {fixingCheckId
+                        ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Fixing…</>
+                        : <><Wand2 className="h-3.5 w-3.5 mr-1.5" /> Fix all</>}
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="max-h-80 overflow-auto space-y-1">
@@ -893,6 +1016,23 @@ export default function PublishAssistant() {
                         <p className="text-[11px] text-primary mt-0.5">→ {c.fix}</p>
                       )}
                     </div>
+                    {!c.passed && c.autoFix && (
+                      <Button
+                        size="sm"
+                        variant={c.autoFix.mode === "ai" ? "default" : "outline"}
+                        className="h-7 px-2 shrink-0"
+                        onClick={() => applyPolicyFix(c)}
+                        disabled={!!fixingCheckId}
+                      >
+                        {fixingCheckId === c.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : c.autoFix.mode === "ai" ? (
+                          <><Sparkles className="h-3 w-3 mr-1" /> AI fix</>
+                        ) : (
+                          <><Wand2 className="h-3 w-3 mr-1" /> Fix</>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

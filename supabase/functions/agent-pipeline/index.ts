@@ -176,6 +176,35 @@ Return JSON:
   "titleScore": 85,
   "tips": ["actionable SEO improvement tips"]
 }`;
+    } else if (stage === "policy-fix") {
+      // Tiny, targeted rewrite for a single failing CWS policy check.
+      // `spec` carries: { kind, field?, permission?, manifest, listing, context }
+      systemPrompt = "You are a Chrome Web Store compliance copy-editor. Rewrite the requested field so it passes the stated policy. Return ONLY valid JSON, no prose, no markdown.";
+      const limits: Record<string, number> = {
+        title: 45, summary: 132, description: 16000, singlePurpose: 300,
+        name: 75, manifestDescription: 132,
+      };
+      const targetField = spec.field || spec.kind;
+      const cap = limits[targetField] ?? 300;
+      userPrompt = `Fix kind: ${spec.kind}
+Field: ${spec.field ?? "(n/a)"}
+Permission: ${spec.permission ?? "(n/a)"}
+Max length: ${cap}
+
+Extension manifest (truncated):
+${JSON.stringify(spec.manifest ?? {}, null, 2).slice(0, 2000)}
+
+Current listing:
+${JSON.stringify(spec.listing ?? {}, null, 2).slice(0, 2000)}
+
+Failing policy: ${spec.policy ?? ""}
+Detail: ${spec.detail ?? ""}
+
+Return JSON:
+{
+  "value": "the new value for the requested field, ≤${cap} chars, plain text, no markdown",
+  "explanation": "1 short sentence why this fixes it"
+}`;
     }
 
     // Retry on rate limits + empty/unparseable responses
