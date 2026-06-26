@@ -466,7 +466,7 @@ function SecurityView() {
           </CardHeader>
           <CardContent>
             <pre className="text-xs bg-background/60 border border-border/60 rounded-md p-3 max-h-72 overflow-auto font-mono">
-              {JSON.stringify(MANIFEST, null, 2)}
+              {JSON.stringify(ext.manifest, null, 2)}
             </pre>
           </CardContent>
         </Card>
