@@ -139,10 +139,11 @@ export default function PublishAssistant() {
   const log = (level: LogEntry["level"], msg: string) =>
     setLogs((l) => [...l, { ts: Date.now(), level, msg }]);
 
-  // Run QA whenever files change
+  // Run QA + policy check whenever files or listing change
   useEffect(() => {
     if (!files) {
       setQA(null);
+      setPolicy(null);
       return;
     }
     try {
@@ -150,7 +151,73 @@ export default function PublishAssistant() {
     } catch {
       setQA(null);
     }
+    try {
+      setPolicy(runPolicyCheck({ files, listing }));
+    } catch {
+      setPolicy(null);
+    }
+  }, [files, listing]);
+
+  // Detect sensitive permissions from manifest so the UI can collect justifications.
+  const sensitivePerms = useMemo<string[]>(() => {
+    if (!files?.["manifest.json"]) return [];
+    try {
+      const m = JSON.parse(files["manifest.json"]);
+      const all: string[] = [...(m.permissions ?? []), ...(m.host_permissions ?? [])];
+      const sensitive = new Set([
+        "tabs", "history", "bookmarks", "cookies", "downloads", "geolocation",
+        "management", "nativeMessaging", "pageCapture", "privacy", "proxy",
+        "tabCapture", "topSites", "webNavigation", "webRequest",
+        "<all_urls>", "*://*/*", "http://*/*", "https://*/*",
+      ]);
+      return all.filter((p) => sensitive.has(p));
+    } catch { return []; }
   }, [files]);
+
+  const generateListing = async () => {
+    if (!files?.["manifest.json"]) {
+      toast.error("Load an extension first");
+      return;
+    }
+    setGeneratingListing(true);
+    log("info", "Generating Chrome Web Store listing with AI…");
+    try {
+      const manifest = JSON.parse(files["manifest.json"]);
+      const spec = {
+        name: manifest.name,
+        description: manifest.description,
+        features: manifest.permissions ?? [],
+      };
+      const { data, error } = await supabase.functions.invoke("agent-pipeline", {
+        body: { spec, stage: "store-assets" },
+      });
+      if (error) throw error;
+      const r = data?.result ?? {};
+      setListing((l) => ({
+        ...l,
+        title: r.title ?? l.title ?? manifest.name,
+        summary: r.summary ?? l.summary,
+        description: r.description ?? l.description,
+        category: r.category ?? l.category,
+        keywords: r.keywords ?? l.keywords,
+        singlePurpose: r.singlePurpose ?? l.singlePurpose ?? manifest.description,
+        privacyPolicyText: r.privacyPolicy ?? l.privacyPolicyText,
+        termsOfUse: r.termsOfUse ?? l.termsOfUse,
+      }));
+      toast.success("Listing generated");
+      log("ok", "Listing assets ready — review & edit before publishing.");
+    } catch (e: any) {
+      log("err", `Listing generation failed: ${e.message}`);
+      toast.error(e.message || "Failed to generate listing");
+    } finally {
+      setGeneratingListing(false);
+    }
+  };
+
+  const copy = (txt: string, label: string) => {
+    navigator.clipboard.writeText(txt);
+    toast.success(`${label} copied`);
+  };
 
   const credsComplete = useMemo(
     () => !!(creds.clientId && creds.clientSecret && creds.refreshToken),
