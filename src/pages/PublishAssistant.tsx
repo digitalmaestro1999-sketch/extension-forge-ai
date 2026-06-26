@@ -980,6 +980,17 @@ export default function PublishAssistant() {
                   </Badge>
                   <Badge variant="outline">{policy.errors} errors</Badge>
                   <Badge variant="outline">{policy.warnings} warnings</Badge>
+                  {policy.checks.some((c) => !c.passed && c.autoFix) && (
+                    <Button
+                      size="sm"
+                      onClick={applyAllPolicyFixes}
+                      disabled={!!fixingCheckId}
+                    >
+                      {fixingCheckId
+                        ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Fixing…</>
+                        : <><Wand2 className="h-3.5 w-3.5 mr-1.5" /> Fix all</>}
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="max-h-80 overflow-auto space-y-1">
@@ -1005,6 +1016,23 @@ export default function PublishAssistant() {
                         <p className="text-[11px] text-primary mt-0.5">→ {c.fix}</p>
                       )}
                     </div>
+                    {!c.passed && c.autoFix && (
+                      <Button
+                        size="sm"
+                        variant={c.autoFix.mode === "ai" ? "default" : "outline"}
+                        className="h-7 px-2 shrink-0"
+                        onClick={() => applyPolicyFix(c)}
+                        disabled={!!fixingCheckId}
+                      >
+                        {fixingCheckId === c.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : c.autoFix.mode === "ai" ? (
+                          <><Sparkles className="h-3 w-3 mr-1" /> AI fix</>
+                        ) : (
+                          <><Wand2 className="h-3 w-3 mr-1" /> Fix</>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
