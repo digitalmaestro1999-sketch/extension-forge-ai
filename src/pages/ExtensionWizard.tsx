@@ -78,31 +78,17 @@ export default function ExtensionWizard() {
   // Preview tab
   const [previewTab, setPreviewTab] = useState<"ui" | "manifest">("ui");
 
-  const manifest = useMemo(() => {
-    const selectedPerms = Object.entries(perms).filter(([, v]) => v).map(([k]) => k);
-    const m: Record<string, unknown> = {
-      manifest_version: 3,
-      name: name || "Untitled Extension",
-      version: /^\d+(\.\d+){0,3}$/.test(version) ? version : "1.0.0",
-      description: description || "",
-      icons: { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
-    };
-    if (selectedPerms.length) m.permissions = selectedPerms;
-    if (hosts.length) m.host_permissions = hosts;
+  const spec = useMemo<WizardSpec>(() => ({
+    name,
+    version,
+    description,
+    extType,
+    permissions: Object.entries(perms).filter(([, v]) => v).map(([k]) => k),
+    hosts,
+    matches,
+  }), [name, version, description, extType, perms, hosts, matches]);
 
-    if (extType === "popup") {
-      m.action = { default_popup: "popup.html", default_icon: "icons/icon48.png", default_title: name };
-    } else if (extType === "sidepanel") {
-      m.side_panel = { default_path: "sidepanel.html" };
-      m.permissions = Array.from(new Set([...(selectedPerms), "sidePanel"]));
-    } else if (extType === "content") {
-      m.content_scripts = [{ matches: hosts.length ? hosts : ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
-    } else if (extType === "background") {
-      m.background = { service_worker: "background.js", type: "module" };
-    }
-    return m;
-  }, [name, version, description, perms, hosts, extType]);
-
+  const manifest = useMemo(() => buildManifest(spec), [spec]);
   const manifestJson = useMemo(() => JSON.stringify(manifest, null, 2), [manifest]);
 
   const handleIconUpload = (file: File) => {
@@ -126,6 +112,17 @@ export default function ExtensionWizard() {
     setHostInput("");
   };
 
+  const addMatch = () => {
+    const v = matchInput.trim();
+    if (!v) return;
+    if (matches.includes(v)) {
+      toast.info("That match pattern is already added");
+      return;
+    }
+    setMatches(m => [...m, v]);
+    setMatchInput("");
+  };
+
   const downloadManifest = () => {
     const blob = new Blob([manifestJson], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -134,6 +131,75 @@ export default function ExtensionWizard() {
     a.download = "manifest.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Rasterize the uploaded icon to a given size; falls back to placeholder.
+  const rasterIconFromDataUrl = (dataUrl: string, size: number): Promise<Uint8Array> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas unavailable"));
+        ctx.drawImage(img, 0, 0, size, size);
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject(new Error("Encode failed"));
+          resolve(new Uint8Array(await blob.arrayBuffer()));
+        }, "image/png");
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+      img.src = dataUrl;
+    });
+
+  const compileAndDownload = async () => {
+    if (compiling) return;
+    setCompiling(true);
+    const toastId = toast.loading("Compiling Manifest...");
+    try {
+      const files = buildAllFiles(spec);
+      toast.loading("Structuring Assets...", { id: toastId });
+
+      const zip = new JSZip();
+      for (const [path, content] of Object.entries(files)) {
+        zip.file(path, content);
+      }
+
+      // Icons
+      if (iconDataUrl) {
+        try {
+          const [i16, i48, i128] = await Promise.all([
+            rasterIconFromDataUrl(iconDataUrl, 16),
+            rasterIconFromDataUrl(iconDataUrl, 48),
+            rasterIconFromDataUrl(iconDataUrl, 128),
+          ]);
+          zip.file("icons/icon16.png", i16);
+          zip.file("icons/icon48.png", i48);
+          zip.file("icons/icon128.png", i128);
+        } catch {
+          const icons = generateExtensionIcons();
+          Object.entries(icons).forEach(([p, b]) => zip.file(p, b));
+        }
+      } else {
+        const icons = generateExtensionIcons();
+        Object.entries(icons).forEach(([p, b]) => zip.file(p, b));
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(spec.name || "extension").toLowerCase().replace(/\s+/g, "-")}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("Ready to Download!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Compile failed: " + (err instanceof Error ? err.message : "Unknown error"), { id: toastId });
+    } finally {
+      setCompiling(false);
+    }
   };
 
   const stepValid = step === 1 ? !!name.trim() && /^\d+(\.\d+){0,3}$/.test(version) : true;
