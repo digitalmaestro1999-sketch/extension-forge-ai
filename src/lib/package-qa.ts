@@ -3,6 +3,8 @@
 
 export type QASeverity = "error" | "warning" | "info";
 
+import { getExtensionPageCsp, hasHardenedExtensionCsp } from "./extension-csp";
+
 export interface QACheck {
   id: string;
   label: string;
@@ -91,7 +93,22 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: !versionOk ? `Got "${manifest.version}"` : undefined,
   });
 
-  // 5. Icons present in zip
+  // 5. Explicit hardened CSP for extension pages
+  const cspString = getExtensionPageCsp(manifest);
+  const cspOk = hasHardenedExtensionCsp(manifest);
+  push({
+    id: "csp-hardened",
+    label: "Explicit hardened content_security_policy is present",
+    severity: "error",
+    passed: cspOk,
+    detail: cspOk
+      ? undefined
+      : cspString
+      ? "CSP exists but is missing one or more required directives"
+      : "Missing content_security_policy.extension_pages",
+  });
+
+  // 6. Icons present in zip
   const declaredIcons: string[] = [
     ...Object.values(manifest.icons ?? {}),
     ...Object.values(manifest.action?.default_icon ?? {}),

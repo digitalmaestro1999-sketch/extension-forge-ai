@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import { autoFixPackage } from "@/lib/package-autofix";
+import { ensureHardenedCspInFiles, getExtensionPageCsp, hasHardenedExtensionCsp } from "@/lib/extension-csp";
 import { Wrench } from "lucide-react";
 
 interface TestResult {
@@ -119,16 +120,14 @@ function runManifestTests(files: Record<string, string>): TestResult[] {
     });
 
     // CSP check — require an explicit hardened CSP
-    const csp = manifest.content_security_policy;
-    const cspString = typeof csp === "string" ? csp : csp?.extension_pages || "";
-    const hasHardenedCsp =
-      cspString.includes("script-src 'self'") && cspString.includes("object-src 'self'");
+    const cspString = getExtensionPageCsp(manifest);
+    const hasHardenedCsp = hasHardenedExtensionCsp(manifest);
     results.push({
       name: "CSP policy",
-      status: hasHardenedCsp ? "pass" : csp ? "warn" : "fail",
+      status: hasHardenedCsp ? "pass" : cspString ? "warn" : "fail",
       message: hasHardenedCsp
-        ? "Hardened CSP defined (script-src 'self'; object-src 'self')"
-        : csp
+        ? "Hardened CSP defined (script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none')"
+        : cspString
         ? "CSP present but not fully hardened"
         : "Missing content_security_policy — add an explicit hardened CSP",
       category: "security",
@@ -184,7 +183,12 @@ export default function TestExtension() {
     const storedSpec = sessionStorage.getItem("extension-spec");
     const storedSec = sessionStorage.getItem("security-audit");
 
-    if (storedFiles) try { setFiles(JSON.parse(storedFiles)); } catch {}
+    if (storedFiles) try {
+      const parsed = JSON.parse(storedFiles);
+      const normalized = ensureHardenedCspInFiles(parsed);
+      if (normalized.changed) sessionStorage.setItem("extension-files", JSON.stringify(normalized.files));
+      setFiles(normalized.files);
+    } catch {}
     if (storedSpec) try { setSpec(JSON.parse(storedSpec)); } catch {}
     if (storedSec) try { setSecurityAudit(JSON.parse(storedSec)); } catch {}
   }, []);
@@ -194,7 +198,12 @@ export default function TestExtension() {
     setResults([]);
 
     setTimeout(() => {
-      const testResults = runManifestTests(files);
+      const normalized = ensureHardenedCspInFiles(files);
+      if (normalized.changed) {
+        setFiles(normalized.files);
+        sessionStorage.setItem("extension-files", JSON.stringify(normalized.files));
+      }
+      const testResults = runManifestTests(normalized.files);
       setResults(testResults);
       setIsRunning(false);
 
