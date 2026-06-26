@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
-  Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck,
+  Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck, SlidersHorizontal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -40,6 +40,7 @@ const toolItems: NavItem[] = [
   { title: "Test Extension", url: "/test", icon: TestTube2 },
   { title: "Package", url: "/package", icon: Package },
   { title: "Publish", url: "/publish", icon: Upload },
+  { title: "Manage Extension", url: "/manage", icon: SlidersHorizontal },
 ];
 
 const settingsItems = [
