@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Wand2, Image as ImageIcon, AppWindow, PanelRight, FileCode2, Cog,
   ShieldCheck, Check, Eye, Code2, Download, Lock, Globe, X, Plus, Package, Loader2,
+  ShieldAlert, AlertTriangle, Info, Activity, ArrowRight,
 } from "lucide-react";
 import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
+} from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { buildAllFiles, buildManifest, type WizardSpec } from "@/lib/wizard-codegen";
 import { generateExtensionIcons } from "@/lib/generate-icons";
+import { runHealthScan, type HealthFinding, type HealthReport } from "@/lib/wizard-health";
 
 type ExtensionType = "popup" | "sidepanel" | "content" | "background";
 
