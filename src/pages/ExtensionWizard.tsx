@@ -791,3 +791,182 @@ function SpecCell({ label, value, mono }: { label: string; value: string; mono?:
     </div>
   );
 }
+
+/* ============================================================
+ * Health & Compliance — scorecard pill + drawer
+ * ============================================================ */
+function HealthScorecard({ report, onOpen }: { report: HealthReport; onOpen: () => void }) {
+  const tone =
+    report.status === "blocked"
+      ? "border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/10"
+      : report.status === "warnings"
+      ? "border-warning/40 text-warning bg-warning/5 hover:bg-warning/10"
+      : "border-success/40 text-success bg-success/5 hover:bg-success/10";
+
+  const Icon =
+    report.status === "blocked" ? ShieldAlert : report.status === "warnings" ? AlertTriangle : ShieldCheck;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`inline-flex items-center gap-2 h-9 px-2.5 rounded-md border transition text-xs font-medium ${tone}`}
+      aria-label="Open extension health and compliance check"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="font-mono">{report.score}%</span>
+      <span className="hidden md:inline opacity-80">·</span>
+      <span className="hidden md:inline truncate max-w-[180px]">{report.label}</span>
+      {report.counts.errors > 0 && (
+        <Badge variant="destructive" className="ml-1 h-4 px-1.5 text-[10px]">
+          {report.counts.errors}
+        </Badge>
+      )}
+    </button>
+  );
+}
+
+function HealthDrawer({
+  open, onOpenChange, report, onJumpToStep,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  report: HealthReport;
+  onJumpToStep: (s: 1 | 2 | 3) => void;
+}) {
+  const ringColor =
+    report.status === "blocked" ? "stroke-destructive"
+    : report.status === "warnings" ? "stroke-warning"
+    : "stroke-success";
+
+  const circumference = 2 * Math.PI * 42;
+  const offset = circumference * (1 - report.score / 100);
+
+  const grouped: Record<HealthFinding["severity"], HealthFinding[]> = {
+    error: report.findings.filter(f => f.severity === "error"),
+    warning: report.findings.filter(f => f.severity === "warning"),
+    info: report.findings.filter(f => f.severity === "info"),
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            Extension Health & Compliance Check
+          </SheetTitle>
+          <SheetDescription>
+            Pre-flight scan over your manifest, permissions, and generated source files.
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Score ring */}
+        <div className="mt-6 flex items-center gap-5">
+          <div className="relative h-28 w-28 shrink-0">
+            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+              <circle cx="50" cy="50" r="42" className="stroke-muted" strokeWidth="8" fill="none" />
+              <circle
+                cx="50" cy="50" r="42"
+                className={ringColor}
+                strokeWidth="8" fill="none"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                style={{ transition: "stroke-dashoffset 400ms ease" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold font-mono">{report.score}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">score</span>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{report.label}</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]">
+                {report.counts.errors} errors
+              </Badge>
+              <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">
+                {report.counts.warnings} warnings
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {report.counts.infos} info
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Findings */}
+        <div className="mt-6 space-y-5">
+          {(["error", "warning", "info"] as const).map(sev => {
+            const list = grouped[sev];
+            if (!list.length) return null;
+            return (
+              <FindingGroup
+                key={sev}
+                severity={sev}
+                findings={list}
+                onJumpToStep={onJumpToStep}
+              />
+            );
+          })}
+
+          {report.findings.length === 0 && (
+            <div className="rounded-lg border border-success/30 bg-success/5 p-5 text-center">
+              <ShieldCheck className="h-7 w-7 text-success mx-auto mb-2" />
+              <p className="text-sm font-semibold text-success">All checks passed</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your extension is ready to package and submit to the Chrome Web Store.
+              </p>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function FindingGroup({
+  severity, findings, onJumpToStep,
+}: {
+  severity: HealthFinding["severity"];
+  findings: HealthFinding[];
+  onJumpToStep: (s: 1 | 2 | 3) => void;
+}) {
+  const meta = {
+    error:   { Icon: ShieldAlert,    label: "Blocking errors",  tone: "text-destructive", border: "border-destructive/30", bg: "bg-destructive/5" },
+    warning: { Icon: AlertTriangle,  label: "Warnings",         tone: "text-warning",     border: "border-warning/30",     bg: "bg-warning/5" },
+    info:    { Icon: Info,           label: "Suggestions",      tone: "text-muted-foreground", border: "border-border",      bg: "bg-muted/20" },
+  }[severity];
+  const { Icon } = meta;
+
+  return (
+    <div>
+      <div className={`flex items-center gap-2 mb-2 ${meta.tone}`}>
+        <Icon className="h-4 w-4" />
+        <p className="text-xs font-semibold uppercase tracking-wider">{meta.label}</p>
+        <span className="text-[10px] font-mono opacity-70">({findings.length})</span>
+      </div>
+      <ul className="space-y-2">
+        {findings.map(f => (
+          <li key={f.id} className={`rounded-lg border ${meta.border} ${meta.bg} p-3`}>
+            <div className="flex items-start justify-between gap-2">
+              <p className={`text-sm font-medium ${meta.tone}`}>{f.title}</p>
+              {f.step && (
+                <button
+                  onClick={() => onJumpToStep(f.step!)}
+                  className="shrink-0 inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-card hover:bg-muted transition"
+                  aria-label={`Jump to step ${f.step}`}
+                >
+                  Step {f.step} <ArrowRight className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.detail}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
