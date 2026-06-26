@@ -45,6 +45,7 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/create" element={<CreateExtension />} />
+                    <Route path="/wizard" element={<ExtensionWizard />} />
                     <Route path="/ai-builder" element={<AIBuilder />} />
                     <Route path="/editor" element={<CodeEditorPage />} />
                     <Route path="/templates" element={<Templates />} />
