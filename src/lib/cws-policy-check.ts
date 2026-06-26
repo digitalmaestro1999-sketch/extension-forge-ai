@@ -3,7 +3,7 @@
 // submissions before they reach review. Pure functions, no Chrome APIs.
 // https://developer.chrome.com/docs/webstore/program-policies
 
-import { HARDENED_EXTENSION_CSP, validateExtensionCsp } from "./extension-csp";
+import { HARDENED_EXTENSION_CSP, hasHardenedExtensionCsp } from "./extension-csp";
 
 export type PolicySeverity = "error" | "warning" | "info";
 
@@ -154,7 +154,7 @@ export function runPolicyCheck(input: PolicyInputs): PolicyReport {
   });
 
   // -------- Hardened CSP (mirrors package-qa) ---------------------------
-  const cspValid = validateExtensionCsp(manifest?.content_security_policy);
+  const cspValid = !!manifest && hasHardenedExtensionCsp(manifest);
   push({
     id: "csp-hardened",
     label: "Hardened CSP declared",
