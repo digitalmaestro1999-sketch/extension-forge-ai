@@ -129,7 +129,13 @@ header { display: flex; justify-content: space-between; align-items: center; }
 };
 
 type Section = "analytics" | "security" | "editor" | "clone" | "settings";
-type ChatMsg = { role: "user" | "ai"; text: string; code?: { file: string; content: string } };
+type Patch = { file: string; action: "update" | "create" | "delete"; content?: string; reason?: string };
+type ChatMsg = {
+  role: "user" | "ai";
+  text: string;
+  patches?: Patch[];
+  appliedAt?: number;
+};
 
 // ---------------- Active Extension Context ----------------
 type ActiveExt = {
@@ -754,8 +760,13 @@ function SettingsView() {
 
 // ---------------- AI Co-Pilot ----------------
 function AICopilot() {
+  const ext = useExt();
   const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "ai", text: "Hi! I'm your extension co-pilot. Try: 'Add a dark mode toggle to popup.html' or 'Update manifest to V3'." },
+    {
+      role: "ai",
+      text:
+        "Hi! I edit your uploaded extension's actual source. Try: 'Add a dark-mode toggle to popup.html', 'Remove the tabs permission', or 'Add an options page'.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -765,27 +776,81 @@ function AICopilot() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, typing]);
 
-  const send = () => {
+  const applyPatches = (patches: Patch[]) => {
+    const next = { ...ext.fileContents };
+    let changed = 0;
+    for (const p of patches) {
+      if (p.action === "delete") {
+        if (next[p.file] !== undefined) { delete next[p.file]; changed++; }
+      } else if (typeof p.content === "string") {
+        next[p.file] = p.content;
+        changed++;
+      }
+    }
+    ext.setFileContents(next);
+    return changed;
+  };
+
+  const applyAll = (idx: number, patches: Patch[]) => {
+    const n = applyPatches(patches);
+    setMessages((m) => m.map((msg, i) => (i === idx ? { ...msg, appliedAt: Date.now() } : msg)));
+    toast.success("Changes applied", { description: `${n} file${n === 1 ? "" : "s"} updated. Export ZIP to save.` });
+  };
+
+  const applyOne = (p: Patch) => {
+    const n = applyPatches([p]);
+    if (n > 0) toast.success(`Updated ${p.file}`);
+  };
+
+  const send = async () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || typing) return;
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
+
+    try {
+      const history = messages
+        .filter((m) => m.role === "user" || m.text)
+        .slice(-6)
+        .map((m) => ({ role: m.role === "ai" ? ("assistant" as const) : ("user" as const), content: m.text }));
+
+      const url = `https://nufksbhydjhqaqqfxkdp.supabase.co/functions/v1/extension-edit`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instruction: text,
+          files: ext.fileContents,
+          manifest: ext.manifest,
+          history,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 429) throw new Error("Rate limit reached. Try again in a moment.");
+        if (res.status === 402) throw new Error("AI credits exhausted. Add credits in workspace billing.");
+        throw new Error(body?.error ?? `Edit failed (${res.status})`);
+      }
+
+      const data = (await res.json()) as { summary: string; patches: Patch[] };
       setMessages((m) => [
         ...m,
         {
           role: "ai",
-          text: `Done — here's a patch for \`popup.html\` that implements: "${text}".`,
-          code: {
-            file: "popup.html",
-            content: `<!-- AI Patch: ${text} -->\n<button id="theme-toggle">🌓 Toggle Theme</button>\n<script>\n  document.getElementById("theme-toggle").onclick = () => {\n    document.body.classList.toggle("dark");\n  };\n<\/script>`,
-          },
+          text: data.summary || "Here's the proposed change set.",
+          patches: data.patches ?? [],
         },
       ]);
-    }, 1100);
+    } catch (e) {
+      setMessages((m) => [...m, { role: "ai", text: `⚠️ ${(e as Error).message}` }]);
+    } finally {
+      setTyping(false);
+    }
   };
+
+  const isImported = !!ext.imported;
 
   return (
     <Card className="h-full bg-card/40 backdrop-blur border-border/60 flex flex-col">
@@ -795,8 +860,15 @@ function AICopilot() {
             <Bot className="h-3.5 w-3.5 text-primary-foreground" />
           </div>
           AI Co-Pilot
-          <Badge variant="outline" className="ml-auto text-[9px] border-emerald-500/40 text-emerald-400">Online</Badge>
+          <Badge variant="outline" className="ml-auto text-[9px] border-emerald-500/40 text-emerald-400">
+            {isImported ? "Editing import" : "Demo mode"}
+          </Badge>
         </CardTitle>
+        {!isImported && (
+          <CardDescription className="text-[11px]">
+            Upload a .zip / .crx to apply real edits to its source.
+          </CardDescription>
+        )}
       </CardHeader>
       <ScrollArea className="flex-1">
         <div ref={scrollRef} className="p-3 space-y-3">
@@ -807,22 +879,70 @@ function AICopilot() {
                   <Bot className="h-3 w-3 text-primary" />
                 </div>
               )}
-              <div className={`max-w-[80%] text-xs leading-relaxed ${
+              <div className={`max-w-[85%] text-xs leading-relaxed ${
                 m.role === "user"
                   ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2"
                   : "text-foreground"
               }`}>
-                <p>{m.text}</p>
-                {m.code && (
-                  <div className="mt-2 rounded-md border border-border/60 bg-[#0d1117] overflow-hidden">
-                    <div className="flex items-center justify-between px-2 py-1 border-b border-border/60 bg-[#161b22]">
-                      <span className="text-[10px] font-mono text-muted-foreground">{m.code.file}</span>
-                      <Button size="sm" variant="ghost" className="h-5 text-[10px] px-2"
-                        onClick={() => toast.success("Code Changes Applied", { description: `Patched ${m.code!.file}` })}>
-                        Apply to File
+                <p className="whitespace-pre-wrap">{m.text}</p>
+                {m.patches && m.patches.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">
+                        {m.patches.length} change{m.patches.length === 1 ? "" : "s"}
+                        {m.appliedAt ? " · applied" : ""}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 text-[10px] px-2"
+                        disabled={!isImported || !!m.appliedAt}
+                        onClick={() => applyAll(i, m.patches!)}
+                      >
+                        {m.appliedAt ? "Applied ✓" : "Apply all"}
                       </Button>
                     </div>
-                    <pre className="text-[10px] font-mono p-2 text-[#e6edf3] overflow-auto max-h-40">{m.code.content}</pre>
+                    {m.patches.map((p, j) => (
+                      <div key={j} className="rounded-md border border-border/60 bg-[#0d1117] overflow-hidden">
+                        <div className="flex items-center justify-between px-2 py-1 border-b border-border/60 bg-[#161b22] gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] uppercase ${
+                                p.action === "delete"
+                                  ? "border-red-500/40 text-red-400"
+                                  : p.action === "create"
+                                  ? "border-emerald-500/40 text-emerald-400"
+                                  : "border-amber-500/40 text-amber-400"
+                              }`}
+                            >
+                              {p.action}
+                            </Badge>
+                            <span className="text-[10px] font-mono text-muted-foreground truncate">{p.file}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 text-[10px] px-2 shrink-0"
+                            disabled={!isImported}
+                            onClick={() => applyOne(p)}
+                          >
+                            Apply
+                          </Button>
+                        </div>
+                        {p.action !== "delete" && p.content && (
+                          <pre className="text-[10px] font-mono p-2 text-[#e6edf3] overflow-auto max-h-40">
+                            {p.content.length > 1200 ? p.content.slice(0, 1200) + "\n…" : p.content}
+                          </pre>
+                        )}
+                        {p.reason && (
+                          <p className="text-[10px] text-muted-foreground px-2 py-1 border-t border-border/60">{p.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                    {!isImported && (
+                      <p className="text-[10px] text-amber-400/80">Upload an extension to apply these changes.</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -847,20 +967,38 @@ function AICopilot() {
           )}
         </div>
       </ScrollArea>
-      <div className="p-3 border-t border-border/60">
+      <div className="p-3 border-t border-border/60 space-y-2">
         <div className="flex gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ask the co-pilot…"
+            placeholder={isImported ? "Edit the uploaded extension…" : "Upload an extension to edit…"}
             className="text-xs"
+            disabled={typing}
           />
-          <Button size="icon" onClick={send} className="bg-gradient-cyber shrink-0">
-            <Send className="h-3.5 w-3.5" />
+          <Button size="icon" onClick={send} className="bg-gradient-cyber shrink-0" disabled={typing}>
+            {typing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           </Button>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {[
+            "Add dark-mode toggle to popup",
+            "Harden the CSP",
+            "Remove unused permissions",
+            "Add an options page",
+          ].map((q) => (
+            <button
+              key={q}
+              onClick={() => setInput(q)}
+              className="text-[10px] px-2 py-1 rounded-md border border-border/60 text-muted-foreground hover:bg-muted/40"
+            >
+              {q}
+            </button>
+          ))}
         </div>
       </div>
     </Card>
   );
 }
+
