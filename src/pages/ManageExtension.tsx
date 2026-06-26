@@ -3,8 +3,12 @@ import {
   BarChart3, ShieldCheck, Code2, Copy, Settings as SettingsIcon,
   Send, Sparkles, AlertTriangle, CheckCircle2, Loader2, FileCode2,
   Users, Star, TrendingUp, Activity, Bot, User as UserIcon, Play,
-  Upload, Download, X,
+  Upload, Download, X, ShieldHalf, KeyRound,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { injectShimIntoFiles, newInstallSecret, sha256Hex, buildTelemetryShim } from "@/lib/telemetry-shim";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
