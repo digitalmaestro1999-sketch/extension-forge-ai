@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image } from "lucide-react";
+import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info } from "lucide-react";
+import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
