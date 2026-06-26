@@ -175,18 +175,98 @@ export default function ManageExtension() {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuth();
+  const [autoInject, setAutoInject] = useState<boolean>(() => {
+    try { return localStorage.getItem("lv_auto_inject") === "1"; } catch { return false; }
+  });
+  const [securing, setSecuring] = useState(false);
+  const [lastInstall, setLastInstall] = useState<{ id: string; secret: string } | null>(null);
+  const [showSecret, setShowSecret] = useState<{ id: string; secret: string; shim: string } | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem("lv_auto_inject", autoInject ? "1" : "0"); } catch { /* noop */ }
+  }, [autoInject]);
+
+  // Core: register a fresh install + inject the shim into the current file map.
+  // Returns the patched file contents and the new install id/secret.
+  const secureExtension = async (
+    ext: ImportedExtension,
+    files: Record<string, string>,
+  ): Promise<{ files: Record<string, string>; installId: string; secret: string } | null> => {
+    if (!user) {
+      toast.error("Sign in required", { description: "Live-control deployment needs an account." });
+      return null;
+    }
+    const secret = newInstallSecret();
+    const hash = await sha256Hex(secret);
+    const { data, error } = await supabase
+      .from("extension_installs")
+      .insert({
+        owner_id: user.id,
+        extension_name: ext.name,
+        extension_version: ext.version,
+        source: "imported",
+        status: "active",
+        token_hash: hash,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      toast.error("Could not register install", { description: error?.message ?? "unknown" });
+      return null;
+    }
+    const installId = data.id as string;
+    const { files: patched, manifest } = injectShimIntoFiles(files, ext.manifest, installId, secret);
+    // Reflect the manifest update inside the imported extension's parsed copy too
+    ext.manifest = manifest as ImportedExtension["manifest"];
+    return { files: patched, installId, secret };
+  };
+
   const handleImport = async (file: File) => {
     setImporting(true);
     try {
       const ext = await importExtensionFile(file);
+      let nextFiles: Record<string, string> = { ...ext.files };
+      if (autoInject) {
+        const res = await secureExtension(ext, nextFiles);
+        if (res) {
+          nextFiles = res.files;
+          setLastInstall({ id: res.installId, secret: res.secret });
+          toast.success("Auto-secured", { description: `Install ${res.installId.slice(0, 8)}… registered with fresh HMAC key.` });
+        }
+      }
       setImported(ext);
-      setFileContents({ ...ext.files });
-      toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(ext.files).length} editable files` });
+      setFileContents(nextFiles);
+      toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(nextFiles).length} editable files` });
     } catch (e) {
       toast.error("Import failed", { description: (e as Error).message });
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSecureAndDeploy = async () => {
+    if (!imported) return;
+    setSecuring(true);
+    try {
+      const res = await secureExtension(imported, fileContents);
+      if (!res) return;
+      setFileContents(res.files);
+      setLastInstall({ id: res.installId, secret: res.secret });
+      const blob = await exportImportedExtension(imported, res.files);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${imported.name.replace(/[^a-z0-9-_]+/gi, "_")}-secured.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowSecret({ id: res.installId, secret: res.secret, shim: buildTelemetryShim(res.installId, res.secret) });
+      toast.success("Secured ZIP exported", { description: "Fresh HMAC key minted. Manage it under Live Control." });
+    } catch (e) {
+      toast.error("Secure & deploy failed", { description: (e as Error).message });
+    } finally {
+      setSecuring(false);
     }
   };
 
@@ -209,6 +289,7 @@ export default function ManageExtension() {
   const clearImport = () => {
     setImported(null);
     setFileContents(DEFAULT_FILE_CONTENTS);
+    setLastInstall(null);
     toast.info("Reverted to demo extension");
   };
 
