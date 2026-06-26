@@ -426,9 +426,11 @@ function AnalyticsView() {
 
 // ---------------- Security ----------------
 function SecurityView() {
+  const ext = useExt();
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<"safe" | "action" | null>(null);
+
 
   const runScan = () => {
     setScanning(true); setProgress(0); setResult(null);
