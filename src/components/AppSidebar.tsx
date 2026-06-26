@@ -1,8 +1,9 @@
 import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
-  Briefcase, DollarSign, Search, BarChart3, BookOpen
+  Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,7 +48,7 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, signOut } = useAuth();
+  const { user, signOut, isSuperadmin, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const renderItems = (items: typeof mainItems) =>
@@ -111,6 +112,18 @@ export function AppSidebar() {
             <SidebarMenu>{renderItems(settingsItems)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {isSuperadmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-amber-400">Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {renderItems([
+                  { title: "User Management", url: "/admin/users", icon: Crown },
+                ])}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-3">
         {user ? (
@@ -118,6 +131,19 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{user.email}</p>
+                {(isSuperadmin || isAdmin) && (
+                  <Badge
+                    variant="outline"
+                    className={`mt-0.5 text-[9px] px-1 py-0 h-3.5 gap-0.5 ${
+                      isSuperadmin
+                        ? "border-amber-400/40 text-amber-400"
+                        : "border-primary/40 text-primary"
+                    }`}
+                  >
+                    {isSuperadmin ? <Crown className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
+                    {isSuperadmin ? "Superadmin" : "Admin"}
+                  </Badge>
+                )}
               </div>
             )}
             <Button size="sm" variant="ghost" onClick={signOut} className="shrink-0 h-7 w-7 p-0">
