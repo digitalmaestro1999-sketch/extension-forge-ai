@@ -131,6 +131,19 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{user.email}</p>
+                {(isSuperadmin || isAdmin) && (
+                  <Badge
+                    variant="outline"
+                    className={`mt-0.5 text-[9px] px-1 py-0 h-3.5 gap-0.5 ${
+                      isSuperadmin
+                        ? "border-amber-400/40 text-amber-400"
+                        : "border-primary/40 text-primary"
+                    }`}
+                  >
+                    {isSuperadmin ? <Crown className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
+                    {isSuperadmin ? "Superadmin" : "Admin"}
+                  </Badge>
+                )}
               </div>
             )}
             <Button size="sm" variant="ghost" onClick={signOut} className="shrink-0 h-7 w-7 p-0">
