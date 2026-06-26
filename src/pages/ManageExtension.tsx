@@ -474,27 +474,33 @@ function SecurityView() {
         <Card className="bg-card/40 backdrop-blur border-border/60">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Permission Scanner</CardTitle>
-            <CardDescription>4 requested permissions evaluated</CardDescription>
+            <CardDescription>{ext.permissions.length} requested permissions evaluated</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {PERMISSIONS.map((p) => (
+          <CardContent className="space-y-2 max-h-72 overflow-auto">
+            {ext.permissions.length === 0 && (
+              <p className="text-xs text-muted-foreground p-3">No permissions requested.</p>
+            )}
+            {ext.permissions.map((p) => (
               <div key={p.name} className="flex items-start gap-3 p-3 rounded-md border border-border/60 bg-background/40">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <code className="text-sm font-mono">{p.name}</code>
+                    <code className="text-sm font-mono break-all">{p.name}</code>
                     <Badge variant="outline" className={
                       p.level === "safe"
                         ? "border-emerald-500/40 text-emerald-400 text-[10px]"
+                        : p.level === "danger"
+                        ? "border-red-500/40 text-red-400 text-[10px]"
                         : "border-amber-500/40 text-amber-400 text-[10px]"
                     }>
-                      {p.level === "safe" ? "Safe" : "Warning"}
+                      {p.level === "safe" ? "Safe" : p.level === "danger" ? "Danger" : "Warning"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{p.note}</p>
                 </div>
-                {p.level === "warning" && <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />}
+                {p.level !== "safe" && <AlertTriangle className={`h-4 w-4 shrink-0 ${p.level === "danger" ? "text-red-400" : "text-amber-400"}`} />}
               </div>
             ))}
+
           </CardContent>
         </Card>
       </div>
