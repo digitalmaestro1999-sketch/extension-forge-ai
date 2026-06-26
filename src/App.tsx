@@ -26,6 +26,7 @@ import StoreSEO from "./pages/StoreSEO";
 import RevenueTracker from "./pages/RevenueTracker";
 import UserManual from "./pages/UserManual";
 import AdminUsers from "./pages/AdminUsers";
+import ManageExtension from "./pages/ManageExtension";
 import NotFound from "./pages/NotFound";
 import { RouteGuard } from "@/components/RouteGuard";
 
@@ -66,6 +67,7 @@ const App = () => (
                       <Route path="/store-seo" element={<StoreSEO />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/manual" element={<UserManual />} />
+                      <Route path="/manage" element={<ManageExtension />} />
 
                       {/* Admin-tier: scaling / business tools */}
                       <Route
