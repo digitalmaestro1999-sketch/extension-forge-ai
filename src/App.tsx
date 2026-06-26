@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import CreateExtension from "./pages/CreateExtension";
+import ExtensionWizard from "./pages/ExtensionWizard";
 import AIBuilder from "./pages/AIBuilder";
 import CodeEditorPage from "./pages/CodeEditor";
 import Templates from "./pages/Templates";
