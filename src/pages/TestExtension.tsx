@@ -116,11 +116,19 @@ function runManifestTests(files: Record<string, string>): TestResult[] {
       category: "permissions",
     });
 
-    // CSP check
+    // CSP check — require an explicit hardened CSP
+    const csp = manifest.content_security_policy;
+    const cspString = typeof csp === "string" ? csp : csp?.extension_pages || "";
+    const hasHardenedCsp =
+      cspString.includes("script-src 'self'") && cspString.includes("object-src 'self'");
     results.push({
       name: "CSP policy",
-      status: manifest.content_security_policy ? "pass" : "warn",
-      message: manifest.content_security_policy ? "Custom CSP defined" : "Using default CSP (acceptable)",
+      status: hasHardenedCsp ? "pass" : csp ? "warn" : "fail",
+      message: hasHardenedCsp
+        ? "Hardened CSP defined (script-src 'self'; object-src 'self')"
+        : csp
+        ? "CSP present but not fully hardened"
+        : "Missing content_security_policy — add an explicit hardened CSP",
       category: "security",
     });
 
