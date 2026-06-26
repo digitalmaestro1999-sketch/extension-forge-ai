@@ -178,12 +178,59 @@ export default function PackageExtension() {
                     )}
                     {generatingIcons ? "Generating..." : "AI Icons"}
                   </Button>
-                  <Button onClick={handleDownload} className="bg-gradient-cyber text-primary-foreground">
-                    <Download className="h-4 w-4 mr-2" /> Download .zip
+                  <Button
+                    onClick={handleDownload}
+                    disabled={!!qaReport && !qaReport.chromeReady}
+                    className="bg-gradient-cyber text-primary-foreground"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {qaReport && !qaReport.chromeReady ? "Fix QA errors to download" : "Download .zip"}
                   </Button>
                 </div>
               </div>
             </div>
+          )}
+
+          {qaReport && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-border bg-card overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className={`h-5 w-5 ${qaReport.chromeReady ? "text-success" : "text-warning"}`} />
+                  <div>
+                    <h3 className="text-sm font-semibold">Packaging QA — Chrome MV3 Validation</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {qaReport.checks.length} checks · {qaReport.errors} errors · {qaReport.warnings} warnings
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant={qaReport.chromeReady ? "default" : "destructive"}
+                  className="font-mono text-[10px]"
+                >
+                  {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
+                </Badge>
+              </div>
+              <div className="divide-y divide-border">
+                {qaReport.checks.map(c => (
+                  <div key={c.id} className="px-5 py-2.5 flex items-start gap-3">
+                    {sevIcon(c.severity, c.passed)}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${c.passed ? "text-foreground" : "font-medium"}`}>{c.label}</p>
+                      {!c.passed && c.detail && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">{c.detail}</p>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] font-mono uppercase">
+                      {c.severity}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
           )}
 
           {/* AI Icon Preview */}
