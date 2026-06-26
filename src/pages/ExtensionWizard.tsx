@@ -71,6 +71,9 @@ export default function ExtensionWizard() {
   });
   const [hostInput, setHostInput] = useState("");
   const [hosts, setHosts] = useState<string[]>(["https://*.example.com/*"]);
+  const [matchInput, setMatchInput] = useState("");
+  const [matches, setMatches] = useState<string[]>(["https://*.example.com/*"]);
+  const [compiling, setCompiling] = useState(false);
 
   // Preview tab
   const [previewTab, setPreviewTab] = useState<"ui" | "manifest">("ui");
