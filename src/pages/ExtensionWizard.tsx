@@ -235,17 +235,26 @@ export default function ExtensionWizard() {
             <Badge variant="secondary" className="font-mono text-[10px]">
               {Object.values(perms).filter(Boolean).length + hosts.length} perms
             </Badge>
+
+            <HealthScorecard
+              report={health}
+              onOpen={() => setHealthOpen(true)}
+            />
+
             <Button size="sm" variant="outline" onClick={downloadManifest}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> manifest.json
             </Button>
             <Button
               size="sm"
               onClick={compileAndDownload}
-              disabled={compiling}
-              className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+              disabled={compiling || health.status === "blocked"}
+              title={health.status === "blocked" ? "Resolve health-check errors first" : undefined}
+              className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {compiling ? (
                 <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Compiling…</>
+              ) : health.status === "blocked" ? (
+                <><ShieldAlert className="h-3.5 w-3.5 mr-1.5" /> Fix errors to download</>
               ) : (
                 <><Package className="h-3.5 w-3.5 mr-1.5" /> Compile & Download (.zip)</>
               )}
@@ -253,6 +262,13 @@ export default function ExtensionWizard() {
           </div>
         </div>
       </div>
+
+      <HealthDrawer
+        open={healthOpen}
+        onOpenChange={setHealthOpen}
+        report={health}
+        onJumpToStep={(s) => { setStep(s); setHealthOpen(false); }}
+      />
 
       <div className="p-6 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-6">
         {/* ============ LEFT: WIZARD ============ */}
