@@ -53,8 +53,10 @@ export function AppSidebar() {
   const { user, signOut, isSuperadmin, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const renderItems = (items: typeof mainItems) =>
-    items.map((item) => (
+  const renderItems = (items: NavItem[]) =>
+    items
+      .filter((item) => !item.adminOnly || isAdmin)
+      .map((item) => (
       <SidebarMenuItem key={item.title}>
         <SidebarMenuButton asChild>
           <NavLink
