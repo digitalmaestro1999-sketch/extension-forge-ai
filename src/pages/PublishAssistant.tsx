@@ -183,12 +183,12 @@ export default function PublishAssistant() {
 
   const handleAutoFix = () => {
     if (!files) return;
-    const { files: fixed, autoFix } = autoFixAndValidate(files);
+    const { files: fixed, fixes } = autoFixAndValidate(files);
     setFiles(fixed);
     sessionStorage.setItem("extension-files", JSON.stringify(fixed));
-    setAutoFixApplied(autoFix.fixes.map((f) => f.description));
-    toast.success(`Applied ${autoFix.fixes.length} auto-fixes`);
-    log("ok", `Auto-fixed ${autoFix.fixes.length} issue(s)`);
+    setAutoFixApplied(fixes.map((f) => f.description));
+    toast.success(`Applied ${fixes.length} auto-fixes`);
+    log("ok", `Auto-fixed ${fixes.length} issue(s)`);
   };
 
   const handleZipUpload = async (file: File) => {
