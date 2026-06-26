@@ -97,6 +97,23 @@ export default function PublishAssistant() {
   const [qa, setQA] = useState<QAReport | null>(null);
   const [autoFixApplied, setAutoFixApplied] = useState<string[]>([]);
 
+  // Store listing (auto-generated, user editable)
+  const [listing, setListing] = useState({
+    title: "",
+    summary: "",
+    description: "",
+    category: "",
+    keywords: [] as string[],
+    singlePurpose: "",
+    privacyPolicyUrl: "",
+    homepageUrl: "",
+    privacyPolicyText: "",
+    termsOfUse: "",
+    permissionJustifications: {} as Record<string, string>,
+  });
+  const [generatingListing, setGeneratingListing] = useState(false);
+  const [policy, setPolicy] = useState<PolicyReport | null>(null);
+
   const [publishTarget, setPublishTarget] =
     useState<"default" | "trustedTesters">("trustedTesters");
   const [autoPublish, setAutoPublish] = useState(false);
