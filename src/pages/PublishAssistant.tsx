@@ -114,6 +114,7 @@ export default function PublishAssistant() {
   });
   const [generatingListing, setGeneratingListing] = useState(false);
   const [policy, setPolicy] = useState<PolicyReport | null>(null);
+  const [fixingCheckId, setFixingCheckId] = useState<string | null>(null);
 
   const [publishTarget, setPublishTarget] =
     useState<"default" | "trustedTesters">("trustedTesters");
