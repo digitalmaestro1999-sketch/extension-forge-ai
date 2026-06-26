@@ -931,6 +931,20 @@ export default function PublishAssistant() {
               </div>
             </div>
 
+            {policy && policy.errors > 0 && !zipBase64Override && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">
+                    {policy.errors} policy error(s) blocking publish (score {policy.score}/100)
+                  </p>
+                  <p className="text-muted-foreground">
+                    Fix them in the Listing tab — submitting now will be rejected by review.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Button
               size="lg"
               disabled={!canPublish}
