@@ -406,7 +406,7 @@ export default function PublishAssistant() {
       </motion.div>
 
       <Tabs defaultValue="connect" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="connect">
             <KeyRound className="h-3.5 w-3.5 mr-1.5" />
             1. Connect
@@ -415,9 +415,13 @@ export default function PublishAssistant() {
             <FileArchive className="h-3.5 w-3.5 mr-1.5" />
             2. Package
           </TabsTrigger>
+          <TabsTrigger value="listing">
+            <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+            3. Listing
+          </TabsTrigger>
           <TabsTrigger value="publish">
             <Upload className="h-3.5 w-3.5 mr-1.5" />
-            3. Publish
+            4. Publish
           </TabsTrigger>
         </TabsList>
 
