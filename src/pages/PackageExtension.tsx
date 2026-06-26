@@ -289,12 +289,20 @@ export default function PackageExtension() {
                     </p>
                   </div>
                 </div>
-                <Badge
-                  variant={qaReport.chromeReady ? "default" : "destructive"}
-                  className="font-mono text-[10px]"
-                >
-                  {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {(qaReport.errors > 0 || qaReport.warnings > 0) && (
+                    <Button size="sm" variant="outline" onClick={handleAutoFix} disabled={autoFixing}>
+                      {autoFixing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+                      Auto-Fix
+                    </Button>
+                  )}
+                  <Badge
+                    variant={qaReport.chromeReady ? "default" : "destructive"}
+                    className="font-mono text-[10px]"
+                  >
+                    {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
+                  </Badge>
+                </div>
               </div>
               <div className="divide-y divide-border">
                 {qaReport.checks.map(c => (
