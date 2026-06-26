@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info } from "lucide-react";
+import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info, Wand2, Store, Upload } from "lucide-react";
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
+import { autoFixAndValidate } from "@/lib/package-autofix";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -16,6 +20,16 @@ export default function PackageExtension() {
   const [spec, setSpec] = useState<ExtensionSpec | null>(null);
   const [aiIconBase64, setAiIconBase64] = useState<string | null>(null);
   const [generatingIcons, setGeneratingIcons] = useState(false);
+  const [autoFixing, setAutoFixing] = useState(false);
+
+  // Chrome Web Store upload state
+  const [cwsOpen, setCwsOpen] = useState(false);
+  const [cwsUploading, setCwsUploading] = useState(false);
+  const [cwsClientId, setCwsClientId] = useState("");
+  const [cwsClientSecret, setCwsClientSecret] = useState("");
+  const [cwsRefreshToken, setCwsRefreshToken] = useState("");
+  const [cwsExtensionId, setCwsExtensionId] = useState("");
+  const [cwsPublish, setCwsPublish] = useState(false);
 
   useEffect(() => {
     const storedFiles = sessionStorage.getItem("extension-files");
@@ -78,7 +92,7 @@ export default function PackageExtension() {
     });
   };
 
-  const handleDownload = async () => {
+  const buildZipBlob = async (): Promise<Blob> => {
     const zip = new JSZip();
     Object.entries(files).forEach(([name, content]) => {
       if (name.includes("/")) {
@@ -91,9 +105,7 @@ export default function PackageExtension() {
     });
 
     const iconsFolder = zip.folder("icons")!;
-
     if (aiIconBase64) {
-      // Use AI-generated icons, resized to each required dimension
       const [icon16, icon48, icon128] = await Promise.all([
         resizeIcon(aiIconBase64, 16),
         resizeIcon(aiIconBase64, 48),
@@ -103,17 +115,87 @@ export default function PackageExtension() {
       iconsFolder.file("icon48.png", icon48);
       iconsFolder.file("icon128.png", icon128);
     } else {
-      // Fallback to solid-color placeholder icons
       const icons = generateExtensionIcons();
       iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
       iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
       iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
+    return zip.generateAsync({ type: "blob" });
+  };
+
+  const handleDownload = async () => {
+    const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
     toast.success("Extension package downloaded!");
+  };
+
+  const handleAutoFix = () => {
+    if (Object.keys(files).length === 0) return;
+    setAutoFixing(true);
+    try {
+      const { files: fixed, fixes, report } = autoFixAndValidate(files);
+      if (fixes.length === 0) {
+        toast.info("Nothing to fix — bundle is already clean.");
+        return;
+      }
+      setFiles(fixed);
+      sessionStorage.setItem("extension-files", JSON.stringify(fixed));
+      toast.success(
+        `Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"} · ${report.errors} errors remaining`,
+      );
+    } finally {
+      setAutoFixing(false);
+    }
+  };
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1] ?? result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+  const handleCwsUpload = async () => {
+    if (!cwsClientId || !cwsClientSecret || !cwsRefreshToken) {
+      toast.error("Client ID, secret and refresh token are required");
+      return;
+    }
+    setCwsUploading(true);
+    try {
+      const blob = await buildZipBlob();
+      const zipBase64 = await blobToBase64(blob);
+      const { data, error } = await supabase.functions.invoke("chrome-store-upload", {
+        body: {
+          zipBase64,
+          clientId: cwsClientId,
+          clientSecret: cwsClientSecret,
+          refreshToken: cwsRefreshToken,
+          extensionId: cwsExtensionId || undefined,
+          publish: cwsPublish,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        cwsPublish
+          ? "Uploaded and submitted to the Chrome Web Store!"
+          : "Uploaded to the Chrome Web Store as a draft.",
+      );
+      if (data?.dashboardUrl) {
+        window.open(data.dashboardUrl, "_blank", "noopener");
+      }
+    } catch (e: any) {
+      console.error("CWS upload error:", e);
+      toast.error(e.message || "Chrome Web Store upload failed");
+    } finally {
+      setCwsUploading(false);
+    }
   };
 
   const fileList = Object.keys(files);
@@ -207,12 +289,20 @@ export default function PackageExtension() {
                     </p>
                   </div>
                 </div>
-                <Badge
-                  variant={qaReport.chromeReady ? "default" : "destructive"}
-                  className="font-mono text-[10px]"
-                >
-                  {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {(qaReport.errors > 0 || qaReport.warnings > 0) && (
+                    <Button size="sm" variant="outline" onClick={handleAutoFix} disabled={autoFixing}>
+                      {autoFixing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+                      Auto-Fix
+                    </Button>
+                  )}
+                  <Badge
+                    variant={qaReport.chromeReady ? "default" : "destructive"}
+                    className="font-mono text-[10px]"
+                  >
+                    {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
+                  </Badge>
+                </div>
               </div>
               <div className="divide-y divide-border">
                 {qaReport.checks.map(c => (
@@ -232,6 +322,88 @@ export default function PackageExtension() {
               </div>
             </motion.div>
           )}
+
+          {/* Chrome Web Store Upload */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-border bg-card overflow-hidden"
+          >
+            <button
+              type="button"
+              onClick={() => setCwsOpen(o => !o)}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/30 transition"
+            >
+              <div className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <h3 className="text-sm font-semibold">Publish to Chrome Web Store</h3>
+                  <p className="text-xs text-muted-foreground">Upload via the official CWS API using your OAuth credentials</p>
+                </div>
+              </div>
+              <Badge variant="secondary" className="text-[10px] font-mono">
+                {cwsOpen ? "HIDE" : "SETUP"}
+              </Badge>
+            </button>
+
+            {cwsOpen && (
+              <div className="px-5 py-4 border-t border-border space-y-4">
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">One-time Google Cloud setup:</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    <li>Pay the $5 Chrome Web Store developer fee.</li>
+                    <li>Create an OAuth 2.0 Client (type: Desktop) in Google Cloud Console.</li>
+                    <li>Enable the <span className="font-mono">Chrome Web Store API</span>.</li>
+                    <li>Generate a refresh token (scope <span className="font-mono">https://www.googleapis.com/auth/chromewebstore</span>).</li>
+                  </ol>
+                  <p className="pt-1">Credentials stay in your browser — they're sent directly to the upload edge function, never stored.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cws-client-id" className="text-xs">Client ID</Label>
+                    <Input id="cws-client-id" value={cwsClientId} onChange={e => setCwsClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cws-client-secret" className="text-xs">Client Secret</Label>
+                    <Input id="cws-client-secret" type="password" value={cwsClientSecret} onChange={e => setCwsClientSecret(e.target.value)} placeholder="GOCSPX-…" />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label htmlFor="cws-refresh" className="text-xs">Refresh Token</Label>
+                    <Input id="cws-refresh" type="password" value={cwsRefreshToken} onChange={e => setCwsRefreshToken(e.target.value)} placeholder="1//0g…" />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label htmlFor="cws-ext-id" className="text-xs">Extension ID <span className="text-muted-foreground">(leave blank to create a new draft)</span></Label>
+                    <Input id="cws-ext-id" value={cwsExtensionId} onChange={e => setCwsExtensionId(e.target.value)} placeholder="32-character item id" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2">
+                    <Switch id="cws-publish" checked={cwsPublish} onCheckedChange={setCwsPublish} />
+                    <Label htmlFor="cws-publish" className="text-sm cursor-pointer">
+                      Submit for review after upload
+                    </Label>
+                  </div>
+                  <Button
+                    onClick={handleCwsUpload}
+                    disabled={cwsUploading || (!!qaReport && !qaReport.chromeReady)}
+                    className="bg-gradient-cyber text-primary-foreground"
+                  >
+                    {cwsUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                    {cwsUploading ? "Uploading…" : cwsPublish ? "Upload & Submit" : "Upload Draft"}
+                  </Button>
+                </div>
+                {qaReport && !qaReport.chromeReady && (
+                  <p className="text-xs text-warning flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Resolve QA errors before uploading — Chrome will reject the package.
+                  </p>
+                )}
+              </div>
+            )}
+          </motion.div>
+
 
           {/* AI Icon Preview */}
           {aiIconBase64 && (
