@@ -25,6 +25,7 @@ import MonetizationTemplates from "./pages/MonetizationTemplates";
 import StoreSEO from "./pages/StoreSEO";
 import RevenueTracker from "./pages/RevenueTracker";
 import UserManual from "./pages/UserManual";
+import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
