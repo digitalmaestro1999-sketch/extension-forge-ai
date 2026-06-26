@@ -385,6 +385,46 @@ export default function ExtensionWizard() {
                       );
                     })}
                   </div>
+
+                  {extType === "content" && (
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <Label className="text-xs flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5" /> Target matches (URLs)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pages where <span className="font-mono">content.js</span> will be injected.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={matchInput}
+                          onChange={e => setMatchInput(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addMatch())}
+                          placeholder="https://*.example.com/*"
+                          className="font-mono text-xs"
+                        />
+                        <Button size="sm" variant="outline" onClick={addMatch}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matches.length === 0 && (
+                          <p className="text-[11px] text-muted-foreground italic">Defaults to &lt;all_urls&gt;.</p>
+                        )}
+                        {matches.map(h => (
+                          <Badge key={h} variant="secondary" className="font-mono text-[10px] gap-1 pl-2 pr-1 py-0.5">
+                            {h}
+                            <button
+                              onClick={() => setMatches(list => list.filter(x => x !== h))}
+                              className="ml-0.5 hover:text-destructive"
+                              aria-label={`Remove ${h}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
