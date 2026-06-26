@@ -33,7 +33,7 @@ type Install = {
   license_expires_at: string | null;
   daily_quota_minutes: number | null;
   weekly_quota_minutes: number | null;
-  schedule_json: { days?: number[]; start_hour?: number; end_hour?: number } | null;
+  schedule_json: { days?: number[]; start_hour?: number; end_hour?: number; tz?: string } | null;
   last_seen_at: string | null;
   notes: string | null;
   created_at: string;
