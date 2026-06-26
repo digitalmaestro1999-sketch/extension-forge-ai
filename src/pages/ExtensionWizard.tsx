@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wand2, Image as ImageIcon, AppWindow, PanelRight, FileCode2, Cog,
-  ShieldCheck, Check, Eye, Code2, Download, Lock, Globe, X, Plus,
+  ShieldCheck, Check, Eye, Code2, Download, Lock, Globe, X, Plus, Package, Loader2,
 } from "lucide-react";
+import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { buildAllFiles, buildManifest, type WizardSpec } from "@/lib/wizard-codegen";
+import { generateExtensionIcons } from "@/lib/generate-icons";
 
 type ExtensionType = "popup" | "sidepanel" | "content" | "background";
 
