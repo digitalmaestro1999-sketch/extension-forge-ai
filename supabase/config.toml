@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.chrome-store-upload]
 verify_jwt = false
+
+[functions.extension-edit]
+verify_jwt = false
