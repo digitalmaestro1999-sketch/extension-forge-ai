@@ -236,7 +236,18 @@ export default function BatchQueue() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => navigate(`/projects/${item.project_id}`)}
+                        onClick={async () => {
+                          const { data } = await supabase
+                            .from("extension_projects")
+                            .select("files, spec")
+                            .eq("id", item.project_id!)
+                            .maybeSingle();
+                          if (data) {
+                            sessionStorage.setItem("extension-files", JSON.stringify(data.files || {}));
+                            sessionStorage.setItem("extension-spec", JSON.stringify(data.spec || {}));
+                          }
+                          navigate("/editor");
+                        }}
                         className="shrink-0"
                       >
                         <ArrowRight className="h-3 w-3" />

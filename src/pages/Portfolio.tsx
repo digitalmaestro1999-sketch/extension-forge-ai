@@ -118,8 +118,8 @@ export default function Portfolio() {
                     <button
                       key={p.id}
                       onClick={() => {
-                        sessionStorage.setItem("currentFiles", JSON.stringify((p as any).files || {}));
-                        sessionStorage.setItem("currentSpec", JSON.stringify(p.spec));
+                        sessionStorage.setItem("extension-files", JSON.stringify((p as { files?: Record<string, string> }).files || {}));
+                        sessionStorage.setItem("extension-spec", JSON.stringify(p.spec));
                         navigate("/editor");
                       }}
                       className="text-left p-3 rounded-lg border border-border hover:border-primary/50 transition-colors"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, Loader2, Search, Sparkles, ArrowRight,
@@ -31,18 +31,20 @@ export default function TrendDiscovery() {
   const [results, setResults] = useState<TrendResult[]>([]);
   const [creditsUnavailable, setCreditsUnavailable] = useState(false);
 
-  const checkCredits = async () => {
-    try {
-      const { data } = await supabase.functions.invoke("discover-trends", {
-        body: { niche: "__ping__" },
-      });
-      setCreditsUnavailable(!!data?.fallback);
-    } catch {
-      // ignore
-    }
-  };
-
-  useState(() => { checkCredits(); });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("discover-trends", {
+          body: { niche: "__ping__", ping: true },
+        });
+        if (!cancelled) setCreditsUnavailable(!!data?.fallback);
+      } catch {
+        // ignore — banner stays hidden
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const discover = async () => {
     if (!niche.trim()) {
