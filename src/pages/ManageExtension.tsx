@@ -335,18 +335,21 @@ export default function ManageExtension() {
 
 // ---------------- Analytics ----------------
 function AnalyticsView() {
+  const ext = useExt();
+  const isImported = !!ext.imported;
   const kpis = [
-    { label: "Active Installs", value: EXTENSION.users.toLocaleString(), trend: "+12%", icon: Users },
-    { label: "Weekly Active", value: EXTENSION.weeklyActive.toLocaleString(), trend: "+4.3%", icon: Activity },
-    { label: "Avg Rating", value: EXTENSION.rating.toFixed(1), trend: "+0.2", icon: Star },
-    { label: "Security Score", value: `${EXTENSION.securityScore}/100`, trend: "+3", icon: ShieldCheck },
+    { label: "Active Installs", value: isImported ? "—" : DEFAULT_EXT.users.toLocaleString(), trend: isImported ? "n/a" : "+12%", icon: Users },
+    { label: "Weekly Active", value: isImported ? "—" : DEFAULT_EXT.weeklyActive.toLocaleString(), trend: isImported ? "n/a" : "+4.3%", icon: Activity },
+    { label: "Avg Rating", value: isImported ? "—" : DEFAULT_EXT.rating.toFixed(1), trend: isImported ? "n/a" : "+0.2", icon: Star },
+    { label: "Security Score", value: isImported ? `${Math.max(40, 100 - ext.permissions.filter(p => p.level !== "safe").length * 12)}/100` : `${DEFAULT_EXT.securityScore}/100`, trend: "live", icon: ShieldCheck },
   ];
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-2xl font-bold text-gradient-cyber">{EXTENSION.name}</h1>
-        <p className="text-sm text-muted-foreground">v{EXTENSION.version} · {EXTENSION.id}</p>
+        <h1 className="text-2xl font-bold text-gradient-cyber">{ext.name}</h1>
+        <p className="text-sm text-muted-foreground">v{ext.version} · {isImported ? "imported (local)" : DEFAULT_EXT.id}</p>
       </header>
+
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((k) => (
