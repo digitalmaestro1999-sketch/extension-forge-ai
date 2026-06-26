@@ -27,8 +27,13 @@ import RevenueTracker from "./pages/RevenueTracker";
 import UserManual from "./pages/UserManual";
 import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
+import { RouteGuard } from "@/components/RouteGuard";
 
 const queryClient = new QueryClient();
+
+// Role policy: superadmin bypasses all role checks (handled inside RouteGuard).
+const adminOnly = ["admin"] as const;
+const superadminOnly = ["superadmin"] as const;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -42,31 +47,66 @@ const App = () => (
             <Route
               path="*"
               element={
-                <DashboardLayout>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/create" element={<CreateExtension />} />
-                    <Route path="/wizard" element={<ExtensionWizard />} />
-                    <Route path="/ai-builder" element={<AIBuilder />} />
-                    <Route path="/editor" element={<CodeEditorPage />} />
-                    <Route path="/templates" element={<Templates />} />
-                    <Route path="/trends" element={<TrendDiscovery />} />
-                    <Route path="/batch" element={<BatchQueue />} />
-                    <Route path="/projects" element={<ProjectHistory />} />
-                    <Route path="/api-manager" element={<ApiManager />} />
-                    <Route path="/test" element={<TestExtension />} />
-                    <Route path="/package" element={<PackageExtension />} />
-                    <Route path="/publish" element={<PublishAssistant />} />
-                    <Route path="/portfolio" element={<Portfolio />} />
-                    <Route path="/monetization" element={<MonetizationTemplates />} />
-                    <Route path="/store-seo" element={<StoreSEO />} />
-                    <Route path="/revenue" element={<RevenueTracker />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/manual" element={<UserManual />} />
-                    <Route path="/admin/users" element={<AdminUsers />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </DashboardLayout>
+                <RouteGuard>
+                  <DashboardLayout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/create" element={<CreateExtension />} />
+                      <Route path="/wizard" element={<ExtensionWizard />} />
+                      <Route path="/ai-builder" element={<AIBuilder />} />
+                      <Route path="/editor" element={<CodeEditorPage />} />
+                      <Route path="/templates" element={<Templates />} />
+                      <Route path="/projects" element={<ProjectHistory />} />
+                      <Route path="/api-manager" element={<ApiManager />} />
+                      <Route path="/test" element={<TestExtension />} />
+                      <Route path="/package" element={<PackageExtension />} />
+                      <Route path="/publish" element={<PublishAssistant />} />
+                      <Route path="/portfolio" element={<Portfolio />} />
+                      <Route path="/monetization" element={<MonetizationTemplates />} />
+                      <Route path="/store-seo" element={<StoreSEO />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/manual" element={<UserManual />} />
+
+                      {/* Admin-tier: scaling / business tools */}
+                      <Route
+                        path="/trends"
+                        element={
+                          <RouteGuard anyRole={[...adminOnly]}>
+                            <TrendDiscovery />
+                          </RouteGuard>
+                        }
+                      />
+                      <Route
+                        path="/batch"
+                        element={
+                          <RouteGuard anyRole={[...adminOnly]}>
+                            <BatchQueue />
+                          </RouteGuard>
+                        }
+                      />
+                      <Route
+                        path="/revenue"
+                        element={
+                          <RouteGuard anyRole={[...adminOnly]}>
+                            <RevenueTracker />
+                          </RouteGuard>
+                        }
+                      />
+
+                      {/* Superadmin only */}
+                      <Route
+                        path="/admin/users"
+                        element={
+                          <RouteGuard anyRole={[...superadminOnly]}>
+                            <AdminUsers />
+                          </RouteGuard>
+                        }
+                      />
+
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </DashboardLayout>
+                </RouteGuard>
               }
             />
           </Routes>
