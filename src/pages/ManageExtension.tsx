@@ -601,15 +601,56 @@ function EditorView() {
 
 // ---------------- Clone ----------------
 function CloneView() {
+  const ext = useExt();
+  const isImported = !!ext.imported;
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("TabMaster Pro · Clone");
-  const [id, setId] = useState("tmp-clone-" + Math.random().toString(36).slice(2, 6));
+  const [name, setName] = useState(`${ext.name} · Clone`);
+  const [id, setId] = useState(`${ext.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 16)}-clone-${Math.random().toString(36).slice(2, 6)}`);
   const [reset, setReset] = useState(true);
+  const [cloning, setCloning] = useState(false);
 
-  const clone = () => {
-    setOpen(false);
-    toast.success("Extension Cloned Successfully", { description: `${name} created with ID ${id}.` });
+  useEffect(() => {
+    setName(`${ext.name} · Clone`);
+    setId(`${ext.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 16)}-clone-${Math.random().toString(36).slice(2, 6)}`);
+  }, [ext.name]);
+
+  const clone = async () => {
+    setCloning(true);
+    try {
+      if (isImported && ext.imported) {
+        // Rewrite manifest name/version, then export ZIP
+        const patched = { ...ext.fileContents };
+        const manifestKey = Object.keys(patched).find((k) => k === "manifest.json" || k.endsWith("/manifest.json"));
+        if (manifestKey) {
+          try {
+            const parsed = JSON.parse(patched[manifestKey]);
+            parsed.name = name;
+            parsed.version = parsed.version ?? "1.0.0";
+            patched[manifestKey] = JSON.stringify(parsed, null, 2);
+          } catch {/* leave as-is */}
+        }
+        const blob = await exportImportedExtension(ext.imported, patched);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${id}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Clone exported", { description: `${name} downloaded as ${id}.zip` });
+      } else {
+        toast.success("Extension Cloned Successfully", { description: `${name} created with ID ${id}.` });
+      }
+    } catch (e) {
+      toast.error("Clone failed", { description: (e as Error).message });
+    } finally {
+      setCloning(false);
+      setOpen(false);
+    }
   };
+
+  const perms = Array.isArray((ext.manifest as { permissions?: string[] }).permissions)
+    ? (ext.manifest as { permissions: string[] }).permissions
+    : [];
 
   return (
     <div className="space-y-4">
@@ -625,11 +666,13 @@ function CloneView() {
             <div className="h-16 w-16 rounded-xl bg-gradient-cyber flex items-center justify-center shrink-0">
               <Copy className="h-7 w-7 text-primary-foreground" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold">{EXTENSION.name}</h2>
-              <p className="text-sm text-muted-foreground">v{EXTENSION.version} · {EXTENSION.users.toLocaleString()} users · ★ {EXTENSION.rating}</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold truncate">{ext.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                v{ext.version} · {isImported ? `${ext.files.length} files` : `${DEFAULT_EXT.users.toLocaleString()} users · ★ ${DEFAULT_EXT.rating}`}
+              </p>
               <div className="flex flex-wrap gap-2 mt-3">
-                {MANIFEST.permissions.map((p) => (
+                {perms.slice(0, 8).map((p) => (
                   <Badge key={p} variant="outline" className="text-[10px] font-mono">{p}</Badge>
                 ))}
               </div>
@@ -645,8 +688,9 @@ function CloneView() {
         <DialogContent className="bg-card/95 backdrop-blur border-border/60">
           <DialogHeader>
             <DialogTitle>Clone Configuration</DialogTitle>
-            <DialogDescription>Create a new extension based on {EXTENSION.name}.</DialogDescription>
+            <DialogDescription>Create a new extension based on {ext.name}.</DialogDescription>
           </DialogHeader>
+
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label className="text-xs">New Extension Name</Label>
