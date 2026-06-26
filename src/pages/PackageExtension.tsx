@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image } from "lucide-react";
+import { Package, Download, FileArchive, CheckCircle2, FolderTree, Sparkles, Loader2, Image, ShieldCheck, AlertTriangle, XCircle, Info } from "lucide-react";
+import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -119,6 +120,25 @@ export default function PackageExtension() {
   const totalSize = Object.values(files).reduce((acc, f) => acc + new Blob([f]).size, 0);
   const totalLines = Object.values(files).reduce((acc, f) => acc + f.split("\n").length, 0);
 
+  // QA runs against the *final* bundle, so include the icons we'll inject at zip time.
+  const qaReport = useMemo(() => {
+    if (fileList.length === 0) return null;
+    const withIcons: Record<string, string> = {
+      ...files,
+      "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
+      "icons/icon48.png": files["icons/icon48.png"] ?? "<binary>",
+      "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
+    };
+    return runPackageQA(withIcons);
+  }, [files, fileList.length]);
+
+  const sevIcon = (sev: QASeverity, passed: boolean) => {
+    if (passed) return <CheckCircle2 className="h-4 w-4 text-success" />;
+    if (sev === "error") return <XCircle className="h-4 w-4 text-destructive" />;
+    if (sev === "warning") return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <Info className="h-4 w-4 text-muted-foreground" />;
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -158,12 +178,59 @@ export default function PackageExtension() {
                     )}
                     {generatingIcons ? "Generating..." : "AI Icons"}
                   </Button>
-                  <Button onClick={handleDownload} className="bg-gradient-cyber text-primary-foreground">
-                    <Download className="h-4 w-4 mr-2" /> Download .zip
+                  <Button
+                    onClick={handleDownload}
+                    disabled={!!qaReport && !qaReport.chromeReady}
+                    className="bg-gradient-cyber text-primary-foreground"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {qaReport && !qaReport.chromeReady ? "Fix QA errors to download" : "Download .zip"}
                   </Button>
                 </div>
               </div>
             </div>
+          )}
+
+          {qaReport && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-border bg-card overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className={`h-5 w-5 ${qaReport.chromeReady ? "text-success" : "text-warning"}`} />
+                  <div>
+                    <h3 className="text-sm font-semibold">Packaging QA — Chrome MV3 Validation</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {qaReport.checks.length} checks · {qaReport.errors} errors · {qaReport.warnings} warnings
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant={qaReport.chromeReady ? "default" : "destructive"}
+                  className="font-mono text-[10px]"
+                >
+                  {qaReport.chromeReady ? "CHROME READY" : "NOT READY"}
+                </Badge>
+              </div>
+              <div className="divide-y divide-border">
+                {qaReport.checks.map(c => (
+                  <div key={c.id} className="px-5 py-2.5 flex items-start gap-3">
+                    {sevIcon(c.severity, c.passed)}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${c.passed ? "text-foreground" : "font-medium"}`}>{c.label}</p>
+                      {!c.passed && c.detail && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">{c.detail}</p>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] font-mono uppercase">
+                      {c.severity}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
           )}
 
           {/* AI Icon Preview */}
