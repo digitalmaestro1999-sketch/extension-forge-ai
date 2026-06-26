@@ -287,6 +287,116 @@ export default function PublishAssistant() {
     log("info", `Loaded ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
   };
 
+  /** Apply a single policy check fix — deterministic patch or AI rewrite. */
+  const applyPolicyFix = async (check: PolicyCheck) => {
+    if (!check.autoFix || !files) return;
+    setFixingCheckId(check.id);
+    try {
+      // 1) Deterministic path — patches files / listing without AI.
+      if (check.autoFix.mode === "deterministic") {
+        const res = applyDeterministicPolicyFix(check, files, listing);
+        if (!res) throw new Error("No deterministic fix available");
+        if (res.files) {
+          setFiles(res.files);
+          sessionStorage.setItem("extension-files", JSON.stringify(res.files));
+        }
+        if (res.listing) {
+          setListing((l) => ({ ...l, ...res.listing }));
+        }
+        log("ok", `Fixed "${check.label}": ${res.applied}`);
+        toast.success(res.applied);
+        return;
+      }
+
+      // 2) AI rewrite path — rewrite listing.field or a permission justification.
+      const af = check.autoFix;
+      const manifest = JSON.parse(files["manifest.json"] ?? "{}");
+      const { data, error } = await supabase.functions.invoke("agent-pipeline", {
+        body: {
+          stage: "policy-fix",
+          spec: {
+            kind: af.kind,
+            field: af.field,
+            permission: af.permission,
+            policy: check.policy,
+            detail: check.detail,
+            manifest,
+            listing,
+          },
+        },
+      });
+      if (error) throw error;
+      const value: string = data?.result?.value ?? "";
+      if (!value) throw new Error("AI returned no value");
+
+      if (af.kind === "rewrite-justification" && af.permission) {
+        setListing((l) => ({
+          ...l,
+          permissionJustifications: {
+            ...l.permissionJustifications,
+            [af.permission!]: value,
+          },
+        }));
+      } else if (af.kind === "rewrite-all-justifications") {
+        // Batch: rewrite every missing one in series.
+        const updated = { ...listing.permissionJustifications };
+        for (const p of sensitivePerms) {
+          if ((updated[p] ?? "").trim().length >= 15) continue;
+          const r = await supabase.functions.invoke("agent-pipeline", {
+            body: {
+              stage: "policy-fix",
+              spec: {
+                kind: "rewrite-justification",
+                permission: p,
+                policy: check.policy,
+                manifest,
+                listing,
+              },
+            },
+          });
+          if (r.data?.result?.value) updated[p] = r.data.result.value;
+        }
+        setListing((l) => ({ ...l, permissionJustifications: updated }));
+      } else if (af.kind === "rewrite-manifest-name") {
+        manifest.name = value.slice(0, 75);
+        const next = { ...files, "manifest.json": JSON.stringify(manifest, null, 2) };
+        setFiles(next);
+        sessionStorage.setItem("extension-files", JSON.stringify(next));
+      } else if (af.kind === "rewrite-manifest-description") {
+        manifest.description = value.slice(0, 132);
+        const next = { ...files, "manifest.json": JSON.stringify(manifest, null, 2) };
+        setFiles(next);
+        sessionStorage.setItem("extension-files", JSON.stringify(next));
+      } else if (af.target === "listing" && af.field) {
+        setListing((l) => ({ ...l, [af.field!]: value } as typeof l));
+      }
+      log("ok", `AI fixed "${check.label}"`);
+      toast.success(`Applied AI fix: ${check.label}`);
+    } catch (e: any) {
+      log("err", `Auto-fix failed for "${check.label}": ${e.message}`);
+      toast.error(e.message || "Auto-fix failed");
+    } finally {
+      setFixingCheckId(null);
+    }
+  };
+
+  /** Apply every available auto-fix in order. */
+  const applyAllPolicyFixes = async () => {
+    if (!policy) return;
+    const fixable = policy.checks.filter((c) => !c.passed && c.autoFix);
+    if (!fixable.length) {
+      toast.info("Nothing to auto-fix");
+      return;
+    }
+    log("info", `Applying ${fixable.length} auto-fix(es)…`);
+    for (const c of fixable) {
+      // eslint-disable-next-line no-await-in-loop
+      await applyPolicyFix(c);
+    }
+    toast.success("All available fixes applied");
+  };
+
+
   const canPublish =
     credsComplete &&
     (zipBase64Override || (files && (!qa || qa.errors === 0))) &&
