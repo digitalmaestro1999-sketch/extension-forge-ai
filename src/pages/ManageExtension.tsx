@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3, ShieldCheck, Code2, Copy, Settings as SettingsIcon,
   Send, Sparkles, AlertTriangle, CheckCircle2, Loader2, FileCode2,
   Users, Star, TrendingUp, Activity, Bot, User as UserIcon, Play,
+  Upload, Download, X,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -23,9 +24,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  importExtensionFile, exportImportedExtension, classifyPermission,
+  type ImportedExtension,
+} from "@/lib/import-extension";
 
-// ---------------- Mock Data ----------------
-const EXTENSION = {
+// ---------------- Default (mock) data ----------------
+const DEFAULT_EXT = {
   name: "TabMaster Pro",
   id: "tmp-9f2c-2026",
   version: "2.4.1",
@@ -57,7 +62,7 @@ const REVIEWS = [
   { user: "tomh", rating: 5, comment: "The grouping AI is uncanny — perfect picks.", date: "2026-06-15" },
 ];
 
-const MANIFEST = {
+const DEFAULT_MANIFEST = {
   manifest_version: 3,
   name: "TabMaster Pro",
   version: "2.4.1",
@@ -68,14 +73,14 @@ const MANIFEST = {
   action: { default_popup: "popup.html" },
 };
 
-const PERMISSIONS = [
-  { name: "storage", level: "safe", note: "Persists user prefs locally." },
-  { name: "activeTab", level: "safe", note: "Scoped to user-initiated interactions." },
-  { name: "tabs", level: "warning", note: "Reads tab URLs/titles across windows." },
-  { name: "<all_urls>", level: "warning", note: "Broad host access — justify in store listing." },
+const DEFAULT_PERMISSIONS = [
+  { name: "storage", level: "safe" as const, note: "Persists user prefs locally." },
+  { name: "activeTab", level: "safe" as const, note: "Scoped to user-initiated interactions." },
+  { name: "tabs", level: "warning" as const, note: "Reads tab URLs/titles across windows." },
+  { name: "<all_urls>", level: "warning" as const, note: "Broad host access — justify in store listing." },
 ];
 
-const FILES = [
+const DEFAULT_FILES = [
   { name: "manifest.json", lang: "json" },
   { name: "background.js", lang: "js" },
   { name: "popup.html", lang: "html" },
@@ -83,8 +88,8 @@ const FILES = [
   { name: "styles.css", lang: "css" },
 ];
 
-const FILE_CONTENTS: Record<string, string> = {
-  "manifest.json": JSON.stringify(MANIFEST, null, 2),
+const DEFAULT_FILE_CONTENTS: Record<string, string> = {
+  "manifest.json": JSON.stringify(DEFAULT_MANIFEST, null, 2),
   "background.js": `// background.js — TabMaster Pro service worker
 chrome.runtime.onInstalled.addListener(() => {
   console.log("TabMaster Pro installed");
@@ -126,60 +131,205 @@ header { display: flex; justify-content: space-between; align-items: center; }
 type Section = "analytics" | "security" | "editor" | "clone" | "settings";
 type ChatMsg = { role: "user" | "ai"; text: string; code?: { file: string; content: string } };
 
+// ---------------- Active Extension Context ----------------
+type ActiveExt = {
+  imported: ImportedExtension | null;
+  name: string;
+  version: string;
+  description: string;
+  manifest: Record<string, unknown>;
+  permissions: { name: string; level: "safe" | "warning" | "danger"; note: string }[];
+  files: { name: string; lang: string }[];
+  fileContents: Record<string, string>;
+  setFileContents: (next: Record<string, string>) => void;
+  clear: () => void;
+};
+
+const ExtCtx = createContext<ActiveExt | null>(null);
+const useExt = () => {
+  const v = useContext(ExtCtx);
+  if (!v) throw new Error("ExtCtx missing");
+  return v;
+};
+
+function langFor(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return ({ js: "js", mjs: "js", ts: "ts", tsx: "tsx", jsx: "jsx", json: "json", html: "html", htm: "html", css: "css", md: "md", svg: "svg" } as Record<string, string>)[ext] ?? "txt";
+}
+
 // ---------------- Component ----------------
 export default function ManageExtension() {
   const [section, setSection] = useState<Section>("analytics");
+  const [imported, setImported] = useState<ImportedExtension | null>(null);
+  const [fileContents, setFileContents] = useState<Record<string, string>>(DEFAULT_FILE_CONTENTS);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = async (file: File) => {
+    setImporting(true);
+    try {
+      const ext = await importExtensionFile(file);
+      setImported(ext);
+      setFileContents({ ...ext.files });
+      toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(ext.files).length} editable files` });
+    } catch (e) {
+      toast.error("Import failed", { description: (e as Error).message });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleExport = async () => {
+    if (!imported) return;
+    try {
+      const blob = await exportImportedExtension(imported, fileContents);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${imported.name.replace(/[^a-z0-9-_]+/gi, "_")}-modified.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export ready", { description: "Modified extension downloaded as ZIP." });
+    } catch (e) {
+      toast.error("Export failed", { description: (e as Error).message });
+    }
+  };
+
+  const clearImport = () => {
+    setImported(null);
+    setFileContents(DEFAULT_FILE_CONTENTS);
+    toast.info("Reverted to demo extension");
+  };
+
+  const active: ActiveExt = useMemo(() => {
+    if (imported) {
+      const allPerms = [...imported.permissions, ...imported.hostPermissions];
+      return {
+        imported,
+        name: imported.name,
+        version: imported.version,
+        description: imported.description,
+        manifest: imported.manifest,
+        permissions: allPerms.map((p) => ({ name: p, ...classifyPermission(p) })),
+        files: Object.keys(imported.files).map((n) => ({ name: n, lang: langFor(n) })),
+        fileContents,
+        setFileContents,
+        clear: clearImport,
+      };
+    }
+    return {
+      imported: null,
+      name: DEFAULT_EXT.name,
+      version: DEFAULT_EXT.version,
+      description: DEFAULT_MANIFEST.description,
+      manifest: DEFAULT_MANIFEST,
+      permissions: DEFAULT_PERMISSIONS,
+      files: DEFAULT_FILES,
+      fileContents,
+      setFileContents,
+      clear: clearImport,
+    };
+  }, [imported, fileContents]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
-      {/* Inline left rail */}
-      <aside className="w-52 shrink-0 hidden lg:block">
-        <Card className="h-full bg-card/40 backdrop-blur border-border/60">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" /> Manage Hub
-            </CardTitle>
-            <CardDescription className="text-xs truncate">{EXTENSION.name}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1 px-2">
-            {([
-              ["analytics", "Analytics", BarChart3],
-              ["security", "Security", ShieldCheck],
-              ["editor", "Code Editor", Code2],
-              ["clone", "Clone Engine", Copy],
-              ["settings", "Settings", SettingsIcon],
-            ] as const).map(([key, label, Icon]) => (
-              <button
-                key={key}
-                onClick={() => setSection(key)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
-                  section === key
-                    ? "bg-primary/15 text-primary border border-primary/30 shadow-[0_0_20px_-8px_hsl(var(--primary))]"
-                    : "text-muted-foreground hover:bg-muted/40 border border-transparent"
-                }`}
+    <ExtCtx.Provider value={active}>
+      <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
+        <aside className="w-52 shrink-0 hidden lg:block">
+          <Card className="h-full bg-card/40 backdrop-blur border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> Manage Hub
+              </CardTitle>
+              <CardDescription className="text-xs truncate">{active.name}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1 px-2">
+              {([
+                ["analytics", "Analytics", BarChart3],
+                ["security", "Security", ShieldCheck],
+                ["editor", "Code Editor", Code2],
+                ["clone", "Clone Engine", Copy],
+                ["settings", "Settings", SettingsIcon],
+              ] as const).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  onClick={() => setSection(key)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
+                    section === key
+                      ? "bg-primary/15 text-primary border border-primary/30 shadow-[0_0_20px_-8px_hsl(var(--primary))]"
+                      : "text-muted-foreground hover:bg-muted/40 border border-transparent"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </aside>
+
+        <main className="flex-1 min-w-0 overflow-y-auto pr-1 space-y-4">
+          <Card className="bg-card/40 backdrop-blur border-border/60">
+            <CardContent className="p-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="h-8 w-8 rounded-md bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+                  <Upload className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {imported ? `Loaded: ${imported.sourceName}` : "Import a third-party extension"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {imported
+                      ? `${Object.keys(imported.files).length} text files · ${imported.binaryFiles.length} assets · local-only, never published`
+                      : "Upload a .zip or .crx — analyze, edit & clone locally. Nothing is published."}
+                  </p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,.crx,application/zip,application/x-chrome-extension"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImport(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
               >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-      </aside>
+                {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                {imported ? "Replace" : "Upload .zip / .crx"}
+              </Button>
+              {imported && (
+                <>
+                  <Button size="sm" className="bg-gradient-cyber" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-2" /> Export Modified ZIP
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={clearImport}>
+                    <X className="h-4 w-4 mr-1" /> Unload
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Main */}
-      <main className="flex-1 min-w-0 overflow-y-auto pr-1">
-        {section === "analytics" && <AnalyticsView />}
-        {section === "security" && <SecurityView />}
-        {section === "editor" && <EditorView />}
-        {section === "clone" && <CloneView />}
-        {section === "settings" && <SettingsView />}
-      </main>
+          {section === "analytics" && <AnalyticsView />}
+          {section === "security" && <SecurityView />}
+          {section === "editor" && <EditorView />}
+          {section === "clone" && <CloneView />}
+          {section === "settings" && <SettingsView />}
+        </main>
 
-      {/* AI Chat panel */}
-      <aside className="w-80 shrink-0 hidden xl:block">
-        <AICopilot />
-      </aside>
-    </div>
+        <aside className="w-80 shrink-0 hidden xl:block">
+          <AICopilot />
+        </aside>
+      </div>
+    </ExtCtx.Provider>
   );
 }
 
