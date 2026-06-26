@@ -17,6 +17,7 @@ const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Trend Discovery", url: "/trends", icon: TrendingUp },
   { title: "Create Extension", url: "/create", icon: Wand2 },
+  { title: "Wizard Workspace", url: "/wizard", icon: Blocks },
   { title: "AI Builder", url: "/ai-builder", icon: Zap },
   { title: "Batch Queue", url: "/batch", icon: Layers },
 ];

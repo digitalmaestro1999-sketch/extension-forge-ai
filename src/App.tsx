@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import CreateExtension from "./pages/CreateExtension";
+import ExtensionWizard from "./pages/ExtensionWizard";
 import AIBuilder from "./pages/AIBuilder";
 import CodeEditorPage from "./pages/CodeEditor";
 import Templates from "./pages/Templates";
@@ -44,6 +45,7 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/create" element={<CreateExtension />} />
+                    <Route path="/wizard" element={<ExtensionWizard />} />
                     <Route path="/ai-builder" element={<AIBuilder />} />
                     <Route path="/editor" element={<CodeEditorPage />} />
                     <Route path="/templates" element={<Templates />} />
