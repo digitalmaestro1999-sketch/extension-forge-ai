@@ -288,6 +288,7 @@ export default function PublishAssistant() {
   const canPublish =
     credsComplete &&
     (zipBase64Override || (files && (!qa || qa.errors === 0))) &&
+    (zipBase64Override || !policy || policy.errors === 0) &&
     stage !== "uploading" &&
     stage !== "publishing";
 
