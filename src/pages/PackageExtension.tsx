@@ -120,6 +120,25 @@ export default function PackageExtension() {
   const totalSize = Object.values(files).reduce((acc, f) => acc + new Blob([f]).size, 0);
   const totalLines = Object.values(files).reduce((acc, f) => acc + f.split("\n").length, 0);
 
+  // QA runs against the *final* bundle, so include the icons we'll inject at zip time.
+  const qaReport = useMemo(() => {
+    if (fileList.length === 0) return null;
+    const withIcons: Record<string, string> = {
+      ...files,
+      "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
+      "icons/icon48.png": files["icons/icon48.png"] ?? "<binary>",
+      "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
+    };
+    return runPackageQA(withIcons);
+  }, [files, fileList.length]);
+
+  const sevIcon = (sev: QASeverity, passed: boolean) => {
+    if (passed) return <CheckCircle2 className="h-4 w-4 text-success" />;
+    if (sev === "error") return <XCircle className="h-4 w-4 text-destructive" />;
+    if (sev === "warning") return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <Info className="h-4 w-4 text-muted-foreground" />;
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
