@@ -55,6 +55,110 @@ export type Database = {
           },
         ]
       }
+      extension_events: {
+        Row: {
+          action_name: string | null
+          duration_ms: number | null
+          error_message: string | null
+          event_type: string
+          id: number
+          install_id: string
+          owner_id: string
+          payload: Json | null
+          ts: string
+        }
+        Insert: {
+          action_name?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type: string
+          id?: number
+          install_id: string
+          owner_id: string
+          payload?: Json | null
+          ts?: string
+        }
+        Update: {
+          action_name?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type?: string
+          id?: number
+          install_id?: string
+          owner_id?: string
+          payload?: Json | null
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_events_install_id_fkey"
+            columns: ["install_id"]
+            isOneToOne: false
+            referencedRelation: "extension_installs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extension_installs: {
+        Row: {
+          created_at: string
+          daily_quota_minutes: number | null
+          extension_name: string
+          extension_version: string | null
+          fingerprint: string | null
+          id: string
+          kill_switch: boolean
+          last_seen_at: string | null
+          license_expires_at: string | null
+          notes: string | null
+          owner_id: string
+          schedule_json: Json | null
+          source: string
+          status: string
+          token_hash: string
+          updated_at: string
+          weekly_quota_minutes: number | null
+        }
+        Insert: {
+          created_at?: string
+          daily_quota_minutes?: number | null
+          extension_name: string
+          extension_version?: string | null
+          fingerprint?: string | null
+          id?: string
+          kill_switch?: boolean
+          last_seen_at?: string | null
+          license_expires_at?: string | null
+          notes?: string | null
+          owner_id: string
+          schedule_json?: Json | null
+          source?: string
+          status?: string
+          token_hash: string
+          updated_at?: string
+          weekly_quota_minutes?: number | null
+        }
+        Update: {
+          created_at?: string
+          daily_quota_minutes?: number | null
+          extension_name?: string
+          extension_version?: string | null
+          fingerprint?: string | null
+          id?: string
+          kill_switch?: boolean
+          last_seen_at?: string | null
+          license_expires_at?: string | null
+          notes?: string | null
+          owner_id?: string
+          schedule_json?: Json | null
+          source?: string
+          status?: string
+          token_hash?: string
+          updated_at?: string
+          weekly_quota_minutes?: number | null
+        }
+        Relationships: []
+      }
       extension_projects: {
         Row: {
           compliance_report: Json | null
@@ -99,6 +203,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      extension_usage_daily: {
+        Row: {
+          actions_count: number
+          day: string
+          errors_count: number
+          install_id: string
+          minutes_used: number
+          owner_id: string
+        }
+        Insert: {
+          actions_count?: number
+          day: string
+          errors_count?: number
+          install_id: string
+          minutes_used?: number
+          owner_id: string
+        }
+        Update: {
+          actions_count?: number
+          day?: string
+          errors_count?: number
+          install_id?: string
+          minutes_used?: number
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_usage_daily_install_id_fkey"
+            columns: ["install_id"]
+            isOneToOne: false
+            referencedRelation: "extension_installs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
