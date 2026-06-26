@@ -671,6 +671,234 @@ export default function PublishAssistant() {
           )}
         </TabsContent>
 
+        {/* LISTING ------------------------------------------------------- */}
+        <TabsContent value="listing" className="space-y-4 mt-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <ScrollText className="h-4 w-4 text-primary" />
+                  Auto-Generated Store Listing
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Title, summary, description, category, keywords, privacy policy
+                  and terms — drafted from your manifest, then editable.
+                </p>
+              </div>
+              <Button size="sm" onClick={generateListing} disabled={generatingListing || !files}>
+                {generatingListing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Generating…</>
+                  : <><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Auto-Generate Listing</>}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs flex justify-between">
+                  Title <span className="text-muted-foreground">{listing.title.length}/45</span>
+                </Label>
+                <Input
+                  value={listing.title}
+                  onChange={(e) => setListing({ ...listing, title: e.target.value })}
+                  maxLength={45}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Category</Label>
+                <Select
+                  value={listing.category}
+                  onValueChange={(v) => setListing({ ...listing, category: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Accessibility", "Communication", "Developer Tools", "Education",
+                      "Entertainment", "Games", "Household", "News & Weather",
+                      "Productivity", "Search Tools", "Shopping", "Social",
+                      "Sports", "Travel", "Well-being",
+                    ].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs flex justify-between">
+                Summary <span className="text-muted-foreground">{listing.summary.length}/132</span>
+              </Label>
+              <Input
+                value={listing.summary}
+                onChange={(e) => setListing({ ...listing, summary: e.target.value })}
+                maxLength={132}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs flex justify-between">
+                Detailed description
+                <span className="text-muted-foreground">{listing.description.length}/16000</span>
+              </Label>
+              <Textarea
+                value={listing.description}
+                onChange={(e) => setListing({ ...listing, description: e.target.value })}
+                className="min-h-[140px] text-xs"
+                maxLength={16000}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">
+                Single-purpose statement <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                value={listing.singlePurpose}
+                onChange={(e) => setListing({ ...listing, singlePurpose: e.target.value })}
+                placeholder="One sentence: what does this extension do?"
+                className="min-h-[60px] text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Privacy policy URL (HTTPS)</Label>
+                <Input
+                  value={listing.privacyPolicyUrl}
+                  onChange={(e) => setListing({ ...listing, privacyPolicyUrl: e.target.value })}
+                  placeholder="https://yoursite.com/privacy"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Homepage URL (optional)</Label>
+                <Input
+                  value={listing.homepageUrl}
+                  onChange={(e) => setListing({ ...listing, homepageUrl: e.target.value })}
+                  placeholder="https://yoursite.com"
+                />
+              </div>
+            </div>
+
+            {listing.keywords.length > 0 && (
+              <div>
+                <Label className="text-xs mb-1 block">SEO Keywords</Label>
+                <div className="flex flex-wrap gap-1">
+                  {listing.keywords.map((k) => (
+                    <Badge key={k} variant="outline" className="text-xs">{k}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Permission justifications */}
+            {sensitivePerms.length > 0 && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                  Sensitive permissions — justifications required by CWS review
+                </p>
+                {sensitivePerms.map((p) => (
+                  <div key={p}>
+                    <Label className="text-[10px] font-mono">{p}</Label>
+                    <Textarea
+                      value={listing.permissionJustifications[p] ?? ""}
+                      onChange={(e) => setListing({
+                        ...listing,
+                        permissionJustifications: {
+                          ...listing.permissionJustifications,
+                          [p]: e.target.value,
+                        },
+                      })}
+                      placeholder={`Why does this extension need "${p}"? (min 15 chars)`}
+                      className="min-h-[50px] text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Generated docs */}
+            {listing.privacyPolicyText && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">Generated Privacy Policy text</Label>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => copy(listing.privacyPolicyText, "Privacy policy")}>
+                    <ClipboardCopy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <Textarea
+                  value={listing.privacyPolicyText}
+                  onChange={(e) => setListing({ ...listing, privacyPolicyText: e.target.value })}
+                  className="min-h-[100px] text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Host this text on an HTTPS page, then paste the URL above.
+                </p>
+              </div>
+            )}
+            {listing.termsOfUse && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">Generated Terms of Use</Label>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => copy(listing.termsOfUse, "Terms")}>
+                    <ClipboardCopy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <Textarea
+                  value={listing.termsOfUse}
+                  onChange={(e) => setListing({ ...listing, termsOfUse: e.target.value })}
+                  className="min-h-[80px] text-xs"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Policy compliance scorecard */}
+          {policy && (
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  CWS Program Policy Compliance
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant={policy.storeReady ? "default" : "destructive"}>
+                    Score {policy.score}/100
+                  </Badge>
+                  <Badge variant="outline">{policy.errors} errors</Badge>
+                  <Badge variant="outline">{policy.warnings} warnings</Badge>
+                </div>
+              </div>
+              <div className="max-h-80 overflow-auto space-y-1">
+                {policy.checks.map((c) => (
+                  <div key={c.id}
+                    className={`flex items-start gap-2 text-xs rounded-md p-2 ${
+                      c.passed ? "bg-secondary/30" : "bg-secondary/60"
+                    }`}>
+                    {c.passed ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                    ) : c.severity === "error" ? (
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    ) : (
+                      <FileSearch className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{c.label}</p>
+                      <p className="text-muted-foreground text-[11px]">{c.policy}</p>
+                      {c.detail && (
+                        <p className="text-[11px] mt-0.5">{c.detail}</p>
+                      )}
+                      {!c.passed && c.fix && (
+                        <p className="text-[11px] text-primary mt-0.5">→ {c.fix}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
         {/* PUBLISH ------------------------------------------------------- */}
         <TabsContent value="publish" className="space-y-4 mt-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
