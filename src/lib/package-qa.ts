@@ -1,9 +1,9 @@
 // Packaging QA — validates a generated Chrome extension bundle against MV3 requirements
 // before the user downloads it. Pure functions, no DOM/Chrome APIs.
 
-export type QASeverity = "error" | "warning" | "info";
-
 import { getExtensionPageCsp, hasHardenedExtensionCsp } from "./extension-csp";
+
+export type QASeverity = "error" | "warning" | "info";
 
 export interface QACheck {
   id: string;
@@ -122,7 +122,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: missingIcons.length ? `Missing: ${missingIcons.join(", ")}` : undefined,
   });
 
-  // 6. Service worker file exists
+  // 7. Service worker file exists
   const sw = manifest.background?.service_worker;
   push({
     id: "service-worker",
@@ -132,7 +132,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: sw && !files[sw] ? `${sw} declared but not found` : undefined,
   });
 
-  // 7. Popup file exists
+  // 8. Popup file exists
   const popup = manifest.action?.default_popup;
   push({
     id: "popup-exists",
@@ -142,7 +142,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: popup && !files[popup] ? `${popup} declared but not found` : undefined,
   });
 
-  // 8. Options page exists
+  // 9. Options page exists
   const options = manifest.options_page || manifest.options_ui?.page;
   push({
     id: "options-exists",
@@ -152,7 +152,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: options && !files[options] ? `${options} declared but not found` : undefined,
   });
 
-  // 9. Content script files exist
+  // 10. Content script files exist
   const csFiles: string[] = (manifest.content_scripts ?? []).flatMap((cs: any) => [
     ...(cs.js ?? []),
     ...(cs.css ?? []),
@@ -166,7 +166,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: missingCs.length ? `Missing: ${missingCs.join(", ")}` : undefined,
   });
 
-  // 10. Permissions all known to Chrome
+  // 11. Permissions all known to Chrome
   const perms: string[] = manifest.permissions ?? [];
   const unknownPerms = perms.filter(p => !KNOWN_PERMISSIONS.has(p));
   push({
@@ -177,7 +177,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: unknownPerms.length ? `Unknown: ${unknownPerms.join(", ")}` : undefined,
   });
 
-  // 11. No remote code in any HTML file (MV3 hard rule)
+  // 12. No remote code in any HTML file (MV3 hard rule)
   const htmlFiles = Object.entries(files).filter(([n]) => n.endsWith(".html"));
   const remoteOffenders = htmlFiles.filter(([, c]) => REMOTE_SCRIPT_RE.test(c) || REMOTE_CSS_RE.test(c)).map(([n]) => n);
   push({
@@ -188,7 +188,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: remoteOffenders.length ? `Offending files: ${remoteOffenders.join(", ")}` : undefined,
   });
 
-  // 12. No inline <script> blocks (CSP would block them at runtime)
+  // 13. No inline <script> blocks (CSP would block them at runtime)
   const inlineOffenders = htmlFiles.filter(([, c]) => INLINE_SCRIPT_RE.test(c)).map(([n]) => n);
   push({
     id: "no-inline-scripts",
@@ -198,7 +198,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: inlineOffenders.length ? `Offending files: ${inlineOffenders.join(", ")}` : undefined,
   });
 
-  // 13. No MV2-only APIs in service worker / scripts
+  // 14. No MV2-only APIs in service worker / scripts
   const jsFiles = Object.entries(files).filter(([n]) => n.endsWith(".js"));
   const mv2Patterns: { pattern: RegExp; name: string }[] = [
     { pattern: /chrome\.browserAction\b/, name: "chrome.browserAction (use chrome.action)" },
@@ -220,7 +220,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: mv2Hits.length ? mv2Hits.join("; ") : undefined,
   });
 
-  // 14. Bundle size (Chrome Web Store hard limit is 2 GB; warn well below)
+  // 15. Bundle size (Chrome Web Store hard limit is 2 GB; warn well below)
   const totalBytes = Object.values(files).reduce((a, f) => a + new Blob([f]).size, 0);
   push({
     id: "bundle-size",
@@ -230,7 +230,7 @@ export function runPackageQA(files: Record<string, string>): QAReport {
     detail: totalBytes >= 10 * 1024 * 1024 ? `${(totalBytes / 1024 / 1024).toFixed(1)} MB` : undefined,
   });
 
-  // 15. README present (nice-to-have)
+  // 16. README present (nice-to-have)
   push({
     id: "readme",
     label: "README.md included",
