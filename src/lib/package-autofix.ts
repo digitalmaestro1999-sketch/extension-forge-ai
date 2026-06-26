@@ -2,6 +2,7 @@
 // Pure functions, no side effects. Returns the patched files plus a fix log.
 
 import { runPackageQA } from "./package-qa";
+import { HARDENED_EXTENSION_CSP, hasHardenedExtensionCsp } from "./extension-csp";
 
 export interface AutoFix {
   id: string;
@@ -96,19 +97,14 @@ export function autoFixPackage(input: Record<string, string>): AutoFixResult {
     }
 
     // Inject hardened MV3 Content Security Policy if missing or weak
-    const HARDENED_CSP =
-      "script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'";
     const csp = manifest.content_security_policy;
-    const cspString = typeof csp === "string" ? csp : csp?.extension_pages || "";
-    const isHardened =
-      cspString.includes("script-src 'self'") && cspString.includes("object-src 'self'");
-    if (!isHardened) {
-      manifest.content_security_policy = { extension_pages: HARDENED_CSP };
+    if (!hasHardenedExtensionCsp(manifest)) {
+      manifest.content_security_policy = { extension_pages: HARDENED_EXTENSION_CSP };
       manifestChanged = true;
       fixes.push({
         id: "csp-hardened",
         label: csp ? "Strengthened content_security_policy" : "Added hardened content_security_policy",
-        detail: HARDENED_CSP,
+        detail: HARDENED_EXTENSION_CSP,
       });
     }
 

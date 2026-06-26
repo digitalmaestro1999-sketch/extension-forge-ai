@@ -27,6 +27,8 @@ describe("autoFixAndValidate", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.version).toBe("1.0.0");
     expect(manifest.permissions).not.toContain("fakeThing");
+    expect(manifest.content_security_policy.extension_pages).toContain("script-src 'self'");
+    expect(manifest.content_security_policy.extension_pages).toContain("frame-ancestors 'none'");
 
     expect(files["popup.html"]).not.toMatch(/<script>alert/);
     expect(files["popup.html"]).not.toMatch(/cdn\.x/);

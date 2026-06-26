@@ -11,6 +11,9 @@ const goodManifest = JSON.stringify({
   action: { default_popup: "popup.html", default_icon: { "16": "icons/icon16.png" } },
   icons: { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   content_scripts: [{ matches: ["<all_urls>"], js: ["content.js"] }],
+  content_security_policy: {
+    extension_pages: "script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+  },
 });
 
 const baseFiles: Record<string, string> = {
@@ -53,5 +56,13 @@ describe("runPackageQA", () => {
     const f = { ...baseFiles, "background.js": "chrome.browserAction.onClicked.addListener(()=>{})" };
     const r = runPackageQA(f);
     expect(r.checks.find(c => c.id === "no-mv2-apis")?.passed).toBe(false);
+  });
+
+  it("fails when the manifest is missing an explicit hardened CSP", () => {
+    const manifest = JSON.parse(goodManifest);
+    delete manifest.content_security_policy;
+    const r = runPackageQA({ ...baseFiles, "manifest.json": JSON.stringify(manifest) });
+    expect(r.checks.find(c => c.id === "csp-hardened")?.passed).toBe(false);
+    expect(r.chromeReady).toBe(false);
   });
 });
