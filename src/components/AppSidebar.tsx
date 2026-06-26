@@ -48,7 +48,7 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, signOut } = useAuth();
+  const { user, signOut, isSuperadmin, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const renderItems = (items: typeof mainItems) =>
