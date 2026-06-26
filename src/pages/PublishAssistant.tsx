@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   Upload, ShieldCheck, KeyRound, ExternalLink, Loader2, CheckCircle2,
   AlertTriangle, RefreshCw, Rocket, FileArchive, Eye, EyeOff,
-  Trash2, ClipboardCopy, Wand2, FileSearch,
+  Trash2, ClipboardCopy, Wand2, FileSearch, Sparkles, ScrollText, Plus,
 } from "lucide-react";
 import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { runPackageQA, type QAReport } from "@/lib/package-qa";
 import { autoFixAndValidate } from "@/lib/package-autofix";
+import { runPolicyCheck, type PolicyReport } from "@/lib/cws-policy-check";
 
 const STORAGE_KEY = "cws-credentials";
 const REQUIRED_SCOPE = "https://www.googleapis.com/auth/chromewebstore";
