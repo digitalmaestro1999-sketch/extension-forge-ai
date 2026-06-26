@@ -1,8 +1,9 @@
 import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
-  Briefcase, DollarSign, Search, BarChart3, BookOpen
+  Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
