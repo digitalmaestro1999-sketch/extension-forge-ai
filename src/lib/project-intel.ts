@@ -371,8 +371,7 @@ export async function scanFileList(name: string, list: FileList | File[]): Promi
   const files = Array.from(list);
   const raw: { path: string; content?: string; size: number; binary: boolean }[] = [];
   for (const f of files) {
-    // @ts-expect-error webkitRelativePath is non-standard but available on folder drops
-    const path: string = f.webkitRelativePath || f.name;
+    const path: string = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
     if (path.includes("node_modules/")) continue;
     if (TEXT_EXT.test(path) && f.size < 2_000_000) {
       const content = await f.text();

@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.extension-edit]
 verify_jwt = false
+
+[functions.software-intel]
+verify_jwt = false
