@@ -7,7 +7,12 @@
 import { runPackageQA, type QAReport } from "./package-qa";
 import { autoFixPackage, type AutoFix } from "./package-autofix";
 import { ensureHardenedCspInFiles, HARDENED_EXTENSION_CSP } from "./extension-csp";
-import { analyzePermissionRisk, type PermissionRiskReport } from "./permission-risk";
+import {
+  analyzePermissionRisk,
+  applyAllAutoFixes,
+  type PermissionRiskReport,
+  type SafetyIssue,
+} from "./permission-risk";
 import { injectMessageStorageShield } from "./message-storage-shield";
 
 // ----------------------------------------------------------------------------
@@ -177,6 +182,8 @@ export interface CertificationReport {
     messageShieldInjected: string[];
     autoFixesApplied: AutoFix[];
     cspHardened: boolean;
+    permissionAutoFixesApplied: string[];
+    permissionAutoFixesSkipped: Array<{ label: string; issues: SafetyIssue[] }>;
   };
   summary: {
     totalFiles: number;
@@ -224,7 +231,23 @@ export function certifyExtension(input: Record<string, string>): {
   const msg = injectMessageStorageShield(files);
   files = msg.files;
 
-  // 6. Final QA (with placeholder icons so QA doesn't fail purely on binary)
+  // 6. Permission & host-origin risk auto-fixes — safety-checked against the
+  //    current source files so we never strip a permission the code still uses
+  //    or remove the last content-script `matches` pattern.
+  let permAutoFixesApplied: string[] = [];
+  let permAutoFixesSkipped: Array<{ label: string; issues: SafetyIssue[] }> = [];
+  try {
+    const preManifest = JSON.parse(files["manifest.json"] ?? "{}");
+    const preRisk = analyzePermissionRisk(preManifest);
+    const result = applyAllAutoFixes(preManifest, preRisk, { files });
+    permAutoFixesApplied = result.applied;
+    permAutoFixesSkipped = result.skipped;
+    if (result.applied.length) {
+      files = { ...files, "manifest.json": JSON.stringify(result.manifest, null, 2) };
+    }
+  } catch { /* manifest unparseable — skip */ }
+
+  // 7. Final QA (with placeholder icons so QA doesn't fail purely on binary)
   const qa = runPackageQA({
     ...files,
     "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
@@ -250,6 +273,8 @@ export function certifyExtension(input: Record<string, string>): {
       messageShieldInjected: msg.injected,
       autoFixesApplied: fixed.fixes,
       cspHardened: cspStep.changed,
+      permissionAutoFixesApplied: permAutoFixesApplied,
+      permissionAutoFixesSkipped: permAutoFixesSkipped,
     },
     summary: {
       totalFiles: Object.keys(files).length,
@@ -288,6 +313,19 @@ export function renderReportMarkdown(r: CertificationReport): string {
   lines.push(`- Auto-fixes applied: ${r.hardening.autoFixesApplied.length}`);
   for (const f of r.hardening.autoFixesApplied) {
     lines.push(`  - ${f.label}${f.detail ? ` (${f.detail})` : ""}`);
+  }
+  lines.push(`- Permission auto-fixes applied: ${r.hardening.permissionAutoFixesApplied.length}`);
+  for (const label of r.hardening.permissionAutoFixesApplied) {
+    lines.push(`  - ${label}`);
+  }
+  if (r.hardening.permissionAutoFixesSkipped.length) {
+    lines.push(`- Permission auto-fixes skipped (unsafe): ${r.hardening.permissionAutoFixesSkipped.length}`);
+    for (const s of r.hardening.permissionAutoFixesSkipped) {
+      lines.push(`  - ${s.label}`);
+      for (const i of s.issues) {
+        lines.push(`      ↳ ${i.severity.toUpperCase()}: ${i.message}`);
+      }
+    }
   }
   lines.push(``);
   lines.push(`## Permission & Host Risk`);
