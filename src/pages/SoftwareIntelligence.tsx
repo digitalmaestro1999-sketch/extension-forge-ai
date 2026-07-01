@@ -547,5 +547,36 @@ export default function SoftwareIntelligence() {
   );
 }
 
+function TimerRow({ t, onApply }: { t: TimerFinding; onApply: (ms: number) => void }) {
+  const match = t.snippet.match(/(\d{2,})/);
+  const [val, setVal] = useState(match ? match[1] : "1000");
+  return (
+    <div className="rounded border border-border/50 p-2 text-xs">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="outline" className="text-[9px]">{t.kind}</Badge>
+        <span className="font-mono text-muted-foreground">{t.file}:{t.line}</span>
+        <div className="ml-auto flex items-center gap-1">
+          <Input value={val} onChange={(e) => setVal(e.target.value)} className="h-6 w-24 text-[11px]" placeholder="ms" />
+          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => onApply(Number(val))}>Apply</Button>
+        </div>
+      </div>
+      <code className="text-[11px] block mt-1 text-primary">{t.snippet}</code>
+    </div>
+  );
+}
+
+function NamingRow({ n, onApply }: { n: { name: string; kind: string; suggestion: string }; onApply: (to: string) => void }) {
+  const [to, setTo] = useState("");
+  return (
+    <div className="flex items-center gap-2 text-xs border-b border-border/40 py-1">
+      <span className="font-mono flex-1 truncate">{n.name}</span>
+      <Badge variant="outline" className="text-[9px]">{n.kind}</Badge>
+      <span className="text-muted-foreground text-[10px]">→ {n.suggestion}</span>
+      <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="new name" className="h-6 w-32 text-[11px]" />
+      <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => onApply(to.trim())} disabled={!to.trim()}>Rename</Button>
+    </div>
+  );
+}
+
 // Silence unused import — JSZip is only used transitively via project-intel.
 void JSZip;
