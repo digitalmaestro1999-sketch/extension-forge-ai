@@ -186,10 +186,13 @@ export interface CertificationReport {
   };
 }
 
-function scoreFor(qa: QAReport): { score: number; grade: CertificationReport["grade"] } {
+function scoreFor(qa: QAReport, perm?: PermissionRiskReport): { score: number; grade: CertificationReport["grade"] } {
   const total = qa.checks.length || 1;
   const passed = qa.checks.filter(c => c.passed).length;
-  const score = Math.round((passed / total) * 100) - qa.errors * 15 - qa.warnings * 3;
+  let score = Math.round((passed / total) * 100) - qa.errors * 15 - qa.warnings * 3;
+  if (perm) {
+    score -= perm.totals.critical * 15 + perm.totals.high * 6 + perm.totals.medium * 2;
+  }
   const clamped = Math.max(0, Math.min(100, score));
   const grade =
     clamped >= 95 ? "A+" :
