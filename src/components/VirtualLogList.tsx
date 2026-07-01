@@ -42,12 +42,20 @@ export function VirtualLogList({ logs, autoStick }: { logs: LogEntry[]; autoStic
     stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < LOG_ROW_H * 2;
   }, []);
 
+  // Safeguards: never render more than MAX_WINDOW rows regardless of viewport
+  // size, and guard against non-finite scroll math (jsdom/first paint).
+  const MAX_WINDOW = 120;
+  const safeScrollTop = Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0;
+  const safeViewportH = Number.isFinite(viewportH) && viewportH > 0 ? viewportH : 224;
   const totalH = logs.length * LOG_ROW_H;
   const overscan = 8;
-  const start = Math.max(0, Math.floor(scrollTop / LOG_ROW_H) - overscan);
-  const end = Math.min(logs.length, Math.ceil((scrollTop + viewportH) / LOG_ROW_H) + overscan);
+  const rawStart = Math.floor(safeScrollTop / LOG_ROW_H) - overscan;
+  const rawEnd = Math.ceil((safeScrollTop + safeViewportH) / LOG_ROW_H) + overscan;
+  const start = Math.max(0, Math.min(rawStart, Math.max(0, logs.length - 1)));
+  const end = Math.min(logs.length, Math.max(start + 1, Math.min(rawEnd, start + MAX_WINDOW)));
   const slice = logs.slice(start, end);
   const offsetY = start * LOG_ROW_H;
+
 
   return (
     <div
