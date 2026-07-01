@@ -546,7 +546,10 @@ async function analyzeFiles(
     todos,
     scannedAt: new Date().toISOString(),
   };
-  return { ...partial, scores: computeScores(partial) };
+  onProgress?.({ phase: "score", processed: scanned.length, total: scanned.length, percent: 97 });
+  const result = { ...partial, scores: computeScores(partial) };
+  onProgress?.({ phase: "done", processed: scanned.length, total: scanned.length, percent: 100 });
+  return result;
 }
 
 // ---------- Whole-project rename (safe, preview-based) ----------
