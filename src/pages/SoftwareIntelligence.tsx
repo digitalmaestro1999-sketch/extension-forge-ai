@@ -134,20 +134,41 @@ export default function SoftwareIntelligence() {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const logStartRef = useRef<number>(0);
-  const logScrollRef = useRef<HTMLDivElement>(null);
+  const logBufferRef = useRef<LogEntry[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const latestProgressRef = useRef<ScanProgress | null>(null);
+
+  const flushLogs = useCallback(() => {
+    rafRef.current = null;
+    const buf = logBufferRef.current;
+    if (buf.length) {
+      logBufferRef.current = [];
+      setLogs((prev) => {
+        const next = prev.length + buf.length > LOG_MAX
+          ? [...prev, ...buf].slice(-LOG_MAX)
+          : [...prev, ...buf];
+        return next;
+      });
+    }
+    if (latestProgressRef.current) {
+      setProgress(latestProgressRef.current);
+      latestProgressRef.current = null;
+    }
+  }, []);
 
   const onProgress = useCallback((p: ScanProgress) => {
-    setProgress(p);
-    setLogs((prev) => {
-      const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
-      const next = [...prev, { t: Date.now() - logStartRef.current, phase: p.phase, msg }];
-      return next.length > 500 ? next.slice(-500) : next;
-    });
-    queueMicrotask(() => {
-      const el = logScrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+    latestProgressRef.current = p;
+    const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
+    logBufferRef.current.push({ t: Date.now() - logStartRef.current, phase: p.phase, msg });
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(flushLogs);
+    }
+  }, [flushLogs]);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
   }, []);
+
 
   const handleZip = useCallback(async (f: File) => {
     setBusy(true); setLogs([]); logStartRef.current = Date.now();
