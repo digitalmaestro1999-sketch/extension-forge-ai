@@ -156,8 +156,18 @@ export default function TrendDiscovery() {
             )}
           </Button>
         </div>
-        <div className="flex gap-2 mt-3">
-          {["productivity", "AI tools", "SEO", "social media", "developer tools", "e-commerce"].map(tag => (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {[
+            "productivity", "AI tools", "SEO", "social media", "developer tools", "e-commerce",
+            "writing & content", "design & creativity", "education & learning", "finance & crypto",
+            "privacy & security", "accessibility", "health & wellness", "gaming & twitch",
+            "video & streaming", "shopping & deals", "research & academia", "marketing & analytics",
+            "email & communication", "web scraping & data", "translation & language",
+            "task & project mgmt", "browser customization", "automation & macros",
+            "news & media", "job search & careers", "travel & maps", "real estate",
+            "legal & compliance", "sales & CRM", "customer support", "note-taking",
+            "screenshot & recording", "password & auth", "ad blocking", "focus & mindfulness",
+          ].map(tag => (
             <Badge
               key={tag}
               variant="secondary"
@@ -167,6 +177,40 @@ export default function TrendDiscovery() {
               {tag}
             </Badge>
           ))}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Discovery Scope</h3>
+          </div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            <li>• <span className="text-foreground">Market gaps</span> — high demand, weak or missing incumbents</li>
+            <li>• <span className="text-foreground">Competitor density</span> — Chrome Web Store saturation signal</li>
+            <li>• <span className="text-foreground">Monetization fit</span> — freemium, subscription, API-metered</li>
+            <li>• <span className="text-foreground">Manifest V3 feasibility</span> — buildable within MV3 constraints</li>
+            <li>• <span className="text-foreground">Portfolio potential</span> — repeatable micro-tool patterns</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">What You Get</h3>
+          </div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            <li>• 5 scored opportunities per run (demand + competition)</li>
+            <li>• Revenue-potential tier (low / medium / high)</li>
+            <li>• 3–4 concrete feature ideas per opportunity</li>
+            <li>• Category tag for portfolio grouping</li>
+            <li>• One-click <span className="text-foreground">Build</span> handoff into the extension creator</li>
+          </ul>
         </div>
       </motion.div>
 
