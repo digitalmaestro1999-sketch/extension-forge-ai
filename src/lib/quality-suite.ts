@@ -208,14 +208,20 @@ export function certifyExtension(input: Record<string, string>): {
   // 1. Auto-fix known packaging issues (manifest, CSP, permissions, remote code…)
   const fixed = autoFixPackage(input);
   let files = fixed.files;
-  // 2. Runtime error shield
+  // 2. Enforce a hardened CSP default (script-src 'self'; object-src 'self'; …)
+  const cspStep = ensureHardenedCspInFiles(files);
+  files = cspStep.files;
+  // 3. Runtime error shield
   const shielded = injectErrorShield(files);
   files = shielded.files;
-  // 3. Upgrade / self-heal
+  // 4. Upgrade / self-heal
   const upgraded = injectUpgradeHelper(files);
   files = upgraded.files;
+  // 5. Safe message-passing & storage-access shield
+  const msg = injectMessageStorageShield(files);
+  files = msg.files;
 
-  // 4. Final QA (with placeholder icons so QA doesn't fail purely on binary)
+  // 6. Final QA (with placeholder icons so QA doesn't fail purely on binary)
   const qa = runPackageQA({
     ...files,
     "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
@@ -223,20 +229,24 @@ export function certifyExtension(input: Record<string, string>): {
     "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
   });
 
-  const { score, grade } = scoreFor(qa);
   let manifest: any = null;
   try { manifest = JSON.parse(files["manifest.json"] ?? "{}"); } catch { /* ignore */ }
+  const permissionRisk = analyzePermissionRisk(manifest);
+  const { score, grade } = scoreFor(qa, permissionRisk);
 
   const report: CertificationReport = {
     generatedAt: new Date().toISOString(),
-    productionReady: qa.errors === 0,
+    productionReady: qa.errors === 0 && permissionRisk.totals.critical === 0,
     score,
     grade,
     qa,
+    permissionRisk,
     hardening: {
       errorShieldInjected: shielded.injected,
       upgradeHelperInjected: upgraded.injected,
+      messageShieldInjected: msg.injected,
       autoFixesApplied: fixed.fixes,
+      cspHardened: cspStep.changed,
     },
     summary: {
       totalFiles: Object.keys(files).length,
