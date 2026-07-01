@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
+import { certifyExtension, type CertificationReport } from "@/lib/quality-suite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
