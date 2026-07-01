@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
+import { certifyExtension, type CertificationReport } from "@/lib/quality-suite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,9 @@ export default function PackageExtension() {
   const [autoFixing, setAutoFixing] = useState(false);
   const [lastFix, setLastFix] = useState<LastAutoFix | null>(null);
   const [fixReportOpen, setFixReportOpen] = useState(true);
+  const [cert, setCert] = useState<CertificationReport | null>(null);
+  const [certifying, setCertifying] = useState(false);
+  const [ackWarnings, setAckWarnings] = useState(false);
 
   // Chrome Web Store upload state
   const [cwsOpen, setCwsOpen] = useState(false);
@@ -202,7 +206,25 @@ export default function PackageExtension() {
     const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
-    toast.success("Extension package downloaded!");
+    toast.success(cert?.productionReady ? "Production-ready package downloaded ✓" : "Extension package downloaded");
+  };
+
+  const handleCertify = () => {
+    if (Object.keys(files).length === 0) return;
+    setCertifying(true);
+    try {
+      const { files: hardened, report } = certifyExtension(files);
+      setFiles(hardened);
+      sessionStorage.setItem("extension-files", JSON.stringify(hardened));
+      setCert(report);
+      toast.success(
+        `Certified · Grade ${report.grade} (${report.score}/100) · ${report.hardening.autoFixesApplied.length} fixes, shield in ${report.hardening.errorShieldInjected.length} files`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Certification failed");
+    } finally {
+      setCertifying(false);
+    }
   };
 
   const handleAutoFix = () => {
@@ -362,11 +384,21 @@ export default function PackageExtension() {
           {spec && (
             <div className="rounded-xl border border-primary/20 bg-card p-5 glow-primary">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h2 className="font-bold text-lg">{spec.name}</h2>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-bold text-lg truncate">{spec.name}</h2>
+                    {cert && (
+                      <Badge
+                        variant={cert.productionReady ? "default" : "destructive"}
+                        className={`font-mono text-[10px] ${cert.productionReady ? "bg-success/20 text-success border-success/40" : ""}`}
+                      >
+                        {cert.productionReady ? `✓ PRODUCTION READY · ${cert.grade}` : `${cert.grade} · needs review`}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">{spec.description}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     onClick={generateAIIcons}
@@ -377,15 +409,41 @@ export default function PackageExtension() {
                     {generatingIcons ? "Generating..." : "AI Icons"}
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={handleCertify}
+                    disabled={certifying}
+                    className="border-success/30 text-success hover:bg-success/10"
+                  >
+                    {certifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                    Certify &amp; Harden
+                  </Button>
+                  <Button
                     onClick={handleDownload}
-                    disabled={!!qaReport && !qaReport.chromeReady}
+                    disabled={!!qaReport && qaReport.errors > 0 && !ackWarnings}
                     className="bg-gradient-cyber text-primary-foreground"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {qaReport && !qaReport.chromeReady ? "Fix QA errors to download" : "Download .zip"}
+                    Download .zip
                   </Button>
                 </div>
               </div>
+              {qaReport && qaReport.errors > 0 && (
+                <div className="mt-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                  <p className="text-xs text-warning flex-1">
+                    {qaReport.errors} critical issue{qaReport.errors === 1 ? "" : "s"} detected. Run <b>Certify &amp; Harden</b> to auto-fix, or acknowledge to download anyway.
+                  </p>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ackWarnings}
+                      onChange={e => setAckWarnings(e.target.checked)}
+                      className="h-3.5 w-3.5"
+                    />
+                    Download anyway
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
