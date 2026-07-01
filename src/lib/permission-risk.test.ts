@@ -88,11 +88,13 @@ describe("certifyExtension integration", () => {
       "background.js": "// bg",
       "popup.html": "<!doctype html><html><head></head><body></body></html>",
     });
-    expect(report.permissionRisk.totals.critical).toBeGreaterThan(0);
-    expect(report.productionReady).toBe(false); // critical perms present
+    // Pipeline should auto-fix the critical <all_urls> host permission…
+    expect(report.hardening.permissionAutoFixesApplied.length).toBeGreaterThan(0);
+    expect(report.permissionRisk.totals.critical).toBe(0);
     expect(report.hardening.messageShieldInjected).toContain("background.js");
-    expect(files["QA_REPORT.md"]).toContain("Permission & Host Risk");
-    expect(files["QA_REPORT.md"]).toContain("<all_urls>");
+    expect(files["QA_REPORT.md"]).toContain("Permission auto-fixes applied");
+    // The auto-fixed manifest should no longer reference <all_urls>
+    expect(files["manifest.json"]).not.toContain("<all_urls>");
   });
 });
 
