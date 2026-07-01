@@ -57,6 +57,9 @@ export default function PackageExtension() {
   const [autoFixing, setAutoFixing] = useState(false);
   const [lastFix, setLastFix] = useState<LastAutoFix | null>(null);
   const [fixReportOpen, setFixReportOpen] = useState(true);
+  const [cert, setCert] = useState<CertificationReport | null>(null);
+  const [certifying, setCertifying] = useState(false);
+  const [ackWarnings, setAckWarnings] = useState(false);
 
   // Chrome Web Store upload state
   const [cwsOpen, setCwsOpen] = useState(false);
