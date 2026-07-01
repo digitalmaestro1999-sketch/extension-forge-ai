@@ -314,6 +314,19 @@ export function renderReportMarkdown(r: CertificationReport): string {
   for (const f of r.hardening.autoFixesApplied) {
     lines.push(`  - ${f.label}${f.detail ? ` (${f.detail})` : ""}`);
   }
+  lines.push(`- Permission auto-fixes applied: ${r.hardening.permissionAutoFixesApplied.length}`);
+  for (const label of r.hardening.permissionAutoFixesApplied) {
+    lines.push(`  - ${label}`);
+  }
+  if (r.hardening.permissionAutoFixesSkipped.length) {
+    lines.push(`- Permission auto-fixes skipped (unsafe): ${r.hardening.permissionAutoFixesSkipped.length}`);
+    for (const s of r.hardening.permissionAutoFixesSkipped) {
+      lines.push(`  - ${s.label}`);
+      for (const i of s.issues) {
+        lines.push(`      ↳ ${i.severity.toUpperCase()}: ${i.message}`);
+      }
+    }
+  }
   lines.push(``);
   lines.push(`## Permission & Host Risk`);
   lines.push(`- Summary: ${r.permissionRisk.summary}`);
