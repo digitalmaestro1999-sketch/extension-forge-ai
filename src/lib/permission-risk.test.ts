@@ -130,12 +130,12 @@ describe("checkAutoFixSafety", () => {
 
   it("applyAllAutoFixes skips unsafe fixes and reports them", async () => {
     const { analyzePermissionRisk, applyAllAutoFixes } = await import("./permission-risk");
-    const manifest = { permissions: ["tabs", "background"] };
+    const manifest = { permissions: ["debugger", "background"] };
     const report = analyzePermissionRisk(manifest);
     const res = applyAllAutoFixes(manifest, report, {
-      files: { "bg.js": "chrome.tabs.query({},()=>{})" },
+      files: { "bg.js": "chrome.debugger.attach({tabId:1},"1.3")" },
     });
-    expect(res.skipped.some((s) => /tabs/.test(s.label))).toBe(true);
+    expect(res.skipped.some((s) => /debugger/i.test(s.label))).toBe(true);
     expect(res.applied.some((a) => /background/i.test(a))).toBe(true);
   });
 });
