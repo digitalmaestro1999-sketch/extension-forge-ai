@@ -178,12 +178,11 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
 
   for (const p of asArray(m.permissions)) {
     const info = PERMISSION_RISKS[p];
-    if (info) findings.push({ permission: p, kind: "permission", ...info });
+    if (info) findings.push({ permission: p, kind: "permission", ...info, autoFix: autoFixForPermission(p) });
   }
   for (const p of asArray(m.optional_permissions)) {
     const info = PERMISSION_RISKS[p];
     if (info) {
-      // optional permissions are one risk-tier safer.
       const softened: RiskLevel = info.risk === "critical" ? "high" : info.risk === "high" ? "medium" : "low";
       findings.push({
         permission: p,
@@ -191,15 +190,15 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
         risk: softened,
         reason: `${info.reason} (declared optional).`,
         suggestion: info.suggestion,
+        autoFix: { label: `Remove optional "${p}"`, action: { type: "remove-optional", permission: p } },
       });
     }
   }
   const hosts = [...asArray(m.host_permissions), ...asArray(m.optional_host_permissions)];
   for (const h of hosts) {
     const info = analyzeHostPattern(h);
-    if (info) findings.push({ permission: h, kind: "host", ...info });
+    if (info) findings.push({ permission: h, kind: "host", ...info, autoFix: autoFixForHost(h, false) });
   }
-  // Content-script matches are effectively host permissions.
   for (const cs of Array.isArray(m.content_scripts) ? m.content_scripts : []) {
     for (const match of asArray(cs?.matches)) {
       const info = analyzeHostPattern(match);
@@ -210,6 +209,7 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
           risk: info.risk,
           reason: `Content-script match: ${info.reason}`,
           suggestion: info.suggestion,
+          autoFix: autoFixForHost(match, true),
         });
       }
     }
