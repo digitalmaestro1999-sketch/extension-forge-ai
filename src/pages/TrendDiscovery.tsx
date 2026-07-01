@@ -156,8 +156,18 @@ export default function TrendDiscovery() {
             )}
           </Button>
         </div>
-        <div className="flex gap-2 mt-3">
-          {["productivity", "AI tools", "SEO", "social media", "developer tools", "e-commerce"].map(tag => (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {[
+            "productivity", "AI tools", "SEO", "social media", "developer tools", "e-commerce",
+            "writing & content", "design & creativity", "education & learning", "finance & crypto",
+            "privacy & security", "accessibility", "health & wellness", "gaming & twitch",
+            "video & streaming", "shopping & deals", "research & academia", "marketing & analytics",
+            "email & communication", "web scraping & data", "translation & language",
+            "task & project mgmt", "browser customization", "automation & macros",
+            "news & media", "job search & careers", "travel & maps", "real estate",
+            "legal & compliance", "sales & CRM", "customer support", "note-taking",
+            "screenshot & recording", "password & auth", "ad blocking", "focus & mindfulness",
+          ].map(tag => (
             <Badge
               key={tag}
               variant="secondary"
@@ -167,6 +177,40 @@ export default function TrendDiscovery() {
               {tag}
             </Badge>
           ))}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Discovery Scope</h3>
+          </div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            <li>• <span className="text-foreground">Market gaps</span> — high demand, weak or missing incumbents</li>
+            <li>• <span className="text-foreground">Competitor density</span> — Chrome Web Store saturation signal</li>
+            <li>• <span className="text-foreground">Monetization fit</span> — freemium, subscription, API-metered</li>
+            <li>• <span className="text-foreground">Manifest V3 feasibility</span> — buildable within MV3 constraints</li>
+            <li>• <span className="text-foreground">Portfolio potential</span> — repeatable micro-tool patterns</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">What You Get</h3>
+          </div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            <li>• 5 scored opportunities per run (demand + competition)</li>
+            <li>• Revenue-potential tier (low / medium / high)</li>
+            <li>• 3–4 concrete feature ideas per opportunity</li>
+            <li>• Category tag for portfolio grouping</li>
+            <li>• One-click <span className="text-foreground">Build</span> handoff into the extension creator</li>
+          </ul>
         </div>
       </motion.div>
 
@@ -184,7 +228,46 @@ export default function TrendDiscovery() {
 
       {results.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold">{results.length} Opportunities Found</h2>
+          {(() => {
+            const avgDemand = Math.round(results.reduce((s, r) => s + r.demand_score, 0) / results.length);
+            const avgComp = Math.round(results.reduce((s, r) => s + r.competition_score, 0) / results.length);
+            const highRev = results.filter(r => r.revenue_potential === "high").length;
+            const categories = Array.from(new Set(results.map(r => r.category)));
+            return (
+              <div className="rounded-xl border border-primary/20 bg-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold">Results Summary</h2>
+                  <Badge variant="outline" className="text-[10px]">{results.length} opportunities</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                  <div className="rounded-lg bg-secondary/50 p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">Avg Demand</div>
+                    <div className="text-xl font-bold text-primary">{avgDemand}%</div>
+                  </div>
+                  <div className="rounded-lg bg-secondary/50 p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">Avg Competition</div>
+                    <div className="text-xl font-bold text-warning">{avgComp}%</div>
+                  </div>
+                  <div className="rounded-lg bg-secondary/50 p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">High Revenue</div>
+                    <div className="text-xl font-bold text-primary">{highRev}</div>
+                  </div>
+                  <div className="rounded-lg bg-secondary/50 p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">Categories</div>
+                    <div className="text-xl font-bold">{categories.length}</div>
+                  </div>
+                </div>
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {categories.map(c => (
+                      <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <h2 className="text-lg font-semibold pt-1">{results.length} Opportunities Found</h2>
           {results.map((trend, i) => (
             <motion.div
               key={i}
