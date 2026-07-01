@@ -517,6 +517,12 @@ export default function SoftwareIntelligence() {
                       {s}
                     </Button>
                   ))}
+                  {aiResult && Array.isArray((aiResult as { patches?: AiPatch[] }).patches) && (
+                    <Button size="sm" onClick={applyAiAll}>
+                      <Wand2 className="h-3 w-3" />
+                      Apply {((aiResult as { patches: AiPatch[] }).patches).length} AI patch(es)
+                    </Button>
+                  )}
                 </div>
                 <Separator />
                 <ScrollArea className="h-[440px]">
@@ -527,7 +533,8 @@ export default function SoftwareIntelligence() {
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       Run any AI stage to get prioritized recommendations, refactor plans,
-                      modernization upgrades, or auto-generated documentation.
+                      modernization upgrades, or auto-generated documentation. Results with a
+                      <code className="mx-1">patches[]</code> field can be applied straight into the scan.
                     </p>
                   )}
                 </ScrollArea>
