@@ -182,6 +182,8 @@ export interface CertificationReport {
     messageShieldInjected: string[];
     autoFixesApplied: AutoFix[];
     cspHardened: boolean;
+    permissionAutoFixesApplied: string[];
+    permissionAutoFixesSkipped: Array<{ label: string; issues: SafetyIssue[] }>;
   };
   summary: {
     totalFiles: number;
