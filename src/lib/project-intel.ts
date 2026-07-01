@@ -403,13 +403,12 @@ export async function scanFileList(name: string, list: FileList | File[], onProg
     } else {
       raw.push({ path, size: f.size, binary: true });
     }
-    if (i % 20 === 0 || i === total - 1) {
-      onProgress?.({
-        phase: "read", processed: i + 1, total,
-        percent: Math.round(((i + 1) / total) * 40), currentFile: path,
-      });
-      await yieldToUI();
-    }
+    onProgress?.({
+      phase: "read", processed: i + 1, total,
+      percent: Math.round(((i + 1) / total) * 40), currentFile: path,
+      detail: `${TEXT_EXT.test(path) ? "text" : "binary"} · ${f.size.toLocaleString()}B`,
+    });
+    if (i % 20 === 0 || i === total - 1) await yieldToUI();
   }
   return analyzeFiles(name, raw, onProgress);
 }
