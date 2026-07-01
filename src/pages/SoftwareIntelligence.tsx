@@ -79,7 +79,7 @@ export default function SoftwareIntelligence() {
   }, []);
 
   const handleZip = useCallback(async (f: File) => {
-    setBusy(true);
+    setBusy(true); setLogs([]); logStartRef.current = Date.now();
     setProgress({ phase: "read", processed: 0, total: 1, percent: 0, currentFile: f.name });
     try {
       const res = await scanZip(f, undefined, onProgress);
