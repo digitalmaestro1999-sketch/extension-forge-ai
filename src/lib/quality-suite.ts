@@ -6,6 +6,9 @@
 
 import { runPackageQA, type QAReport } from "./package-qa";
 import { autoFixPackage, type AutoFix } from "./package-autofix";
+import { ensureHardenedCspInFiles, HARDENED_EXTENSION_CSP } from "./extension-csp";
+import { analyzePermissionRisk, type PermissionRiskReport } from "./permission-risk";
+import { injectMessageStorageShield } from "./message-storage-shield";
 
 // ----------------------------------------------------------------------------
 // 1. Runtime Error Shield
@@ -167,10 +170,13 @@ export interface CertificationReport {
   score: number; // 0-100
   grade: "A+" | "A" | "B" | "C" | "D" | "F";
   qa: QAReport;
+  permissionRisk: PermissionRiskReport;
   hardening: {
     errorShieldInjected: string[];
     upgradeHelperInjected: string[];
+    messageShieldInjected: string[];
     autoFixesApplied: AutoFix[];
+    cspHardened: boolean;
   };
   summary: {
     totalFiles: number;
@@ -180,10 +186,13 @@ export interface CertificationReport {
   };
 }
 
-function scoreFor(qa: QAReport): { score: number; grade: CertificationReport["grade"] } {
+function scoreFor(qa: QAReport, perm?: PermissionRiskReport): { score: number; grade: CertificationReport["grade"] } {
   const total = qa.checks.length || 1;
   const passed = qa.checks.filter(c => c.passed).length;
-  const score = Math.round((passed / total) * 100) - qa.errors * 15 - qa.warnings * 3;
+  let score = Math.round((passed / total) * 100) - qa.errors * 15 - qa.warnings * 3;
+  if (perm) {
+    score -= perm.totals.critical * 15 + perm.totals.high * 6 + perm.totals.medium * 2;
+  }
   const clamped = Math.max(0, Math.min(100, score));
   const grade =
     clamped >= 95 ? "A+" :
@@ -202,14 +211,20 @@ export function certifyExtension(input: Record<string, string>): {
   // 1. Auto-fix known packaging issues (manifest, CSP, permissions, remote code…)
   const fixed = autoFixPackage(input);
   let files = fixed.files;
-  // 2. Runtime error shield
+  // 2. Enforce a hardened CSP default (script-src 'self'; object-src 'self'; …)
+  const cspStep = ensureHardenedCspInFiles(files);
+  files = cspStep.files;
+  // 3. Runtime error shield
   const shielded = injectErrorShield(files);
   files = shielded.files;
-  // 3. Upgrade / self-heal
+  // 4. Upgrade / self-heal
   const upgraded = injectUpgradeHelper(files);
   files = upgraded.files;
+  // 5. Safe message-passing & storage-access shield
+  const msg = injectMessageStorageShield(files);
+  files = msg.files;
 
-  // 4. Final QA (with placeholder icons so QA doesn't fail purely on binary)
+  // 6. Final QA (with placeholder icons so QA doesn't fail purely on binary)
   const qa = runPackageQA({
     ...files,
     "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
@@ -217,20 +232,24 @@ export function certifyExtension(input: Record<string, string>): {
     "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
   });
 
-  const { score, grade } = scoreFor(qa);
   let manifest: any = null;
   try { manifest = JSON.parse(files["manifest.json"] ?? "{}"); } catch { /* ignore */ }
+  const permissionRisk = analyzePermissionRisk(manifest);
+  const { score, grade } = scoreFor(qa, permissionRisk);
 
   const report: CertificationReport = {
     generatedAt: new Date().toISOString(),
-    productionReady: qa.errors === 0,
+    productionReady: qa.errors === 0 && permissionRisk.totals.critical === 0,
     score,
     grade,
     qa,
+    permissionRisk,
     hardening: {
       errorShieldInjected: shielded.injected,
       upgradeHelperInjected: upgraded.injected,
+      messageShieldInjected: msg.injected,
       autoFixesApplied: fixed.fixes,
+      cspHardened: cspStep.changed,
     },
     summary: {
       totalFiles: Object.keys(files).length,
@@ -264,9 +283,20 @@ export function renderReportMarkdown(r: CertificationReport): string {
   lines.push(`## Hardening Applied`);
   lines.push(`- Runtime error shield injected into: ${r.hardening.errorShieldInjected.join(", ") || "—"}`);
   lines.push(`- Upgrade / self-heal helper injected into: ${r.hardening.upgradeHelperInjected.join(", ") || "—"}`);
+  lines.push(`- Message/storage shield injected into: ${r.hardening.messageShieldInjected.join(", ") || "—"}`);
+  lines.push(`- Hardened CSP enforced: ${r.hardening.cspHardened ? `yes (\`${HARDENED_EXTENSION_CSP}\`)` : "already present"}`);
   lines.push(`- Auto-fixes applied: ${r.hardening.autoFixesApplied.length}`);
   for (const f of r.hardening.autoFixesApplied) {
     lines.push(`  - ${f.label}${f.detail ? ` (${f.detail})` : ""}`);
+  }
+  lines.push(``);
+  lines.push(`## Permission & Host Risk`);
+  lines.push(`- Summary: ${r.permissionRisk.summary}`);
+  lines.push(`- Safety score: ${r.permissionRisk.score}/100 (highest risk: ${r.permissionRisk.highestRisk})`);
+  for (const f of r.permissionRisk.findings) {
+    const icon = f.risk === "critical" ? "🛑" : f.risk === "high" ? "❌" : f.risk === "medium" ? "⚠️" : "ℹ️";
+    lines.push(`  - ${icon} \`${f.permission}\` (${f.kind}, ${f.risk}) — ${f.reason}`);
+    lines.push(`      ↳ Suggestion: ${f.suggestion}`);
   }
   lines.push(``);
   lines.push(`## Bundle Summary`);
