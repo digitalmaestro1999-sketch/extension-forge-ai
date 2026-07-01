@@ -501,7 +501,30 @@ export default function PackageExtension() {
 
           {/* Permission & Host-Origin Risk */}
           {permissionRisk && (
-            <PermissionRiskPanel report={permissionRisk} />
+            <PermissionRiskPanel
+              report={permissionRisk}
+              onApplyFix={(finding) => {
+                try {
+                  const m = JSON.parse(files["manifest.json"]);
+                  const next = applyAutoFix(m, finding.autoFix!.action);
+                  setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
+                  toast.success(finding.autoFix!.label);
+                } catch (e) {
+                  toast.error("Could not apply fix — manifest.json is invalid JSON.");
+                }
+              }}
+              onApplyAll={() => {
+                try {
+                  const m = JSON.parse(files["manifest.json"]);
+                  const { manifest: next, applied } = applyAllAutoFixes(m, permissionRisk);
+                  if (applied.length === 0) { toast.info("No auto-fixable findings."); return; }
+                  setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
+                  toast.success(`Applied ${applied.length} auto-fix${applied.length === 1 ? "" : "es"}.`);
+                } catch {
+                  toast.error("Could not auto-fix — manifest.json is invalid JSON.");
+                }
+              }}
+            />
           )}
 
 
