@@ -350,18 +350,138 @@ export function applyAutoFix(manifest: unknown, action: AutoFixAction): Manifest
   return m;
 }
 
-/** Apply every auto-fixable finding in a report to the manifest. Returns
- *  the new manifest and the list of applied action labels. */
-export function applyAllAutoFixes(manifest: unknown, report: PermissionRiskReport): {
+// ─── Auto-fix safety checks ─────────────────────────────────────────────────
+// Some auto-fixes are technically valid but functionally destructive — e.g.
+// removing `webRequest` when a background script actually calls
+// `chrome.webRequest.*`, or dropping the last `matches` on a content script.
+// `checkAutoFixSafety` inspects a proposed action against the current manifest
+// (and optional source files) and returns issues so the UI can warn before we
+// mutate the bundle.
+
+export type SafetySeverity = "block" | "warn" | "info";
+export interface SafetyIssue { severity: SafetySeverity; message: string }
+export interface SafetyCheckResult { safe: boolean; issues: SafetyIssue[] }
+
+const SAFE_TO_REMOVE = new Set(["background", "unlimitedStorage", "clipboardWrite"]);
+
+const API_SURFACE: Record<string, RegExp> = {
+  tabs: /\bchrome\.tabs\.(query|update|create|remove|sendMessage|onUpdated|onActivated)\b/,
+  history: /\bchrome\.history\.\w+/,
+  bookmarks: /\bchrome\.bookmarks\.\w+/,
+  cookies: /\bchrome\.cookies\.\w+/,
+  downloads: /\bchrome\.downloads\.\w+/,
+  debugger: /\bchrome\.debugger\.\w+/,
+  management: /\bchrome\.management\.\w+/,
+  proxy: /\bchrome\.proxy\.\w+/,
+  privacy: /\bchrome\.privacy\.\w+/,
+  webRequest: /\bchrome\.webRequest\.\w+/,
+  webRequestBlocking: /\bchrome\.webRequest\.\w+/,
+  nativeMessaging: /\bchrome\.runtime\.(connectNative|sendNativeMessage)\b/,
+  clipboardRead: /\bnavigator\.clipboard\.readText\b/,
+  geolocation: /\bnavigator\.geolocation\.\w+/,
+  identity: /\bchrome\.identity\.\w+/,
+  scripting: /\bchrome\.scripting\.\w+/,
+};
+
+function scanForApi(files: Record<string, string> | undefined, re: RegExp): string[] {
+  if (!files) return [];
+  const hits: string[] = [];
+  for (const [name, content] of Object.entries(files)) {
+    if (!/\.(js|mjs|ts|html)$/i.test(name)) continue;
+    if (typeof content === "string" && re.test(content)) hits.push(name);
+  }
+  return hits;
+}
+
+export function checkAutoFixSafety(
+  manifest: unknown,
+  action: AutoFixAction,
+  files?: Record<string, string>,
+): SafetyCheckResult {
+  const m = (manifest ?? {}) as Manifest;
+  const issues: SafetyIssue[] = [];
+  const usedBy = (perm: string): string[] => {
+    const re = API_SURFACE[perm];
+    return re ? scanForApi(files, re) : [];
+  };
+
+  switch (action.type) {
+    case "remove-permission": {
+      const used = usedBy(action.permission);
+      if (used.length) {
+        issues.push({ severity: "block", message: `"${action.permission}" is used by ${used.join(", ")} — removing it will break the extension at runtime.` });
+      } else if (!SAFE_TO_REMOVE.has(action.permission)) {
+        issues.push({ severity: "warn", message: `Removing "${action.permission}" — verify no feature depends on it.` });
+      }
+      break;
+    }
+    case "move-to-optional": {
+      const used = usedBy(action.permission);
+      if (used.length) {
+        issues.push({ severity: "warn", message: `"${action.permission}" is called in ${used.join(", ")}. Wrap those calls in a chrome.permissions.request() flow before shipping.` });
+      }
+      break;
+    }
+    case "replace-permission": {
+      const used = usedBy(action.from);
+      if (used.length) {
+        issues.push({ severity: "warn", message: `"${action.from}" is used by ${used.join(", ")} — you must migrate calls to ${action.to.join(", ")}.` });
+      }
+      break;
+    }
+    case "remove-host": {
+      const remaining = (m.host_permissions ?? []).filter((h) => h !== action.pattern);
+      const remainingOpt = (m.optional_host_permissions ?? []).filter((h) => h !== action.pattern);
+      const hasCs = Array.isArray(m.content_scripts) && m.content_scripts.length > 0;
+      if (!remaining.length && !remainingOpt.length && hasCs) {
+        issues.push({ severity: "warn", message: "This is the last host pattern — background fetch/XHR will lose cross-origin access." });
+      }
+      break;
+    }
+    case "remove-content-script-match": {
+      const others = (m.content_scripts ?? []).some((cs) => (cs.matches ?? []).some((x) => x !== action.pattern));
+      if (!others) {
+        issues.push({ severity: "block", message: "Removing this match would leave the content script with no `matches` — Chrome rejects the manifest." });
+      }
+      break;
+    }
+    case "replace-host":
+    case "replace-content-script-match": {
+      if (action.from.startsWith("http://") && !action.to.startsWith("https://")) {
+        issues.push({ severity: "warn", message: "Replacement is not HTTPS — double-check the target." });
+      }
+      break;
+    }
+    case "remove-optional":
+      break;
+  }
+  return { safe: !issues.some((i) => i.severity === "block"), issues };
+}
+
+/** Apply every auto-fixable finding in a report. When `opts.files` is given,
+ *  each fix is safety-checked; blocking issues abort that fix unless `force`.
+ *  Returns applied labels and any skipped fixes with their safety issues. */
+export function applyAllAutoFixes(
+  manifest: unknown,
+  report: PermissionRiskReport,
+  opts?: { files?: Record<string, string>; force?: boolean },
+): {
   manifest: Manifest;
   applied: string[];
+  skipped: Array<{ label: string; issues: SafetyIssue[] }>;
 } {
   let current: Manifest = JSON.parse(JSON.stringify(manifest ?? {}));
   const applied: string[] = [];
+  const skipped: Array<{ label: string; issues: SafetyIssue[] }> = [];
   for (const f of report.findings) {
     if (!f.autoFix) continue;
+    const safety = checkAutoFixSafety(current, f.autoFix.action, opts?.files);
+    if (!safety.safe && !opts?.force) {
+      skipped.push({ label: f.autoFix.label, issues: safety.issues });
+      continue;
+    }
     current = applyAutoFix(current, f.autoFix.action);
     applied.push(f.autoFix.label);
   }
-  return { manifest: current, applied };
+  return { manifest: current, applied, skipped };
 }
