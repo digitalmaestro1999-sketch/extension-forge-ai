@@ -189,8 +189,7 @@ export default function SoftwareIntelligence() {
   const applySecurityFix = (f: SecurityFinding) => {
     if (!scan) return;
     const next = redactSecurityFinding(scan, f);
-    setScan({ ...next, security: next.security ? next.security : scan.security.filter((x) => x !== f) });
-    setScan((s) => s ? { ...s, security: s.security.filter((x) => x !== f) } : s);
+    setScan({ ...next, security: next.security.filter((x) => x !== f) });
     toast.success(`Patched ${f.category} at ${f.file}:${f.line}`);
   };
 
