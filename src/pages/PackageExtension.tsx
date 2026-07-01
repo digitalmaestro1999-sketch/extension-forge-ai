@@ -837,3 +837,71 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "pri
     </div>
   );
 }
+
+// ─── Permission & Host-Origin Risk Panel ────────────────────────────────────
+const RISK_STYLES: Record<RiskLevel, { badge: string; icon: string; label: string }> = {
+  critical: { badge: "bg-destructive/20 text-destructive border-destructive/40", icon: "🛑", label: "CRITICAL" },
+  high:     { badge: "bg-destructive/10 text-destructive border-destructive/30", icon: "❌", label: "HIGH" },
+  medium:   { badge: "bg-warning/15 text-warning border-warning/30",             icon: "⚠️", label: "MEDIUM" },
+  low:      { badge: "bg-muted text-muted-foreground border-border",             icon: "ℹ️", label: "LOW" },
+};
+
+function PermissionRiskPanel({ report }: { report: PermissionRiskReport }) {
+  const clean = report.findings.length === 0;
+  const headline = RISK_STYLES[report.highestRisk];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-border bg-card overflow-hidden"
+    >
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Lock className={`h-5 w-5 ${clean ? "text-success" : "text-warning"}`} />
+          <div>
+            <h3 className="text-sm font-semibold">Permission &amp; Host-Origin Risk</h3>
+            <p className="text-xs text-muted-foreground">{report.summary}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="font-mono text-[10px]">
+            Safety {report.score}/100
+          </Badge>
+          <Badge className={`font-mono text-[10px] border ${headline.badge}`}>
+            {clean ? "✓ CLEAN" : headline.label}
+          </Badge>
+        </div>
+      </div>
+
+      {clean ? (
+        <div className="px-5 py-6 flex items-center gap-3 text-sm text-muted-foreground">
+          <CheckCircle2 className="h-5 w-5 text-success" />
+          No excessive permissions or overly broad host patterns detected.
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {report.findings.map((f, i) => {
+            const s = RISK_STYLES[f.risk];
+            return (
+              <div key={`${f.permission}-${i}`} className="px-5 py-3 flex items-start gap-3">
+                <span className="text-lg leading-none pt-0.5" aria-hidden>{s.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted break-all">{f.permission}</code>
+                    <Badge className={`text-[10px] font-mono border ${s.badge}`}>{s.label}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono uppercase">{f.kind}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{f.reason}</p>
+                  <p className="text-xs mt-1">
+                    <span className="text-success font-semibold">Suggestion:</span>{" "}
+                    <span className="text-foreground">{f.suggestion}</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </motion.div>
+  );
+}
