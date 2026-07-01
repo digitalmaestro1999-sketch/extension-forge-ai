@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
   Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck, SlidersHorizontal,
-  Radio,
+  Radio, Brain,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -43,6 +43,8 @@ const toolItems: NavItem[] = [
   { title: "Publish", url: "/publish", icon: Upload },
   { title: "Manage Extension", url: "/manage", icon: SlidersHorizontal },
   { title: "Live Control", url: "/control", icon: Radio },
+  { title: "Software Intelligence", url: "/intelligence", icon: Brain },
+
 ];
 
 const settingsItems = [
