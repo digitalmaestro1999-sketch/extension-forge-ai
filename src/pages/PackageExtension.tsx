@@ -8,7 +8,7 @@ import {
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
 import { certifyExtension, type CertificationReport } from "@/lib/quality-suite";
-import { analyzePermissionRisk, type PermissionRiskReport, type RiskLevel } from "@/lib/permission-risk";
+import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, type PermissionRiskReport, type RiskLevel, type PermissionFinding } from "@/lib/permission-risk";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -501,7 +501,30 @@ export default function PackageExtension() {
 
           {/* Permission & Host-Origin Risk */}
           {permissionRisk && (
-            <PermissionRiskPanel report={permissionRisk} />
+            <PermissionRiskPanel
+              report={permissionRisk}
+              onApplyFix={(finding) => {
+                try {
+                  const m = JSON.parse(files["manifest.json"]);
+                  const next = applyAutoFix(m, finding.autoFix!.action);
+                  setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
+                  toast.success(finding.autoFix!.label);
+                } catch (e) {
+                  toast.error("Could not apply fix — manifest.json is invalid JSON.");
+                }
+              }}
+              onApplyAll={() => {
+                try {
+                  const m = JSON.parse(files["manifest.json"]);
+                  const { manifest: next, applied } = applyAllAutoFixes(m, permissionRisk);
+                  if (applied.length === 0) { toast.info("No auto-fixable findings."); return; }
+                  setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
+                  toast.success(`Applied ${applied.length} auto-fix${applied.length === 1 ? "" : "es"}.`);
+                } catch {
+                  toast.error("Could not auto-fix — manifest.json is invalid JSON.");
+                }
+              }}
+            />
           )}
 
 
@@ -846,9 +869,18 @@ const RISK_STYLES: Record<RiskLevel, { badge: string; icon: string; label: strin
   low:      { badge: "bg-muted text-muted-foreground border-border",             icon: "ℹ️", label: "LOW" },
 };
 
-function PermissionRiskPanel({ report }: { report: PermissionRiskReport }) {
+function PermissionRiskPanel({
+  report,
+  onApplyFix,
+  onApplyAll,
+}: {
+  report: PermissionRiskReport;
+  onApplyFix: (finding: PermissionFinding) => void;
+  onApplyAll: () => void;
+}) {
   const clean = report.findings.length === 0;
   const headline = RISK_STYLES[report.highestRisk];
+  const fixableCount = report.findings.filter((f) => f.autoFix).length;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -870,6 +902,12 @@ function PermissionRiskPanel({ report }: { report: PermissionRiskReport }) {
           <Badge className={`font-mono text-[10px] border ${headline.badge}`}>
             {clean ? "✓ CLEAN" : headline.label}
           </Badge>
+          {fixableCount > 0 && (
+            <Button size="sm" variant="secondary" onClick={onApplyAll} className="h-7 gap-1.5">
+              <Wand2 className="h-3.5 w-3.5" />
+              Auto-Fix All ({fixableCount})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -896,6 +934,19 @@ function PermissionRiskPanel({ report }: { report: PermissionRiskReport }) {
                     <span className="text-success font-semibold">Suggestion:</span>{" "}
                     <span className="text-foreground">{f.suggestion}</span>
                   </p>
+                  {f.autoFix && (
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => onApplyFix(f)}
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        {f.autoFix.label}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -4,12 +4,23 @@
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
+export type AutoFixAction =
+  | { type: "remove-permission"; permission: string }
+  | { type: "remove-optional"; permission: string }
+  | { type: "remove-host"; pattern: string }
+  | { type: "replace-permission"; from: string; to: string[] }
+  | { type: "move-to-optional"; permission: string }
+  | { type: "replace-host"; from: string; to: string }
+  | { type: "remove-content-script-match"; pattern: string }
+  | { type: "replace-content-script-match"; from: string; to: string };
+
 export interface PermissionFinding {
   permission: string;
   kind: "permission" | "host" | "optional";
   risk: RiskLevel;
   reason: string;
   suggestion: string;
+  autoFix?: { label: string; action: AutoFixAction };
 }
 
 export interface PermissionRiskReport {
@@ -167,12 +178,11 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
 
   for (const p of asArray(m.permissions)) {
     const info = PERMISSION_RISKS[p];
-    if (info) findings.push({ permission: p, kind: "permission", ...info });
+    if (info) findings.push({ permission: p, kind: "permission", ...info, autoFix: autoFixForPermission(p) });
   }
   for (const p of asArray(m.optional_permissions)) {
     const info = PERMISSION_RISKS[p];
     if (info) {
-      // optional permissions are one risk-tier safer.
       const softened: RiskLevel = info.risk === "critical" ? "high" : info.risk === "high" ? "medium" : "low";
       findings.push({
         permission: p,
@@ -180,15 +190,15 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
         risk: softened,
         reason: `${info.reason} (declared optional).`,
         suggestion: info.suggestion,
+        autoFix: { label: `Remove optional "${p}"`, action: { type: "remove-optional", permission: p } },
       });
     }
   }
   const hosts = [...asArray(m.host_permissions), ...asArray(m.optional_host_permissions)];
   for (const h of hosts) {
     const info = analyzeHostPattern(h);
-    if (info) findings.push({ permission: h, kind: "host", ...info });
+    if (info) findings.push({ permission: h, kind: "host", ...info, autoFix: autoFixForHost(h, false) });
   }
-  // Content-script matches are effectively host permissions.
   for (const cs of Array.isArray(m.content_scripts) ? m.content_scripts : []) {
     for (const match of asArray(cs?.matches)) {
       const info = analyzeHostPattern(match);
@@ -199,6 +209,7 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
           risk: info.risk,
           reason: `Content-script match: ${info.reason}`,
           suggestion: info.suggestion,
+          autoFix: autoFixForHost(match, true),
         });
       }
     }
@@ -218,4 +229,139 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
     : `${findings.length} risky permission${findings.length === 1 ? "" : "s"} — ${totals.critical} critical, ${totals.high} high, ${totals.medium} medium, ${totals.low} low.`;
 
   return { findings, score, highestRisk, totals, summary };
+}
+
+// ─── Auto-fix suggestions ───────────────────────────────────────────────────
+
+function autoFixForPermission(p: string): PermissionFinding["autoFix"] {
+  switch (p) {
+    case "<all_urls>":
+      return { label: 'Replace with "activeTab"', action: { type: "replace-permission", from: p, to: ["activeTab"] } };
+    case "tabs":
+      return { label: 'Replace with "activeTab"', action: { type: "replace-permission", from: "tabs", to: ["activeTab"] } };
+    case "history":
+      return { label: 'Replace with "topSites"', action: { type: "replace-permission", from: "history", to: ["topSites"] } };
+    case "webRequest":
+    case "webRequestBlocking":
+      return { label: 'Replace with "declarativeNetRequest"', action: { type: "replace-permission", from: p, to: ["declarativeNetRequest"] } };
+    case "cookies":
+    case "geolocation":
+    case "identity":
+    case "bookmarks":
+    case "clipboardRead":
+      return { label: `Move "${p}" to optional_permissions`, action: { type: "move-to-optional", permission: p } };
+    case "clipboardWrite":
+    case "debugger":
+    case "management":
+    case "proxy":
+    case "privacy":
+    case "nativeMessaging":
+    case "background":
+    case "unlimitedStorage":
+    case "downloads":
+      return { label: `Remove "${p}"`, action: { type: "remove-permission", permission: p } };
+    default:
+      return undefined;
+  }
+}
+
+function autoFixForHost(pattern: string, isContentScript: boolean): PermissionFinding["autoFix"] {
+  if (pattern === "<all_urls>" || pattern === "*://*/*" || pattern === "http://*/*" || pattern === "https://*/*") {
+    return isContentScript
+      ? undefined // no safe generic replacement — user must scope manually
+      : { label: `Remove overly broad host "${pattern}"`, action: { type: "remove-host", pattern } };
+  }
+  if (pattern.startsWith("http://")) {
+    const httpsPattern = "https://" + pattern.slice("http://".length);
+    return isContentScript
+      ? { label: `Upgrade to HTTPS (${httpsPattern})`, action: { type: "replace-content-script-match", from: pattern, to: httpsPattern } }
+      : { label: `Upgrade to HTTPS (${httpsPattern})`, action: { type: "replace-host", from: pattern, to: httpsPattern } };
+  }
+  if (/^\*:\/\/\*\.[^/]+\/\*$/.test(pattern)) {
+    const httpsPattern = "https://" + pattern.slice(4);
+    return isContentScript
+      ? { label: `Restrict to HTTPS (${httpsPattern})`, action: { type: "replace-content-script-match", from: pattern, to: httpsPattern } }
+      : { label: `Restrict to HTTPS (${httpsPattern})`, action: { type: "replace-host", from: pattern, to: httpsPattern } };
+  }
+  return undefined;
+}
+
+type Manifest = {
+  permissions?: string[];
+  optional_permissions?: string[];
+  host_permissions?: string[];
+  optional_host_permissions?: string[];
+  content_scripts?: Array<{ matches?: string[]; [k: string]: unknown }>;
+  [k: string]: unknown;
+};
+
+function uniq(arr: string[]): string[] {
+  return Array.from(new Set(arr));
+}
+
+/** Apply a single auto-fix action to a manifest object and return a new object. */
+export function applyAutoFix(manifest: unknown, action: AutoFixAction): Manifest {
+  const m: Manifest = JSON.parse(JSON.stringify(manifest ?? {}));
+  const perms = Array.isArray(m.permissions) ? m.permissions : [];
+  const opts = Array.isArray(m.optional_permissions) ? m.optional_permissions : [];
+  const hosts = Array.isArray(m.host_permissions) ? m.host_permissions : [];
+  const optHosts = Array.isArray(m.optional_host_permissions) ? m.optional_host_permissions : [];
+
+  switch (action.type) {
+    case "remove-permission":
+      m.permissions = perms.filter((p) => p !== action.permission);
+      break;
+    case "remove-optional":
+      m.optional_permissions = opts.filter((p) => p !== action.permission);
+      break;
+    case "replace-permission":
+      m.permissions = uniq(perms.filter((p) => p !== action.from).concat(action.to));
+      break;
+    case "move-to-optional":
+      m.permissions = perms.filter((p) => p !== action.permission);
+      m.optional_permissions = uniq(opts.concat(action.permission));
+      break;
+    case "remove-host":
+      m.host_permissions = hosts.filter((h) => h !== action.pattern);
+      m.optional_host_permissions = optHosts.filter((h) => h !== action.pattern);
+      break;
+    case "replace-host":
+      m.host_permissions = uniq(hosts.map((h) => (h === action.from ? action.to : h)));
+      m.optional_host_permissions = uniq(optHosts.map((h) => (h === action.from ? action.to : h)));
+      break;
+    case "remove-content-script-match":
+      m.content_scripts = (m.content_scripts ?? []).map((cs) => ({
+        ...cs,
+        matches: (cs.matches ?? []).filter((x) => x !== action.pattern),
+      }));
+      break;
+    case "replace-content-script-match":
+      m.content_scripts = (m.content_scripts ?? []).map((cs) => ({
+        ...cs,
+        matches: uniq((cs.matches ?? []).map((x) => (x === action.from ? action.to : x))),
+      }));
+      break;
+  }
+
+  // Cleanup empty arrays for tidiness.
+  for (const k of ["permissions", "optional_permissions", "host_permissions", "optional_host_permissions"] as const) {
+    if (Array.isArray(m[k]) && (m[k] as string[]).length === 0) delete m[k];
+  }
+  return m;
+}
+
+/** Apply every auto-fixable finding in a report to the manifest. Returns
+ *  the new manifest and the list of applied action labels. */
+export function applyAllAutoFixes(manifest: unknown, report: PermissionRiskReport): {
+  manifest: Manifest;
+  applied: string[];
+} {
+  let current: Manifest = JSON.parse(JSON.stringify(manifest ?? {}));
+  const applied: string[] = [];
+  for (const f of report.findings) {
+    if (!f.autoFix) continue;
+    current = applyAutoFix(current, f.autoFix.action);
+    applied.push(f.autoFix.label);
+  }
+  return { manifest: current, applied };
 }
