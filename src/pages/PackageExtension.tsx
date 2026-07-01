@@ -206,7 +206,25 @@ export default function PackageExtension() {
     const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
-    toast.success("Extension package downloaded!");
+    toast.success(cert?.productionReady ? "Production-ready package downloaded ✓" : "Extension package downloaded");
+  };
+
+  const handleCertify = () => {
+    if (Object.keys(files).length === 0) return;
+    setCertifying(true);
+    try {
+      const { files: hardened, report } = certifyExtension(files);
+      setFiles(hardened);
+      sessionStorage.setItem("extension-files", JSON.stringify(hardened));
+      setCert(report);
+      toast.success(
+        `Certified · Grade ${report.grade} (${report.score}/100) · ${report.hardening.autoFixesApplied.length} fixes, shield in ${report.hardening.errorShieldInjected.length} files`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Certification failed");
+    } finally {
+      setCertifying(false);
+    }
   };
 
   const handleAutoFix = () => {
