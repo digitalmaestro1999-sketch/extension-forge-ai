@@ -89,3 +89,50 @@ describe("VirtualLogList", () => {
     expect(container.scrollTop).toBe(container.scrollHeight);
   });
 });
+
+describe("VirtualLogList — stress", () => {
+  beforeEach(() => {
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+      class { observe() {} disconnect() {} unobserve() {} };
+  });
+
+  it("renders 10,000 entries under budget with a hard row cap", () => {
+    const logs = makeLogs(10_000);
+    const t0 = performance.now();
+    render(<VirtualLogList logs={logs} autoStick={false} />);
+    const elapsed = performance.now() - t0;
+    const rows = screen.getAllByTestId("log-row");
+    // Hard cap: MAX_WINDOW (120) rows in the DOM regardless of log count.
+    expect(rows.length).toBeLessThanOrEqual(120);
+    // Full scrollbar height still reserved.
+    expect(screen.getByTestId("virtual-log-inner").style.height)
+      .toBe(`${10_000 * LOG_ROW_H}px`);
+    // 500ms is a very loose ceiling that still catches accidental O(n) renders.
+    expect(elapsed).toBeLessThan(500);
+  });
+
+  it("stays responsive appending in large chunks up to 50,000 entries", () => {
+    let logs = makeLogs(0);
+    const { rerender } = render(<VirtualLogList logs={logs} autoStick={false} />);
+    const t0 = performance.now();
+    for (let i = 0; i < 10; i++) {
+      logs = [...logs, ...makeLogs(5000, logs.length)];
+      act(() => { rerender(<VirtualLogList logs={logs} autoStick={false} />); });
+    }
+    const elapsed = performance.now() - t0;
+    expect(logs.length).toBe(50_000);
+    expect(screen.getAllByTestId("log-row").length).toBeLessThanOrEqual(120);
+    // 10 rerenders x 5k entries should stay well under 2s.
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it("caps rendered rows even with a huge viewport", () => {
+    const logs = makeLogs(20_000);
+    render(<VirtualLogList logs={logs} autoStick={false} />);
+    const container = screen.getByTestId("virtual-log-list");
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 10_000 });
+    Object.defineProperty(container, "scrollHeight", { configurable: true, value: 20_000 * LOG_ROW_H });
+    act(() => { container.dispatchEvent(new Event("scroll", { bubbles: true })); });
+    expect(screen.getAllByTestId("log-row").length).toBeLessThanOrEqual(120);
+  });
+});
