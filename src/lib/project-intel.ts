@@ -356,6 +356,7 @@ export type ScanProgress = {
   total: number;
   currentFile?: string;
   percent: number;
+  detail?: string;
 };
 export type ProgressFn = (p: ScanProgress) => void;
 
