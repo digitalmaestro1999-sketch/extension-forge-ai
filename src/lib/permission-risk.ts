@@ -4,12 +4,23 @@
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
+export type AutoFixAction =
+  | { type: "remove-permission"; permission: string }
+  | { type: "remove-optional"; permission: string }
+  | { type: "remove-host"; pattern: string }
+  | { type: "replace-permission"; from: string; to: string[] }
+  | { type: "move-to-optional"; permission: string }
+  | { type: "replace-host"; from: string; to: string }
+  | { type: "remove-content-script-match"; pattern: string }
+  | { type: "replace-content-script-match"; from: string; to: string };
+
 export interface PermissionFinding {
   permission: string;
   kind: "permission" | "host" | "optional";
   risk: RiskLevel;
   reason: string;
   suggestion: string;
+  autoFix?: { label: string; action: AutoFixAction };
 }
 
 export interface PermissionRiskReport {
