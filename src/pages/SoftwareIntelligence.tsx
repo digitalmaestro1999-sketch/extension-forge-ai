@@ -48,7 +48,7 @@ function FolderTreeView({ node, depth = 0 }: { node: FolderNode; depth?: number 
   );
 }
 
-import { VirtualLogList, LOG_ROW_H, type LogEntry } from "@/components/VirtualLogList";
+import { VirtualLogList, type LogEntry } from "@/components/VirtualLogList";
 
 const LOG_MAX = 2000;
 
