@@ -610,6 +610,83 @@ export function applyRename(scan: ProjectScan, plan: RenamePlan): ProjectScan {
   return { ...scan, files };
 }
 
+// ---------- Line-level & AI patch application ----------
+
+/** Replace a single line in a file (1-indexed). Rebuilds file arrays. */
+export function applyLineEdit(scan: ProjectScan, filePath: string, line: number, newLine: string): ProjectScan {
+  const files = scan.files.map((f) => {
+    if (f.path !== filePath || f.content == null) return f;
+    const lines = f.content.split("\n");
+    if (line < 1 || line > lines.length) return f;
+    lines[line - 1] = newLine;
+    return { ...f, content: lines.join("\n") };
+  });
+  return { ...scan, files };
+}
+
+/** Redact a secret finding by masking its match on the given line. */
+export function redactSecurityFinding(scan: ProjectScan, f: SecurityFinding): ProjectScan {
+  const target = scan.files.find((x) => x.path === f.file);
+  if (!target?.content) return scan;
+  const lines = target.content.split("\n");
+  const ln = lines[f.line - 1] ?? "";
+  let fixed = ln;
+  if (f.category === "secret") {
+    for (const p of SECRET_PATTERNS) fixed = fixed.replace(p.re, "***REDACTED***");
+  } else if (f.category === "eval") {
+    fixed = ln.replace(/\beval\s*\(/, "/* eval removed */ ((_x) => _x)(");
+  } else if (f.category === "xss" && /document\.write/.test(ln)) {
+    fixed = ln.replace(/document\.write\s*\(/, "/* unsafe */ console.warn(");
+  } else if (f.category === "xss" && /dangerouslySetInnerHTML/.test(ln)) {
+    fixed = ln.replace(/dangerouslySetInnerHTML=\{[^}]+\}/, "/* dangerouslySetInnerHTML removed */");
+  } else if (f.category === "storage") {
+    fixed = ln.replace(/localStorage\.setItem/, "/* moved to secure store */ void");
+  }
+  return applyLineEdit(scan, f.file, f.line, fixed);
+}
+
+/** Update a timer's numeric delay/interval on its source line. */
+export function updateTimerValue(scan: ProjectScan, t: TimerFinding, newMs: number): ProjectScan {
+  const target = scan.files.find((x) => x.path === t.file);
+  if (!target?.content) return scan;
+  const lines = target.content.split("\n");
+  const ln = lines[t.line - 1] ?? "";
+  // Replace the LAST numeric literal argument on the line (typical delay position)
+  const fixed = ln.replace(/(,\s*)(\d{2,})(\s*\))/, `$1${newMs}$3`)
+                  .replace(/(setTimeout|setInterval)\s*\(([^,]+),\s*\d+/, `$1($2, ${newMs}`);
+  return applyLineEdit(scan, t.file, t.line, fixed);
+}
+
+export type AiPatch = { file: string; content?: string; action?: "update" | "create" | "delete" };
+
+/** Apply a batch of AI-generated file patches to the in-memory scan. */
+export function applyAiPatches(scan: ProjectScan, patches: AiPatch[]): { scan: ProjectScan; applied: number } {
+  let files = scan.files.slice();
+  let applied = 0;
+  for (const p of patches) {
+    if (!p.file) continue;
+    const idx = files.findIndex((f) => f.path === p.file);
+    if (p.action === "delete") {
+      if (idx >= 0) { files.splice(idx, 1); applied++; }
+      continue;
+    }
+    if (typeof p.content !== "string") continue;
+    if (idx >= 0) {
+      files[idx] = { ...files[idx], content: p.content, size: p.content.length, lines: p.content.split("\n").length };
+      applied++;
+    } else {
+      files.push({
+        path: p.file, ext: extOf(p.file), size: p.content.length,
+        lines: p.content.split("\n").length, content: p.content, binary: false,
+        purpose: classifyPurpose(p.file), complexity: 0, imports: [], exports: [],
+        hasTests: false, todoCount: 0, risk: "low", score: 100,
+      });
+      applied++;
+    }
+  }
+  return { scan: { ...scan, files }, applied };
+}
+
 export async function exportScan(scan: ProjectScan): Promise<Blob> {
   const zip = new JSZip();
   for (const f of scan.files) {
