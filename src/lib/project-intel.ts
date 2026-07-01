@@ -377,13 +377,12 @@ export async function scanZip(file: File, name?: string, onProgress?: ProgressFn
       const blob = await e.async("uint8array");
       raw.push({ path: e.name, size: blob.byteLength, binary: true });
     }
-    if (i % 20 === 0 || i === total - 1) {
-      onProgress?.({
-        phase: "read", processed: i + 1, total,
-        percent: Math.round(((i + 1) / total) * 40), currentFile: e.name,
-      });
-      await yieldToUI();
-    }
+    onProgress?.({
+      phase: "read", processed: i + 1, total,
+      percent: Math.round(((i + 1) / total) * 40), currentFile: e.name,
+      detail: `${TEXT_EXT.test(e.name) ? "text" : "binary"} · ${raw[raw.length - 1].size.toLocaleString()}B`,
+    });
+    if (i % 20 === 0 || i === total - 1) await yieldToUI();
   }
   return analyzeFiles(name ?? file.name.replace(/\.zip$/i, ""), raw, onProgress);
 }
