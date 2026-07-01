@@ -506,6 +506,14 @@ export default function PackageExtension() {
               onApplyFix={(finding) => {
                 try {
                   const m = JSON.parse(files["manifest.json"]);
+                  const safety = checkAutoFixSafety(m, finding.autoFix!.action, files);
+                  if (!safety.safe) {
+                    toast.error(`Safety check blocked: ${safety.issues[0]?.message ?? "unsafe fix"}`);
+                    return;
+                  }
+                  if (safety.issues.length) {
+                    toast.warning(safety.issues.map((i) => i.message).join(" • "));
+                  }
                   const next = applyAutoFix(m, finding.autoFix!.action);
                   setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
                   toast.success(finding.autoFix!.label);
@@ -516,10 +524,15 @@ export default function PackageExtension() {
               onApplyAll={() => {
                 try {
                   const m = JSON.parse(files["manifest.json"]);
-                  const { manifest: next, applied } = applyAllAutoFixes(m, permissionRisk);
-                  if (applied.length === 0) { toast.info("No auto-fixable findings."); return; }
-                  setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
-                  toast.success(`Applied ${applied.length} auto-fix${applied.length === 1 ? "" : "es"}.`);
+                  const { manifest: next, applied, skipped } = applyAllAutoFixes(m, permissionRisk, { files });
+                  if (applied.length === 0 && skipped.length === 0) { toast.info("No auto-fixable findings."); return; }
+                  if (applied.length) {
+                    setFiles({ ...files, "manifest.json": JSON.stringify(next, null, 2) });
+                    toast.success(`Applied ${applied.length} auto-fix${applied.length === 1 ? "" : "es"}.`);
+                  }
+                  if (skipped.length) {
+                    toast.warning(`Skipped ${skipped.length} unsafe fix${skipped.length === 1 ? "" : "es"}: ${skipped.map(s => s.label).join(", ")}`);
+                  }
                 } catch {
                   toast.error("Could not auto-fix — manifest.json is invalid JSON.");
                 }
