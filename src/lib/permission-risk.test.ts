@@ -133,7 +133,7 @@ describe("checkAutoFixSafety", () => {
     const manifest = { permissions: ["debugger", "background"] };
     const report = analyzePermissionRisk(manifest);
     const res = applyAllAutoFixes(manifest, report, {
-      files: { "bg.js": "chrome.debugger.attach({tabId:1},"1.3")" },
+      files: { "bg.js": "chrome.debugger.attach({tabId:1})" },
     });
     expect(res.skipped.some((s) => /debugger/i.test(s.label))).toBe(true);
     expect(res.applied.some((a) => /background/i.test(a))).toBe(true);
