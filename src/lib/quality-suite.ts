@@ -231,7 +231,23 @@ export function certifyExtension(input: Record<string, string>): {
   const msg = injectMessageStorageShield(files);
   files = msg.files;
 
-  // 6. Final QA (with placeholder icons so QA doesn't fail purely on binary)
+  // 6. Permission & host-origin risk auto-fixes — safety-checked against the
+  //    current source files so we never strip a permission the code still uses
+  //    or remove the last content-script `matches` pattern.
+  let permAutoFixesApplied: string[] = [];
+  let permAutoFixesSkipped: Array<{ label: string; issues: SafetyIssue[] }> = [];
+  try {
+    const preManifest = JSON.parse(files["manifest.json"] ?? "{}");
+    const preRisk = analyzePermissionRisk(preManifest);
+    const result = applyAllAutoFixes(preManifest, preRisk, { files });
+    permAutoFixesApplied = result.applied;
+    permAutoFixesSkipped = result.skipped;
+    if (result.applied.length) {
+      files = { ...files, "manifest.json": JSON.stringify(result.manifest, null, 2) };
+    }
+  } catch { /* manifest unparseable — skip */ }
+
+  // 7. Final QA (with placeholder icons so QA doesn't fail purely on binary)
   const qa = runPackageQA({
     ...files,
     "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
@@ -257,6 +273,8 @@ export function certifyExtension(input: Record<string, string>): {
       messageShieldInjected: msg.injected,
       autoFixesApplied: fixed.fixes,
       cspHardened: cspStep.changed,
+      permissionAutoFixesApplied: permAutoFixesApplied,
+      permissionAutoFixesSkipped: permAutoFixesSkipped,
     },
     summary: {
       totalFiles: Object.keys(files).length,
