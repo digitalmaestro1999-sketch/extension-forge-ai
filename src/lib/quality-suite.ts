@@ -170,10 +170,13 @@ export interface CertificationReport {
   score: number; // 0-100
   grade: "A+" | "A" | "B" | "C" | "D" | "F";
   qa: QAReport;
+  permissionRisk: PermissionRiskReport;
   hardening: {
     errorShieldInjected: string[];
     upgradeHelperInjected: string[];
+    messageShieldInjected: string[];
     autoFixesApplied: AutoFix[];
+    cspHardened: boolean;
   };
   summary: {
     totalFiles: number;
