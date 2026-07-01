@@ -48,10 +48,13 @@ function FolderTreeView({ node, depth = 0 }: { node: FolderNode; depth?: number 
   );
 }
 
+type LogEntry = { t: number; phase: ScanProgress["phase"]; msg: string };
+
 export default function SoftwareIntelligence() {
   const [scan, setScan] = useState<ProjectScan | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [renameFrom, setRenameFrom] = useState("");
   const [renameTo, setRenameTo] = useState("");
   const [plan, setPlan] = useState<RenamePlan | null>(null);
@@ -59,8 +62,21 @@ export default function SoftwareIntelligence() {
   const [aiBusy, setAiBusy] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  const logStartRef = useRef<number>(0);
+  const logScrollRef = useRef<HTMLDivElement>(null);
 
-  const onProgress = useCallback((p: ScanProgress) => setProgress(p), []);
+  const onProgress = useCallback((p: ScanProgress) => {
+    setProgress(p);
+    setLogs((prev) => {
+      const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
+      const next = [...prev, { t: Date.now() - logStartRef.current, phase: p.phase, msg }];
+      return next.length > 500 ? next.slice(-500) : next;
+    });
+    queueMicrotask(() => {
+      const el = logScrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, []);
 
   const handleZip = useCallback(async (f: File) => {
     setBusy(true);
