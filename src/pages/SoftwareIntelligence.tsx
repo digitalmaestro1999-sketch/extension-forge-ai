@@ -206,7 +206,22 @@ export default function SoftwareIntelligence() {
               />
             </div>
           </CardContent>
-          {busy && <CardContent><Progress value={progress} /></CardContent>}
+          {(busy || progress) && (
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="uppercase tracking-wider text-muted-foreground">
+                  {progress?.phase ?? "read"} · {progress?.processed ?? 0}/{progress?.total ?? 0}
+                </span>
+                <span className="font-mono">{progress?.percent ?? 0}%</span>
+              </div>
+              <Progress value={progress?.percent ?? 0} />
+              {progress?.currentFile && (
+                <div className="text-[11px] font-mono text-muted-foreground truncate">
+                  {progress.currentFile}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
       )}
 
