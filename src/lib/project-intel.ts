@@ -462,16 +462,21 @@ async function analyzeFiles(
       todoCount, risk, score,
     });
 
-    if (idx % 25 === 0 || idx === total - 1) {
-      onProgress?.({
-        phase: "analyze", processed: idx + 1, total,
-        percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
-        currentFile: r.path,
-      });
-      await yieldToUI();
-    }
+    const fileTimers = text && CODE_EXT.test(r.path) ? timers.length : 0;
+    const fileSec = text && CODE_EXT.test(r.path) ? security.length : 0;
+    onProgress?.({
+      phase: "analyze", processed: idx + 1, total,
+      percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
+      currentFile: r.path,
+      detail: `${lines}L · cx=${complexity} · imp=${imports.length} · exp=${exports.length} · todo=${todoCount} · risk=${risk}`,
+    });
+    void fileTimers; void fileSec;
+    if (idx % 25 === 0 || idx === total - 1) await yieldToUI();
   }
-  onProgress?.({ phase: "aggregate", processed: total, total, percent: 90 });
+  onProgress?.({
+    phase: "aggregate", processed: total, total, percent: 90,
+    detail: `${scanned.length} files · ${timers.length} timers · ${security.length} security findings · ${todos} TODOs`,
+  });
   await yieldToUI();
 
   // Duplicates
