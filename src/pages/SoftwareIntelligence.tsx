@@ -16,7 +16,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   scanZip, scanFileList, planRename, applyRename, exportScan, renderMarkdownReport,
+  redactSecurityFinding, updateTimerValue, applyAiPatches, applyLineEdit,
   type ProjectScan, type FolderNode, type RenamePlan, type ScanProgress,
+  type SecurityFinding, type TimerFinding, type AiPatch,
 } from "@/lib/project-intel";
 
 function ScoreRing({ label, value }: { label: string; value: number }) {
@@ -175,6 +177,39 @@ export default function SoftwareIntelligence() {
     setPlan(null);
     toast.success(`Applied rename across ${plan.filesAffected} files (in-memory).`);
   };
+
+  const applyNamingFix = (oldName: string, newName: string) => {
+    if (!scan || !oldName || !newName || oldName === newName) return;
+    const p = planRename(scan, oldName, newName);
+    if (!p.totalOccurrences) { toast.error(`"${oldName}" not found in source`); return; }
+    setScan(applyRename(scan, p));
+    toast.success(`Renamed "${oldName}" → "${newName}" in ${p.filesAffected} files`);
+  };
+
+  const applySecurityFix = (f: SecurityFinding) => {
+    if (!scan) return;
+    const next = redactSecurityFinding(scan, f);
+    setScan({ ...next, security: next.security.filter((x) => x !== f) });
+    toast.success(`Patched ${f.category} at ${f.file}:${f.line}`);
+  };
+
+  const applyTimerFix = (t: TimerFinding, ms: number) => {
+    if (!scan || !ms || ms < 1) return;
+    setScan(updateTimerValue(scan, t, ms));
+    toast.success(`Updated ${t.kind} → ${ms}ms at ${t.file}:${t.line}`);
+  };
+
+  const applyAiAll = () => {
+    if (!scan || !aiResult) return;
+    const patches: AiPatch[] = Array.isArray((aiResult as { patches?: AiPatch[] }).patches)
+      ? (aiResult as { patches: AiPatch[] }).patches
+      : [];
+    if (!patches.length) { toast.error("No file patches in this AI result"); return; }
+    const { scan: next, applied } = applyAiPatches(scan, patches);
+    setScan(next);
+    toast.success(`Applied ${applied} AI patch${applied === 1 ? "" : "es"}`);
+  };
+  void applyLineEdit;
 
   const downloadReport = async () => {
     if (!scan) return;
@@ -376,17 +411,13 @@ export default function SoftwareIntelligence() {
 
             <TabsContent value="timers">
               <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-2">Discovered {scan.timers.length} timing constructs.</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Discovered {scan.timers.length} timing constructs. Edit the delay/interval (ms) and click Apply to rewrite the source line.
+                </p>
                 <ScrollArea className="h-[460px]">
                   <div className="space-y-1">
                     {scan.timers.map((t, i) => (
-                      <div key={i} className="rounded border border-border/50 p-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[9px]">{t.kind}</Badge>
-                          <span className="font-mono text-muted-foreground">{t.file}:{t.line}</span>
-                        </div>
-                        <code className="text-[11px] block mt-1 text-primary">{t.snippet}</code>
-                      </div>
+                      <TimerRow key={i} t={t} onApply={(ms) => applyTimerFix(t, ms)} />
                     ))}
                   </div>
                 </ScrollArea>
@@ -406,6 +437,9 @@ export default function SoftwareIntelligence() {
                           <Badge variant={s.severity === "critical" ? "destructive" : "outline"} className="text-[9px]">{s.severity}</Badge>
                           <span className="font-medium">{s.message}</span>
                           <span className="font-mono text-muted-foreground ml-auto">{s.file}:{s.line}</span>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => applySecurityFix(s)}>
+                            Auto-Fix
+                          </Button>
                         </div>
                         <code className="text-[11px] block mt-1 text-primary">{s.snippet}</code>
                       </div>
@@ -433,11 +467,7 @@ export default function SoftwareIntelligence() {
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-1">
                     {scan.naming.inconsistencies.map((n, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs border-b border-border/40 py-1">
-                        <span className="font-mono">{n.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{n.kind}</Badge>
-                        <span className="text-muted-foreground">→ {n.suggestion}</span>
-                      </div>
+                      <NamingRow key={i} n={n} onApply={(to) => applyNamingFix(n.name, to)} />
                     ))}
                     {!scan.naming.inconsistencies.length && (
                       <div className="p-8 text-center text-emerald-400">Naming looks consistent</div>
@@ -487,6 +517,12 @@ export default function SoftwareIntelligence() {
                       {s}
                     </Button>
                   ))}
+                  {aiResult && Array.isArray((aiResult as { patches?: AiPatch[] }).patches) && (
+                    <Button size="sm" onClick={applyAiAll}>
+                      <Wand2 className="h-3 w-3" />
+                      Apply {((aiResult as { patches: AiPatch[] }).patches).length} AI patch(es)
+                    </Button>
+                  )}
                 </div>
                 <Separator />
                 <ScrollArea className="h-[440px]">
@@ -497,7 +533,8 @@ export default function SoftwareIntelligence() {
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       Run any AI stage to get prioritized recommendations, refactor plans,
-                      modernization upgrades, or auto-generated documentation.
+                      modernization upgrades, or auto-generated documentation. Results with a
+                      <code className="mx-1">patches[]</code> field can be applied straight into the scan.
                     </p>
                   )}
                 </ScrollArea>
@@ -506,6 +543,37 @@ export default function SoftwareIntelligence() {
           </Tabs>
         </>
       )}
+    </div>
+  );
+}
+
+function TimerRow({ t, onApply }: { t: TimerFinding; onApply: (ms: number) => void }) {
+  const match = t.snippet.match(/(\d{2,})/);
+  const [val, setVal] = useState(match ? match[1] : "1000");
+  return (
+    <div className="rounded border border-border/50 p-2 text-xs">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="outline" className="text-[9px]">{t.kind}</Badge>
+        <span className="font-mono text-muted-foreground">{t.file}:{t.line}</span>
+        <div className="ml-auto flex items-center gap-1">
+          <Input value={val} onChange={(e) => setVal(e.target.value)} className="h-6 w-24 text-[11px]" placeholder="ms" />
+          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => onApply(Number(val))}>Apply</Button>
+        </div>
+      </div>
+      <code className="text-[11px] block mt-1 text-primary">{t.snippet}</code>
+    </div>
+  );
+}
+
+function NamingRow({ n, onApply }: { n: { name: string; kind: string; suggestion: string }; onApply: (to: string) => void }) {
+  const [to, setTo] = useState("");
+  return (
+    <div className="flex items-center gap-2 text-xs border-b border-border/40 py-1">
+      <span className="font-mono flex-1 truncate">{n.name}</span>
+      <Badge variant="outline" className="text-[9px]">{n.kind}</Badge>
+      <span className="text-muted-foreground text-[10px]">→ {n.suggestion}</span>
+      <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="new name" className="h-6 w-32 text-[11px]" />
+      <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => onApply(to.trim())} disabled={!to.trim()}>Rename</Button>
     </div>
   );
 }
