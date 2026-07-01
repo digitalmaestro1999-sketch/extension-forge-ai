@@ -178,6 +178,40 @@ export default function SoftwareIntelligence() {
     toast.success(`Applied rename across ${plan.filesAffected} files (in-memory).`);
   };
 
+  const applyNamingFix = (oldName: string, newName: string) => {
+    if (!scan || !oldName || !newName || oldName === newName) return;
+    const p = planRename(scan, oldName, newName);
+    if (!p.totalOccurrences) { toast.error(`"${oldName}" not found in source`); return; }
+    setScan(applyRename(scan, p));
+    toast.success(`Renamed "${oldName}" → "${newName}" in ${p.filesAffected} files`);
+  };
+
+  const applySecurityFix = (f: SecurityFinding) => {
+    if (!scan) return;
+    const next = redactSecurityFinding(scan, f);
+    setScan({ ...next, security: next.security ? next.security : scan.security.filter((x) => x !== f) });
+    setScan((s) => s ? { ...s, security: s.security.filter((x) => x !== f) } : s);
+    toast.success(`Patched ${f.category} at ${f.file}:${f.line}`);
+  };
+
+  const applyTimerFix = (t: TimerFinding, ms: number) => {
+    if (!scan || !ms || ms < 1) return;
+    setScan(updateTimerValue(scan, t, ms));
+    toast.success(`Updated ${t.kind} → ${ms}ms at ${t.file}:${t.line}`);
+  };
+
+  const applyAiAll = () => {
+    if (!scan || !aiResult) return;
+    const patches: AiPatch[] = Array.isArray((aiResult as { patches?: AiPatch[] }).patches)
+      ? (aiResult as { patches: AiPatch[] }).patches
+      : [];
+    if (!patches.length) { toast.error("No file patches in this AI result"); return; }
+    const { scan: next, applied } = applyAiPatches(scan, patches);
+    setScan(next);
+    toast.success(`Applied ${applied} AI patch${applied === 1 ? "" : "es"}`);
+  };
+  void applyLineEdit;
+
   const downloadReport = async () => {
     if (!scan) return;
     const md = renderMarkdownReport(scan);
