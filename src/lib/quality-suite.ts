@@ -6,6 +6,9 @@
 
 import { runPackageQA, type QAReport } from "./package-qa";
 import { autoFixPackage, type AutoFix } from "./package-autofix";
+import { ensureHardenedCspInFiles, HARDENED_EXTENSION_CSP } from "./extension-csp";
+import { analyzePermissionRisk, type PermissionRiskReport } from "./permission-risk";
+import { injectMessageStorageShield } from "./message-storage-shield";
 
 // ----------------------------------------------------------------------------
 // 1. Runtime Error Shield
