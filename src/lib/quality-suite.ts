@@ -283,9 +283,20 @@ export function renderReportMarkdown(r: CertificationReport): string {
   lines.push(`## Hardening Applied`);
   lines.push(`- Runtime error shield injected into: ${r.hardening.errorShieldInjected.join(", ") || "—"}`);
   lines.push(`- Upgrade / self-heal helper injected into: ${r.hardening.upgradeHelperInjected.join(", ") || "—"}`);
+  lines.push(`- Message/storage shield injected into: ${r.hardening.messageShieldInjected.join(", ") || "—"}`);
+  lines.push(`- Hardened CSP enforced: ${r.hardening.cspHardened ? `yes (\`${HARDENED_EXTENSION_CSP}\`)` : "already present"}`);
   lines.push(`- Auto-fixes applied: ${r.hardening.autoFixesApplied.length}`);
   for (const f of r.hardening.autoFixesApplied) {
     lines.push(`  - ${f.label}${f.detail ? ` (${f.detail})` : ""}`);
+  }
+  lines.push(``);
+  lines.push(`## Permission & Host Risk`);
+  lines.push(`- Summary: ${r.permissionRisk.summary}`);
+  lines.push(`- Safety score: ${r.permissionRisk.score}/100 (highest risk: ${r.permissionRisk.highestRisk})`);
+  for (const f of r.permissionRisk.findings) {
+    const icon = f.risk === "critical" ? "🛑" : f.risk === "high" ? "❌" : f.risk === "medium" ? "⚠️" : "ℹ️";
+    lines.push(`  - ${icon} \`${f.permission}\` (${f.kind}, ${f.risk}) — ${f.reason}`);
+    lines.push(`      ↳ Suggestion: ${f.suggestion}`);
   }
   lines.push(``);
   lines.push(`## Bundle Summary`);
