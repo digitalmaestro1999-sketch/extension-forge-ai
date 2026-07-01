@@ -8,6 +8,7 @@ import {
 import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
 import { certifyExtension, type CertificationReport } from "@/lib/quality-suite";
+import { analyzePermissionRisk, type PermissionRiskReport, type RiskLevel } from "@/lib/permission-risk";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
