@@ -48,10 +48,13 @@ function FolderTreeView({ node, depth = 0 }: { node: FolderNode; depth?: number 
   );
 }
 
+type LogEntry = { t: number; phase: ScanProgress["phase"]; msg: string };
+
 export default function SoftwareIntelligence() {
   const [scan, setScan] = useState<ProjectScan | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [renameFrom, setRenameFrom] = useState("");
   const [renameTo, setRenameTo] = useState("");
   const [plan, setPlan] = useState<RenamePlan | null>(null);
@@ -59,11 +62,24 @@ export default function SoftwareIntelligence() {
   const [aiBusy, setAiBusy] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  const logStartRef = useRef<number>(0);
+  const logScrollRef = useRef<HTMLDivElement>(null);
 
-  const onProgress = useCallback((p: ScanProgress) => setProgress(p), []);
+  const onProgress = useCallback((p: ScanProgress) => {
+    setProgress(p);
+    setLogs((prev) => {
+      const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
+      const next = [...prev, { t: Date.now() - logStartRef.current, phase: p.phase, msg }];
+      return next.length > 500 ? next.slice(-500) : next;
+    });
+    queueMicrotask(() => {
+      const el = logScrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, []);
 
   const handleZip = useCallback(async (f: File) => {
-    setBusy(true);
+    setBusy(true); setLogs([]); logStartRef.current = Date.now();
     setProgress({ phase: "read", processed: 0, total: 1, percent: 0, currentFile: f.name });
     try {
       const res = await scanZip(f, undefined, onProgress);
@@ -78,7 +94,7 @@ export default function SoftwareIntelligence() {
   }, [onProgress]);
 
   const handleFolder = useCallback(async (list: FileList) => {
-    setBusy(true);
+    setBusy(true); setLogs([]); logStartRef.current = Date.now();
     setProgress({ phase: "read", processed: 0, total: list.length, percent: 0 });
     try {
       const first = list[0] as (File & { webkitRelativePath?: string }) | undefined;
@@ -217,7 +233,30 @@ export default function SoftwareIntelligence() {
               <Progress value={progress?.percent ?? 0} />
               {progress?.currentFile && (
                 <div className="text-[11px] font-mono text-muted-foreground truncate">
-                  {progress.currentFile}
+                  {progress.currentFile}{progress.detail ? `  ·  ${progress.detail}` : ""}
+                </div>
+              )}
+              {logs.length > 0 && (
+                <div
+                  ref={logScrollRef}
+                  className="mt-2 h-56 overflow-auto rounded-md border border-border bg-black/60 p-2 font-mono text-[10.5px] leading-snug"
+                >
+                  {logs.map((l, i) => {
+                    const color =
+                      l.phase === "read" ? "text-sky-400"
+                      : l.phase === "analyze" ? "text-emerald-400"
+                      : l.phase === "aggregate" ? "text-amber-400"
+                      : l.phase === "score" ? "text-fuchsia-400"
+                      : "text-primary";
+                    const ts = (l.t / 1000).toFixed(2).padStart(6, " ");
+                    return (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-muted-foreground">{ts}s</span>
+                        <span className={`w-16 shrink-0 uppercase ${color}`}>{l.phase}</span>
+                        <span className="text-foreground/90 truncate">{l.msg}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

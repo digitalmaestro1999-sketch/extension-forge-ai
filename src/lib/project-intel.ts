@@ -356,6 +356,7 @@ export type ScanProgress = {
   total: number;
   currentFile?: string;
   percent: number;
+  detail?: string;
 };
 export type ProgressFn = (p: ScanProgress) => void;
 
@@ -376,13 +377,12 @@ export async function scanZip(file: File, name?: string, onProgress?: ProgressFn
       const blob = await e.async("uint8array");
       raw.push({ path: e.name, size: blob.byteLength, binary: true });
     }
-    if (i % 20 === 0 || i === total - 1) {
-      onProgress?.({
-        phase: "read", processed: i + 1, total,
-        percent: Math.round(((i + 1) / total) * 40), currentFile: e.name,
-      });
-      await yieldToUI();
-    }
+    onProgress?.({
+      phase: "read", processed: i + 1, total,
+      percent: Math.round(((i + 1) / total) * 40), currentFile: e.name,
+      detail: `${TEXT_EXT.test(e.name) ? "text" : "binary"} · ${raw[raw.length - 1].size.toLocaleString()}B`,
+    });
+    if (i % 20 === 0 || i === total - 1) await yieldToUI();
   }
   return analyzeFiles(name ?? file.name.replace(/\.zip$/i, ""), raw, onProgress);
 }
@@ -403,13 +403,12 @@ export async function scanFileList(name: string, list: FileList | File[], onProg
     } else {
       raw.push({ path, size: f.size, binary: true });
     }
-    if (i % 20 === 0 || i === total - 1) {
-      onProgress?.({
-        phase: "read", processed: i + 1, total,
-        percent: Math.round(((i + 1) / total) * 40), currentFile: path,
-      });
-      await yieldToUI();
-    }
+    onProgress?.({
+      phase: "read", processed: i + 1, total,
+      percent: Math.round(((i + 1) / total) * 40), currentFile: path,
+      detail: `${TEXT_EXT.test(path) ? "text" : "binary"} · ${f.size.toLocaleString()}B`,
+    });
+    if (i % 20 === 0 || i === total - 1) await yieldToUI();
   }
   return analyzeFiles(name, raw, onProgress);
 }
@@ -463,16 +462,21 @@ async function analyzeFiles(
       todoCount, risk, score,
     });
 
-    if (idx % 25 === 0 || idx === total - 1) {
-      onProgress?.({
-        phase: "analyze", processed: idx + 1, total,
-        percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
-        currentFile: r.path,
-      });
-      await yieldToUI();
-    }
+    const fileTimers = text && CODE_EXT.test(r.path) ? timers.length : 0;
+    const fileSec = text && CODE_EXT.test(r.path) ? security.length : 0;
+    onProgress?.({
+      phase: "analyze", processed: idx + 1, total,
+      percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
+      currentFile: r.path,
+      detail: `${lines}L · cx=${complexity} · imp=${imports.length} · exp=${exports.length} · todo=${todoCount} · risk=${risk}`,
+    });
+    void fileTimers; void fileSec;
+    if (idx % 25 === 0 || idx === total - 1) await yieldToUI();
   }
-  onProgress?.({ phase: "aggregate", processed: total, total, percent: 90 });
+  onProgress?.({
+    phase: "aggregate", processed: total, total, percent: 90,
+    detail: `${scanned.length} files · ${timers.length} timers · ${security.length} security findings · ${todos} TODOs`,
+  });
   await yieldToUI();
 
   // Duplicates
@@ -546,9 +550,21 @@ async function analyzeFiles(
     todos,
     scannedAt: new Date().toISOString(),
   };
-  onProgress?.({ phase: "score", processed: scanned.length, total: scanned.length, percent: 97 });
+  onProgress?.({
+    phase: "aggregate", processed: scanned.length, total: scanned.length, percent: 93,
+    detail: `${duplicates.length} duplicate clusters · ${unused.length} unused files · ${dependencies.length} deps · stack: ${[...stack].join(", ") || "unknown"}`,
+  });
+  await yieldToUI();
+  onProgress?.({
+    phase: "score", processed: scanned.length, total: scanned.length, percent: 97,
+    detail: `naming ${naming.score}/100 · ${naming.inconsistencies.length} inconsistencies`,
+  });
   const result = { ...partial, scores: computeScores(partial) };
-  onProgress?.({ phase: "done", processed: scanned.length, total: scanned.length, percent: 100 });
+  const s = result.scores;
+  onProgress?.({
+    phase: "done", processed: scanned.length, total: scanned.length, percent: 100,
+    detail: `overall ${s.overall} · sec ${s.security} · perf ${s.performance} · maint ${s.maintainability} · debt ${s.technicalDebt}`,
+  });
   return result;
 }
 
