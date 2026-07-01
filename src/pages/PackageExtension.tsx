@@ -499,6 +499,13 @@ export default function PackageExtension() {
             </motion.div>
           )}
 
+          {/* Permission & Host-Origin Risk */}
+          {permissionRisk && (
+            <PermissionRiskPanel report={permissionRisk} />
+          )}
+
+
+
           {/* Auto-Fix Report */}
           <AnimatePresence>
             {lastFix && (
