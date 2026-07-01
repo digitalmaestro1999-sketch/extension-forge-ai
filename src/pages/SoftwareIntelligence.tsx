@@ -94,7 +94,7 @@ export default function SoftwareIntelligence() {
   }, [onProgress]);
 
   const handleFolder = useCallback(async (list: FileList) => {
-    setBusy(true);
+    setBusy(true); setLogs([]); logStartRef.current = Date.now();
     setProgress({ phase: "read", processed: 0, total: list.length, percent: 0 });
     try {
       const first = list[0] as (File & { webkitRelativePath?: string }) | undefined;
