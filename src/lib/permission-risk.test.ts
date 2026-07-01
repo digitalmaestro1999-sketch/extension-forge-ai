@@ -95,3 +95,47 @@ describe("certifyExtension integration", () => {
     expect(files["QA_REPORT.md"]).toContain("<all_urls>");
   });
 });
+
+describe("checkAutoFixSafety", () => {
+  it("blocks removing a permission that source code actually uses", async () => {
+    const { checkAutoFixSafety } = await import("./permission-risk");
+    const r = checkAutoFixSafety(
+      { permissions: ["tabs"] },
+      { type: "remove-permission", permission: "tabs" },
+      { "background.js": "chrome.tabs.query({}, () => {})" },
+    );
+    expect(r.safe).toBe(false);
+    expect(r.issues[0].severity).toBe("block");
+  });
+
+  it("warns (but allows) moving a used permission to optional", async () => {
+    const { checkAutoFixSafety } = await import("./permission-risk");
+    const r = checkAutoFixSafety(
+      { permissions: ["cookies"] },
+      { type: "move-to-optional", permission: "cookies" },
+      { "bg.js": "chrome.cookies.get({url:'x'})" },
+    );
+    expect(r.safe).toBe(true);
+    expect(r.issues[0].severity).toBe("warn");
+  });
+
+  it("blocks removing the last content-script match", async () => {
+    const { checkAutoFixSafety } = await import("./permission-risk");
+    const r = checkAutoFixSafety(
+      { content_scripts: [{ matches: ["<all_urls>"], js: ["c.js"] }] },
+      { type: "remove-content-script-match", pattern: "<all_urls>" },
+    );
+    expect(r.safe).toBe(false);
+  });
+
+  it("applyAllAutoFixes skips unsafe fixes and reports them", async () => {
+    const { analyzePermissionRisk, applyAllAutoFixes } = await import("./permission-risk");
+    const manifest = { permissions: ["tabs", "background"] };
+    const report = analyzePermissionRisk(manifest);
+    const res = applyAllAutoFixes(manifest, report, {
+      files: { "bg.js": "chrome.tabs.query({},()=>{})" },
+    });
+    expect(res.skipped.some((s) => /tabs/.test(s.label))).toBe(true);
+    expect(res.applied.some((a) => /background/i.test(a))).toBe(true);
+  });
+});
