@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import {
   Brain, Upload, Loader2, ShieldAlert, Timer, Package as PackageIcon,
@@ -50,6 +50,77 @@ function FolderTreeView({ node, depth = 0 }: { node: FolderNode; depth?: number 
 
 type LogEntry = { t: number; phase: ScanProgress["phase"]; msg: string };
 
+const LOG_ROW_H = 16; // px, matches text-[10.5px] leading-snug
+const LOG_MAX = 2000;
+
+function phaseColor(phase: ScanProgress["phase"]) {
+  return phase === "read" ? "text-sky-400"
+    : phase === "analyze" ? "text-emerald-400"
+    : phase === "aggregate" ? "text-amber-400"
+    : phase === "score" ? "text-fuchsia-400"
+    : "text-primary";
+}
+
+function VirtualLogList({ logs, autoStick }: { logs: LogEntry[]; autoStick: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState(224);
+  const stickRef = useRef(true);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setViewportH(el.clientHeight);
+    const ro = new ResizeObserver(() => setViewportH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Auto-scroll to bottom when new logs arrive if user is stuck to bottom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !autoStick || !stickRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [logs, autoStick]);
+
+  const onScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    setScrollTop(el.scrollTop);
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < LOG_ROW_H * 2;
+  }, []);
+
+  const totalH = logs.length * LOG_ROW_H;
+  const overscan = 8;
+  const start = Math.max(0, Math.floor(scrollTop / LOG_ROW_H) - overscan);
+  const end = Math.min(logs.length, Math.ceil((scrollTop + viewportH) / LOG_ROW_H) + overscan);
+  const slice = logs.slice(start, end);
+  const offsetY = start * LOG_ROW_H;
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={onScroll}
+      className="mt-2 h-56 overflow-auto rounded-md border border-border bg-black/60 font-mono text-[10.5px] leading-snug"
+    >
+      <div style={{ height: totalH, position: "relative" }}>
+        <div style={{ position: "absolute", top: offsetY, left: 0, right: 0, padding: "0 8px" }}>
+          {slice.map((l, i) => {
+            const ts = (l.t / 1000).toFixed(2).padStart(6, " ");
+            return (
+              <div key={start + i} className="flex gap-2" style={{ height: LOG_ROW_H }}>
+                <span className="text-muted-foreground">{ts}s</span>
+                <span className={`w-16 shrink-0 uppercase ${phaseColor(l.phase)}`}>{l.phase}</span>
+                <span className="text-foreground/90 truncate">{l.msg}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function SoftwareIntelligence() {
   const [scan, setScan] = useState<ProjectScan | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,20 +134,41 @@ export default function SoftwareIntelligence() {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const logStartRef = useRef<number>(0);
-  const logScrollRef = useRef<HTMLDivElement>(null);
+  const logBufferRef = useRef<LogEntry[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const latestProgressRef = useRef<ScanProgress | null>(null);
+
+  const flushLogs = useCallback(() => {
+    rafRef.current = null;
+    const buf = logBufferRef.current;
+    if (buf.length) {
+      logBufferRef.current = [];
+      setLogs((prev) => {
+        const next = prev.length + buf.length > LOG_MAX
+          ? [...prev, ...buf].slice(-LOG_MAX)
+          : [...prev, ...buf];
+        return next;
+      });
+    }
+    if (latestProgressRef.current) {
+      setProgress(latestProgressRef.current);
+      latestProgressRef.current = null;
+    }
+  }, []);
 
   const onProgress = useCallback((p: ScanProgress) => {
-    setProgress(p);
-    setLogs((prev) => {
-      const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
-      const next = [...prev, { t: Date.now() - logStartRef.current, phase: p.phase, msg }];
-      return next.length > 500 ? next.slice(-500) : next;
-    });
-    queueMicrotask(() => {
-      const el = logScrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+    latestProgressRef.current = p;
+    const msg = `${p.currentFile ?? "—"}${p.detail ? "  " + p.detail : ""}`;
+    logBufferRef.current.push({ t: Date.now() - logStartRef.current, phase: p.phase, msg });
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(flushLogs);
+    }
+  }, [flushLogs]);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
   }, []);
+
 
   const handleZip = useCallback(async (f: File) => {
     setBusy(true); setLogs([]); logStartRef.current = Date.now();
@@ -237,27 +329,7 @@ export default function SoftwareIntelligence() {
                 </div>
               )}
               {logs.length > 0 && (
-                <div
-                  ref={logScrollRef}
-                  className="mt-2 h-56 overflow-auto rounded-md border border-border bg-black/60 p-2 font-mono text-[10.5px] leading-snug"
-                >
-                  {logs.map((l, i) => {
-                    const color =
-                      l.phase === "read" ? "text-sky-400"
-                      : l.phase === "analyze" ? "text-emerald-400"
-                      : l.phase === "aggregate" ? "text-amber-400"
-                      : l.phase === "score" ? "text-fuchsia-400"
-                      : "text-primary";
-                    const ts = (l.t / 1000).toFixed(2).padStart(6, " ");
-                    return (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-muted-foreground">{ts}s</span>
-                        <span className={`w-16 shrink-0 uppercase ${color}`}>{l.phase}</span>
-                        <span className="text-foreground/90 truncate">{l.msg}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <VirtualLogList logs={logs} autoStick={busy} />
               )}
             </CardContent>
           )}
