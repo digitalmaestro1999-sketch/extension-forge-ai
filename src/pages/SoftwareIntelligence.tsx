@@ -329,27 +329,7 @@ export default function SoftwareIntelligence() {
                 </div>
               )}
               {logs.length > 0 && (
-                <div
-                  ref={logScrollRef}
-                  className="mt-2 h-56 overflow-auto rounded-md border border-border bg-black/60 p-2 font-mono text-[10.5px] leading-snug"
-                >
-                  {logs.map((l, i) => {
-                    const color =
-                      l.phase === "read" ? "text-sky-400"
-                      : l.phase === "analyze" ? "text-emerald-400"
-                      : l.phase === "aggregate" ? "text-amber-400"
-                      : l.phase === "score" ? "text-fuchsia-400"
-                      : "text-primary";
-                    const ts = (l.t / 1000).toFixed(2).padStart(6, " ");
-                    return (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-muted-foreground">{ts}s</span>
-                        <span className={`w-16 shrink-0 uppercase ${color}`}>{l.phase}</span>
-                        <span className="text-foreground/90 truncate">{l.msg}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <VirtualLogList logs={logs} autoStick={busy} />
               )}
             </CardContent>
           )}
