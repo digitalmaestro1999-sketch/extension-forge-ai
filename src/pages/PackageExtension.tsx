@@ -335,6 +335,12 @@ export default function PackageExtension() {
     return runPackageQA(withIcons);
   }, [files, fileList.length]);
 
+  const permissionRisk = useMemo<PermissionRiskReport | null>(() => {
+    if (!files["manifest.json"]) return null;
+    try { return analyzePermissionRisk(JSON.parse(files["manifest.json"])); }
+    catch { return null; }
+  }, [files]);
+
   // Group repeated fixes by id for a tidier report
   const groupedFixes = useMemo(() => {
     if (!lastFix) return [];
