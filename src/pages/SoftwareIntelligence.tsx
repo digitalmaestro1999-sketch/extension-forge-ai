@@ -16,7 +16,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   scanZip, scanFileList, planRename, applyRename, exportScan, renderMarkdownReport,
+  redactSecurityFinding, updateTimerValue, applyAiPatches, applyLineEdit,
   type ProjectScan, type FolderNode, type RenamePlan, type ScanProgress,
+  type SecurityFinding, type TimerFinding, type AiPatch,
 } from "@/lib/project-intel";
 
 function ScoreRing({ label, value }: { label: string; value: number }) {
