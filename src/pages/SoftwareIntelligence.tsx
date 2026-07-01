@@ -411,17 +411,13 @@ export default function SoftwareIntelligence() {
 
             <TabsContent value="timers">
               <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-2">Discovered {scan.timers.length} timing constructs.</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Discovered {scan.timers.length} timing constructs. Edit the delay/interval (ms) and click Apply to rewrite the source line.
+                </p>
                 <ScrollArea className="h-[460px]">
                   <div className="space-y-1">
                     {scan.timers.map((t, i) => (
-                      <div key={i} className="rounded border border-border/50 p-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[9px]">{t.kind}</Badge>
-                          <span className="font-mono text-muted-foreground">{t.file}:{t.line}</span>
-                        </div>
-                        <code className="text-[11px] block mt-1 text-primary">{t.snippet}</code>
-                      </div>
+                      <TimerRow key={i} t={t} onApply={(ms) => applyTimerFix(t, ms)} />
                     ))}
                   </div>
                 </ScrollArea>
@@ -441,6 +437,9 @@ export default function SoftwareIntelligence() {
                           <Badge variant={s.severity === "critical" ? "destructive" : "outline"} className="text-[9px]">{s.severity}</Badge>
                           <span className="font-medium">{s.message}</span>
                           <span className="font-mono text-muted-foreground ml-auto">{s.file}:{s.line}</span>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => applySecurityFix(s)}>
+                            Auto-Fix
+                          </Button>
                         </div>
                         <code className="text-[11px] block mt-1 text-primary">{s.snippet}</code>
                       </div>
@@ -468,11 +467,7 @@ export default function SoftwareIntelligence() {
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-1">
                     {scan.naming.inconsistencies.map((n, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs border-b border-border/40 py-1">
-                        <span className="font-mono">{n.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{n.kind}</Badge>
-                        <span className="text-muted-foreground">→ {n.suggestion}</span>
-                      </div>
+                      <NamingRow key={i} n={n} onApply={(to) => applyNamingFix(n.name, to)} />
                     ))}
                     {!scan.naming.inconsistencies.length && (
                       <div className="p-8 text-center text-emerald-400">Naming looks consistent</div>
