@@ -550,9 +550,21 @@ async function analyzeFiles(
     todos,
     scannedAt: new Date().toISOString(),
   };
-  onProgress?.({ phase: "score", processed: scanned.length, total: scanned.length, percent: 97 });
+  onProgress?.({
+    phase: "aggregate", processed: scanned.length, total: scanned.length, percent: 93,
+    detail: `${duplicates.length} duplicate clusters · ${unused.length} unused files · ${dependencies.length} deps · stack: ${[...stack].join(", ") || "unknown"}`,
+  });
+  await yieldToUI();
+  onProgress?.({
+    phase: "score", processed: scanned.length, total: scanned.length, percent: 97,
+    detail: `naming ${naming.score}/100 · ${naming.inconsistencies.length} inconsistencies`,
+  });
   const result = { ...partial, scores: computeScores(partial) };
-  onProgress?.({ phase: "done", processed: scanned.length, total: scanned.length, percent: 100 });
+  const s = result.scores;
+  onProgress?.({
+    phase: "done", processed: scanned.length, total: scanned.length, percent: 100,
+    detail: `overall ${s.overall} · sec ${s.security} · perf ${s.performance} · maint ${s.maintainability} · debt ${s.technicalDebt}`,
+  });
   return result;
 }
 
