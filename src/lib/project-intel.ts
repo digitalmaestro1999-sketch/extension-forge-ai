@@ -415,11 +415,11 @@ export async function scanFileList(name: string, list: FileList | File[], onProg
 }
 
 
-function analyzeFiles(
+async function analyzeFiles(
   name: string,
   raw: { path: string; content?: string; size: number; binary: boolean }[],
   onProgress?: ProgressFn,
-): ProjectScan {
+): Promise<ProjectScan> {
   const scanned: ScannedFile[] = [];
   const timers: TimerFinding[] = [];
   const security: SecurityFinding[] = [];
@@ -427,7 +427,9 @@ function analyzeFiles(
   let todos = 0;
   let totalLines = 0;
 
-  for (const r of raw) {
+  const total = raw.length;
+  for (let idx = 0; idx < raw.length; idx++) {
+    const r = raw[idx];
     const ext = extOf(r.path);
     const text = r.content ?? "";
     const lines = text ? text.split("\n").length : 0;
@@ -453,22 +455,25 @@ function analyzeFiles(
     const score = Math.max(0, 100 - complexity * 2 - todoCount * 4);
 
     scanned.push({
-      path: r.path,
-      ext,
-      size: r.size,
-      lines,
-      content: text || undefined,
-      binary: r.binary,
+      path: r.path, ext, size: r.size, lines,
+      content: text || undefined, binary: r.binary,
       purpose: classifyPurpose(r.path),
-      complexity,
-      imports,
-      exports,
+      complexity, imports, exports,
       hasTests: /\.test\.|\.spec\.|__tests__/.test(r.path),
-      todoCount,
-      risk,
-      score,
+      todoCount, risk, score,
     });
+
+    if (idx % 25 === 0 || idx === total - 1) {
+      onProgress?.({
+        phase: "analyze", processed: idx + 1, total,
+        percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
+        currentFile: r.path,
+      });
+      await yieldToUI();
+    }
   }
+  onProgress?.({ phase: "aggregate", processed: total, total, percent: 90 });
+  await yieldToUI();
 
   // Duplicates
   const duplicates = [...hashes.entries()]
