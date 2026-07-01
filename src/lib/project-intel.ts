@@ -350,12 +350,25 @@ function computeScores(scan: Omit<ProjectScan, "scores">): HealthScores {
   return { overall, architecture, security, performance, maintainability, documentation, naming, dependencies, testing, technicalDebt };
 }
 
-export async function scanZip(file: File, name?: string): Promise<ProjectScan> {
+export type ScanProgress = {
+  phase: "read" | "analyze" | "aggregate" | "score" | "done";
+  processed: number;
+  total: number;
+  currentFile?: string;
+  percent: number;
+};
+export type ProgressFn = (p: ScanProgress) => void;
+
+const yieldToUI = () => new Promise<void>((r) => setTimeout(r, 0));
+
+export async function scanZip(file: File, name?: string, onProgress?: ProgressFn): Promise<ProjectScan> {
+  onProgress?.({ phase: "read", processed: 0, total: 1, percent: 2, currentFile: file.name });
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
-  const entries = Object.values(zip.files).filter((e) => !e.dir);
+  const entries = Object.values(zip.files).filter((e) => !e.dir && !e.name.includes("node_modules/"));
   const raw: { path: string; content?: string; size: number; binary: boolean }[] = [];
-  for (const e of entries) {
-    if (e.name.includes("node_modules/")) continue; // skip vendor
+  const total = entries.length;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
     if (TEXT_EXT.test(e.name)) {
       const content = await e.async("string");
       raw.push({ path: e.name, content, size: content.length, binary: false });
@@ -363,30 +376,50 @@ export async function scanZip(file: File, name?: string): Promise<ProjectScan> {
       const blob = await e.async("uint8array");
       raw.push({ path: e.name, size: blob.byteLength, binary: true });
     }
+    if (i % 20 === 0 || i === total - 1) {
+      onProgress?.({
+        phase: "read", processed: i + 1, total,
+        percent: Math.round(((i + 1) / total) * 40), currentFile: e.name,
+      });
+      await yieldToUI();
+    }
   }
-  return analyzeFiles(name ?? file.name.replace(/\.zip$/i, ""), raw);
+  return analyzeFiles(name ?? file.name.replace(/\.zip$/i, ""), raw, onProgress);
 }
 
-export async function scanFileList(name: string, list: FileList | File[]): Promise<ProjectScan> {
-  const files = Array.from(list);
+export async function scanFileList(name: string, list: FileList | File[], onProgress?: ProgressFn): Promise<ProjectScan> {
+  const files = Array.from(list).filter((f) => {
+    const p = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    return !p.includes("node_modules/");
+  });
   const raw: { path: string; content?: string; size: number; binary: boolean }[] = [];
-  for (const f of files) {
+  const total = files.length;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
     const path: string = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
-    if (path.includes("node_modules/")) continue;
     if (TEXT_EXT.test(path) && f.size < 2_000_000) {
       const content = await f.text();
       raw.push({ path, content, size: f.size, binary: false });
     } else {
       raw.push({ path, size: f.size, binary: true });
     }
+    if (i % 20 === 0 || i === total - 1) {
+      onProgress?.({
+        phase: "read", processed: i + 1, total,
+        percent: Math.round(((i + 1) / total) * 40), currentFile: path,
+      });
+      await yieldToUI();
+    }
   }
-  return analyzeFiles(name, raw);
+  return analyzeFiles(name, raw, onProgress);
 }
 
-function analyzeFiles(
+
+async function analyzeFiles(
   name: string,
-  raw: { path: string; content?: string; size: number; binary: boolean }[]
-): ProjectScan {
+  raw: { path: string; content?: string; size: number; binary: boolean }[],
+  onProgress?: ProgressFn,
+): Promise<ProjectScan> {
   const scanned: ScannedFile[] = [];
   const timers: TimerFinding[] = [];
   const security: SecurityFinding[] = [];
@@ -394,7 +427,9 @@ function analyzeFiles(
   let todos = 0;
   let totalLines = 0;
 
-  for (const r of raw) {
+  const total = raw.length;
+  for (let idx = 0; idx < raw.length; idx++) {
+    const r = raw[idx];
     const ext = extOf(r.path);
     const text = r.content ?? "";
     const lines = text ? text.split("\n").length : 0;
@@ -420,22 +455,25 @@ function analyzeFiles(
     const score = Math.max(0, 100 - complexity * 2 - todoCount * 4);
 
     scanned.push({
-      path: r.path,
-      ext,
-      size: r.size,
-      lines,
-      content: text || undefined,
-      binary: r.binary,
+      path: r.path, ext, size: r.size, lines,
+      content: text || undefined, binary: r.binary,
       purpose: classifyPurpose(r.path),
-      complexity,
-      imports,
-      exports,
+      complexity, imports, exports,
       hasTests: /\.test\.|\.spec\.|__tests__/.test(r.path),
-      todoCount,
-      risk,
-      score,
+      todoCount, risk, score,
     });
+
+    if (idx % 25 === 0 || idx === total - 1) {
+      onProgress?.({
+        phase: "analyze", processed: idx + 1, total,
+        percent: 40 + Math.round(((idx + 1) / Math.max(1, total)) * 45),
+        currentFile: r.path,
+      });
+      await yieldToUI();
+    }
   }
+  onProgress?.({ phase: "aggregate", processed: total, total, percent: 90 });
+  await yieldToUI();
 
   // Duplicates
   const duplicates = [...hashes.entries()]
@@ -508,7 +546,10 @@ function analyzeFiles(
     todos,
     scannedAt: new Date().toISOString(),
   };
-  return { ...partial, scores: computeScores(partial) };
+  onProgress?.({ phase: "score", processed: scanned.length, total: scanned.length, percent: 97 });
+  const result = { ...partial, scores: computeScores(partial) };
+  onProgress?.({ phase: "done", processed: scanned.length, total: scanned.length, percent: 100 });
+  return result;
 }
 
 // ---------- Whole-project rename (safe, preview-based) ----------

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   scanZip, scanFileList, planRename, applyRename, exportScan, renderMarkdownReport,
-  type ProjectScan, type FolderNode, type RenamePlan,
+  type ProjectScan, type FolderNode, type RenamePlan, type ScanProgress,
 } from "@/lib/project-intel";
 
 function ScoreRing({ label, value }: { label: string; value: number }) {
@@ -51,7 +51,7 @@ function FolderTreeView({ node, depth = 0 }: { node: FolderNode; depth?: number 
 export default function SoftwareIntelligence() {
   const [scan, setScan] = useState<ProjectScan | null>(null);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [renameFrom, setRenameFrom] = useState("");
   const [renameTo, setRenameTo] = useState("");
   const [plan, setPlan] = useState<RenamePlan | null>(null);
@@ -60,29 +60,39 @@ export default function SoftwareIntelligence() {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
 
+  const onProgress = useCallback((p: ScanProgress) => setProgress(p), []);
+
   const handleZip = useCallback(async (f: File) => {
-    setBusy(true); setProgress(20);
+    setBusy(true);
+    setProgress({ phase: "read", processed: 0, total: 1, percent: 0, currentFile: f.name });
     try {
-      const res = await scanZip(f);
-      setProgress(100); setScan(res);
-      toast.success(`Scanned ${res.totalFiles} files`);
+      const res = await scanZip(f, undefined, onProgress);
+      setScan(res);
+      toast.success(`Scanned ${res.totalFiles} files in ${res.stack.join(" + ") || "unknown stack"}`);
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setBusy(false); setTimeout(() => setProgress(0), 500); }
-  }, []);
+    } finally {
+      setBusy(false);
+      setTimeout(() => setProgress(null), 800);
+    }
+  }, [onProgress]);
 
   const handleFolder = useCallback(async (list: FileList) => {
-    setBusy(true); setProgress(20);
+    setBusy(true);
+    setProgress({ phase: "read", processed: 0, total: list.length, percent: 0 });
     try {
       const first = list[0] as (File & { webkitRelativePath?: string }) | undefined;
       const name = first?.webkitRelativePath?.split("/")[0] ?? "project";
-      const res = await scanFileList(name, list);
-      setProgress(100); setScan(res);
+      const res = await scanFileList(name, list, onProgress);
+      setScan(res);
       toast.success(`Scanned ${res.totalFiles} files`);
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setBusy(false); setTimeout(() => setProgress(0), 500); }
-  }, []);
+    } finally {
+      setBusy(false);
+      setTimeout(() => setProgress(null), 800);
+    }
+  }, [onProgress]);
 
   const summary = useMemo(() => {
     if (!scan) return null;
@@ -196,7 +206,22 @@ export default function SoftwareIntelligence() {
               />
             </div>
           </CardContent>
-          {busy && <CardContent><Progress value={progress} /></CardContent>}
+          {(busy || progress) && (
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="uppercase tracking-wider text-muted-foreground">
+                  {progress?.phase ?? "read"} · {progress?.processed ?? 0}/{progress?.total ?? 0}
+                </span>
+                <span className="font-mono">{progress?.percent ?? 0}%</span>
+              </div>
+              <Progress value={progress?.percent ?? 0} />
+              {progress?.currentFile && (
+                <div className="text-[11px] font-mono text-muted-foreground truncate">
+                  {progress.currentFile}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
       )}
 
