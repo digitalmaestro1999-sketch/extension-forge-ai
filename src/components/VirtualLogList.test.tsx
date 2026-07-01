@@ -20,8 +20,8 @@ function stubBox(el: HTMLElement, clientHeight: number, scrollHeight: number) {
 describe("VirtualLogList", () => {
   beforeEach(() => {
     // ResizeObserver isn't in jsdom
-    // @ts-expect-error test shim
-    globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+      class { observe() {} disconnect() {} unobserve() {} };
   });
 
   it("virtualizes: only a small window of rows is rendered for large logs", () => {
