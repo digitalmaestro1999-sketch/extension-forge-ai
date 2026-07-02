@@ -52,6 +52,16 @@ serve(async (req) => {
 
   try {
     const { spec, stage } = await req.json();
+
+    if (stage === "code") {
+      return new Response(JSON.stringify({
+        result: {},
+        warning: "Using the hardened local Manifest V3 generator to avoid long AI code-generation timeouts.",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -218,7 +228,11 @@ Return JSON:
 }`;
     }
 
-    // Retry on rate limits + empty/unparseable responses
+    // Retry on rate limits + empty/unparseable responses.
+    // For the large code-generation stage, the client already merges AI output
+    // with deterministic local templates. If the model emits malformed JSON, do
+    // not fail the whole pipeline with a non-2xx response; return an empty AI
+    // overlay so the local professional generator can complete the extension.
     let result;
     const maxAttempts = 4;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -240,6 +254,17 @@ Return JSON:
       });
 
       if (!response.ok) {
+        if (stage === "code") {
+          const detail = await response.text().catch(() => "");
+          console.warn("AI code overlay unavailable:", response.status, detail.slice(0, 500));
+          return new Response(JSON.stringify({
+            result: {},
+            warning: "AI code overlay was unavailable, so the local production template generator was used.",
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         if (response.status === 429) {
           const isLastAttempt = attempt === maxAttempts - 1;
           if (!isLastAttempt) {
@@ -312,7 +337,15 @@ Return JSON:
         console.error("Parse error attempt", attempt, ":", parseError);
         // Large code-gen responses (~80k chars) take ~80s each; a second attempt
         // would blow past the 150s edge-function idle timeout. Fail fast.
-        if (stage === "code" || attempt >= 1) {
+        if (stage === "code") {
+          return new Response(JSON.stringify({
+            result: {},
+            warning: "AI code overlay was malformed, so the local production template generator was used.",
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (attempt >= 1) {
           throw new Error("Failed to parse AI response");
         }
       }
@@ -320,6 +353,14 @@ Return JSON:
     }
 
     if (!result) {
+      if (stage === "code") {
+        return new Response(JSON.stringify({
+          result: {},
+          warning: "AI code overlay was unavailable, so the local production template generator was used.",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error("Failed to get valid AI response after retries");
     }
 

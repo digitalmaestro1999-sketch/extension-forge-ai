@@ -188,6 +188,7 @@ export default function CreateExtension() {
       const startCode = Date.now();
 
       const codeData = await invokeWithRetry("agent-pipeline", { spec: extSpec, stage: "code" });
+      if (codeData.warning) toast.info(codeData.warning);
 
       const aiFiles = codeData.result as Record<string, string>;
       
