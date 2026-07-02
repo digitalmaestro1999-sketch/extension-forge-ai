@@ -654,18 +654,3 @@ export function scorePrompt(composed: ComposedPrompt, rawIdea: string): PromptQu
     score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 45 ? "D" : "F";
   return { score, grade, items };
 }
-
-    "## Output bar\nThis must feel like a paid, Web-Store-featured extension: no lorem ipsum, no TODOs, no placeholder copy, no dead buttons. Every visible control must do exactly what its label says."
-  );
-
-  return {
-    idea: sections.join("\n\n"),
-    profile: {
-      preset: preset?.id ?? null,
-      style: style?.id ?? null,
-      tone: tone?.id ?? null,
-      boosters: boosters.map((b) => b.id),
-      directives,
-    },
-  };
-}
