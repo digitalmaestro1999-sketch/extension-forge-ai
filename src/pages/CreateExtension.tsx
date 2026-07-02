@@ -322,6 +322,142 @@ export default function CreateExtension() {
           className="bg-secondary border-border min-h-[80px] mb-4 text-sm"
           disabled={isRunning}
         />
+
+        {/* Prompt Studio */}
+        <div className="mb-4 rounded-lg border border-border/60 bg-secondary/40">
+          <button
+            type="button"
+            onClick={() => setShowStudio(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 text-left"
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Prompt Studio
+              <Badge variant="secondary" className="text-[10px]">
+                {(presetId ? 1 : 0) + boosterIds.length + (styleId ? 1 : 0) + (toneId ? 1 : 0)} active
+              </Badge>
+            </span>
+            {showStudio ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          </button>
+
+          {showStudio && (
+            <div className="px-3 pb-3 space-y-4 border-t border-border/60 pt-3">
+              {/* Presets */}
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Category preset (optional)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROMPT_PRESETS.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={isRunning}
+                      onClick={() => (presetId === p.id ? setPresetId(null) : applyPreset(p.id))}
+                      className={`text-[11px] px-2.5 py-1.5 rounded-md border transition-all ${
+                        presetId === p.id
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-card hover:border-primary/40 text-muted-foreground"
+                      }`}
+                      title={p.short}
+                    >
+                      <span className="mr-1">{p.emoji}</span>{p.label}
+                    </button>
+                  ))}
+                </div>
+                {presetId && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {PROMPT_PRESETS.find(p => p.id === presetId)?.short}
+                  </p>
+                )}
+              </div>
+
+              {/* Design style + audience */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Design style</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DESIGN_STYLES.map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => setStyleId(styleId === s.id ? null : s.id)}
+                        className={`text-[11px] px-2 py-1 rounded-md border ${
+                          styleId === s.id ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                        }`}
+                        title={s.description}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Audience tone</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AUDIENCE_TONES.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => setToneId(toneId === t.id ? null : t.id)}
+                        className={`text-[11px] px-2 py-1 rounded-md border ${
+                          toneId === t.id ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality boosters */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Quality boosters</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                      onClick={() => setBoosterIds(QUALITY_BOOSTERS.map(b => b.id))}
+                    >Select all</button>
+                    <span className="text-[10px] text-muted-foreground">·</span>
+                    <button
+                      type="button"
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                      onClick={() => setBoosterIds([])}
+                    >Clear</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {QUALITY_BOOSTERS.map(b => {
+                    const active = boosterIds.includes(b.id);
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => toggleBooster(b.id)}
+                        className={`text-left px-2.5 py-1.5 rounded-md border transition-all ${
+                          active ? "border-primary/60 bg-primary/5" : "border-border bg-card hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className={`h-3 w-3 rounded-sm border flex items-center justify-center ${active ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
+                            {active && <CheckCircle2 className="h-2.5 w-2.5 text-primary-foreground" />}
+                          </div>
+                          <span className="text-[11px] font-medium">{b.label}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 pl-4">{b.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             The AI agent will analyze → design → code → audit → package your extension
