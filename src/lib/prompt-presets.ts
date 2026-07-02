@@ -415,6 +415,7 @@ export interface ComposedPrompt {
     tone: string | null;
     boosters: string[];
     directives: string[];
+    variant?: string | null;
   };
 }
 
