@@ -100,6 +100,8 @@ export default function CreateExtension() {
     const p = PROMPT_PRESETS.find((x) => x.id === id);
     if (p && !idea.trim()) setIdea(p.short);
   };
+
+  const updateStage = useCallback((id: string, update: Partial<AgentStage>) => {
     setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
   }, []);
 
