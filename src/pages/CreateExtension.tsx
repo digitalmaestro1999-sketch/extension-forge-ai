@@ -522,45 +522,40 @@ export default function CreateExtension() {
           )}
         </div>
 
-                </div>
-              </div>
-
-              {/* Multiple Variations */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Layers className="h-3 w-3" /> Multiple variations
-                  </p>
-                  <span className="text-[10px] text-muted-foreground">
-                    {selectedVariants.length === 0 ? "Single default run" : `${selectedVariants.length} variation runs`}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {PROMPT_VARIATIONS.map(v => {
-                    const active = selectedVariants.includes(v.id);
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        disabled={isRunning}
-                        onClick={() => toggleVariant(v.id)}
-                        className={`text-[11px] px-2 py-1 rounded-md border ${
-                          active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                        }`}
-                        title={v.description}
-                      >
-                        {v.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Runs the pipeline once per selected variation, back-to-back. Leave empty for a single default run.
-                </p>
-              </div>
-            </div>
-          )}
+        {/* Multiple Variations */}
+        <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Layers className="h-3 w-3" /> Multiple variations
+            </p>
+            <span className="text-[10px] text-muted-foreground">
+              {selectedVariants.length === 0 ? "Single default run" : `${selectedVariants.length} variation runs`}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PROMPT_VARIATIONS.map(v => {
+              const active = selectedVariants.includes(v.id);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => toggleVariant(v.id)}
+                  className={`text-[11px] px-2 py-1 rounded-md border ${
+                    active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                  }`}
+                  title={v.description}
+                >
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Runs the pipeline once per selected variation, back-to-back. Leave empty for a single default run.
+          </p>
         </div>
+
 
         {/* Preview + Checklist toggles */}
         <div className="mb-3 flex flex-wrap gap-2">
