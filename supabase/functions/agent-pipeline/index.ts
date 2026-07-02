@@ -244,6 +244,17 @@ Return JSON:
       });
 
       if (!response.ok) {
+        if (stage === "code") {
+          const detail = await response.text().catch(() => "");
+          console.warn("AI code overlay unavailable:", response.status, detail.slice(0, 500));
+          return new Response(JSON.stringify({
+            result: {},
+            warning: "AI code overlay was unavailable, so the local production template generator was used.",
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         if (response.status === 429) {
           const isLastAttempt = attempt === maxAttempts - 1;
           if (!isLastAttempt) {
