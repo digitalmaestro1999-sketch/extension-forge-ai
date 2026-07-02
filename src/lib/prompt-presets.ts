@@ -418,11 +418,13 @@ export interface ComposedPrompt {
   };
 }
 
-export function composePrompt(input: ComposeInput): ComposedPrompt {
+export function composePrompt(input: ComposeInput & { variantId?: string | null }): ComposedPrompt {
   const preset = PROMPT_PRESETS.find((p) => p.id === input.presetId) || null;
   const style  = DESIGN_STYLES.find((s) => s.id === input.styleId) || null;
   const tone   = AUDIENCE_TONES.find((t) => t.id === input.toneId) || null;
   const boosters = QUALITY_BOOSTERS.filter((b) => input.boosterIds.includes(b.id));
+  const variant = PROMPT_VARIATIONS.find((v) => v.id === input.variantId) || null;
+  const presetTemplate = preset ? getPresetTemplate(preset.id) : "";
 
   const sections: string[] = [];
 
