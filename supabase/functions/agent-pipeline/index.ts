@@ -105,6 +105,17 @@ REQUIREMENTS:
 - options.js: Load/save settings with chrome.storage.local. Wire up all form elements.
 
 The extension must ACTUALLY WORK when loaded in Chrome. Every button must do something. Every feature must have real implementation.`;
+
+      // Prompt Studio profile: honor style/tone/booster directives from the UI
+      const profile = spec?.profile;
+      if (profile && Array.isArray(profile.directives) && profile.directives.length) {
+        userPrompt += `\n\n## Prompt Studio quality directives (non-negotiable)\n- ${profile.directives.join("\n- ")}`;
+        if (profile.style) userPrompt += `\n\nDesign style key: ${profile.style}`;
+        if (profile.tone) userPrompt += `\nAudience tone key: ${profile.tone}`;
+        if (Array.isArray(profile.boosters) && profile.boosters.length) {
+          userPrompt += `\nActive quality boosters: ${profile.boosters.join(", ")}`;
+        }
+      }
     } else if (stage === "compliance") {
       systemPrompt = "You are a Chrome Web Store compliance expert. Analyze extensions for policy violations. Return ONLY valid JSON.";
       userPrompt = `Analyze this Chrome extension for Chrome Web Store compliance:
