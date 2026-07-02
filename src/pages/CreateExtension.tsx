@@ -83,7 +83,23 @@ export default function CreateExtension() {
   const [generatedFiles, setGeneratedFiles] = useState<Record<string, string> | null>(null);
   const [progress, setProgress] = useState(0);
 
-  const updateStage = useCallback((id: string, update: Partial<AgentStage>) => {
+  // Prompt Studio state
+  const [presetId, setPresetId] = useState<string | null>(null);
+  const [styleId, setStyleId] = useState<string | null>("cyber-dark");
+  const [toneId, setToneId] = useState<string | null>("prosumer");
+  const [boosterIds, setBoosterIds] = useState<string[]>(
+    QUALITY_BOOSTERS.filter((b) => b.default).map((b) => b.id),
+  );
+  const [showStudio, setShowStudio] = useState(true);
+
+  const toggleBooster = (id: string) =>
+    setBoosterIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const applyPreset = (id: string) => {
+    setPresetId(id);
+    const p = PROMPT_PRESETS.find((x) => x.id === id);
+    if (p && !idea.trim()) setIdea(p.short);
+  };
     setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
   }, []);
 
