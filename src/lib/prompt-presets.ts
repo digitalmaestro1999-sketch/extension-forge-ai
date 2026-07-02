@@ -429,7 +429,7 @@ export function composePrompt(input: ComposeInput & { variantId?: string | null 
   const sections: string[] = [];
 
   if (preset) {
-    sections.push(`## Preset brief: ${preset.label}\n${preset.template}`);
+    sections.push(`## Preset brief: ${preset.label}\n${presetTemplate || preset.template}`);
     if (preset.suggestedFeatures.length) {
       sections.push(`### Must-have features\n- ${preset.suggestedFeatures.join("\n- ")}`);
     }
