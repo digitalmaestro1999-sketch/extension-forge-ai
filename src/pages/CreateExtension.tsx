@@ -94,14 +94,51 @@ export default function CreateExtension() {
   );
   const [showStudio, setShowStudio] = useState(true);
 
+  // NEW: preview / customizer / variations / checklist state
+  const [showPreview, setShowPreview] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [customizingPreset, setCustomizingPreset] = useState<string | null>(null);
+  const [presetDraft, setPresetDraft] = useState("");
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]); // empty = single default run
+  const [variantResults, setVariantResults] = useState<
+    Array<{ variantId: string | null; label: string; specName: string; ok: boolean; error?: string }>
+  >([]);
+
   const toggleBooster = (id: string) =>
     setBoosterIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleVariant = (id: string) =>
+    setSelectedVariants((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const applyPreset = (id: string) => {
     setPresetId(id);
     const p = PROMPT_PRESETS.find((x) => x.id === id);
     if (p && !idea.trim()) setIdea(p.short);
   };
+
+  const openCustomizer = (id: string) => {
+    setCustomizingPreset(id);
+    setPresetDraft(getPresetTemplate(id));
+  };
+  const saveCustomizer = () => {
+    if (!customizingPreset) return;
+    setPresetOverride(customizingPreset, presetDraft);
+    toast.success("Preset updated");
+    setCustomizingPreset(null);
+  };
+  const resetCustomizer = () => {
+    if (!customizingPreset) return;
+    resetPresetOverride(customizingPreset);
+    setPresetDraft(PROMPT_PRESETS.find((p) => p.id === customizingPreset)?.template || "");
+    toast.info("Preset reset to default");
+  };
+
+  // Live composed prompt (for Preview + Checklist)
+  const livePreview = useMemo(
+    () => composePrompt({ idea, presetId, styleId, toneId, boosterIds }),
+    [idea, presetId, styleId, toneId, boosterIds],
+  );
+  const qualityReport = useMemo(() => scorePrompt(livePreview, idea), [livePreview, idea]);
 
   const updateStage = useCallback((id: string, update: Partial<AgentStage>) => {
     setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
