@@ -419,9 +419,18 @@ export default function CreateExtension() {
                   ))}
                 </div>
                 {presetId && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    {PROMPT_PRESETS.find(p => p.id === presetId)?.short}
-                  </p>
+                  <div className="mt-2 flex items-start justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground flex-1">
+                      {PROMPT_PRESETS.find(p => p.id === presetId)?.short}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openCustomizer(presetId)}
+                      className="text-[10px] flex items-center gap-1 text-primary hover:underline shrink-0"
+                    >
+                      <Pencil className="h-3 w-3" /> Customize brief
+                    </button>
+                  </div>
                 )}
               </div>
 
