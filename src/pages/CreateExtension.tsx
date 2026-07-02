@@ -774,6 +774,71 @@ export default function CreateExtension() {
           </div>
         </motion.div>
       )}
+
+      {/* Variation runs summary strip */}
+      {variantResults.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Layers className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Variation runs</h3>
+            <Badge variant="secondary" className="text-[10px]">{variantResults.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {variantResults.map((r, i) => (
+              <div
+                key={i}
+                className={`rounded-lg border p-2.5 ${
+                  r.ok ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-semibold">{r.label}</span>
+                  {r.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{r.ok ? r.specName : r.error}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Preset Customizer modal */}
+      {customizingPreset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4" onClick={() => setCustomizingPreset(null)}>
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">
+                  Customize brief — {PROMPT_PRESETS.find(p => p.id === customizingPreset)?.label}
+                </h3>
+              </div>
+              <button onClick={() => setCustomizingPreset(null)} className="text-muted-foreground hover:text-foreground">
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Edit the preset brief. Your version is saved locally and used whenever this preset is selected.
+            </p>
+            <Textarea
+              value={presetDraft}
+              onChange={(e) => setPresetDraft(e.target.value)}
+              className="min-h-[240px] font-mono text-[11px] bg-secondary border-border"
+            />
+            <div className="flex items-center justify-between mt-3">
+              <Button variant="ghost" size="sm" onClick={resetCustomizer}>
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset to default
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCustomizingPreset(null)}>Cancel</Button>
+                <Button size="sm" onClick={saveCustomizer} className="bg-gradient-cyber text-primary-foreground">
+                  <Check className="h-3.5 w-3.5 mr-1.5" /> Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
