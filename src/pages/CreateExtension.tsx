@@ -522,6 +522,126 @@ export default function CreateExtension() {
           )}
         </div>
 
+                </div>
+              </div>
+
+              {/* Multiple Variations */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="h-3 w-3" /> Multiple variations
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {selectedVariants.length === 0 ? "Single default run" : `${selectedVariants.length} variation runs`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROMPT_VARIATIONS.map(v => {
+                    const active = selectedVariants.includes(v.id);
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => toggleVariant(v.id)}
+                        className={`text-[11px] px-2 py-1 rounded-md border ${
+                          active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                        }`}
+                        title={v.description}
+                      >
+                        {v.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Runs the pipeline once per selected variation, back-to-back. Leave empty for a single default run.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Preview + Checklist toggles */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPreview(v => !v)}
+            className="text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card hover:border-primary/40"
+          >
+            <Eye className="h-3 w-3" /> {showPreview ? "Hide" : "Preview"} composed prompt
+            <Badge variant="secondary" className="text-[10px] font-mono">
+              {livePreview.idea.trim().split(/\s+/).filter(Boolean).length}w
+            </Badge>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowChecklist(v => !v)}
+            className="text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card hover:border-primary/40"
+          >
+            <ListChecks className="h-3 w-3" /> Quality checklist
+            <Badge
+              variant="secondary"
+              className={`text-[10px] font-mono ${
+                qualityReport.score >= 75 ? "text-primary" : qualityReport.score >= 50 ? "" : "text-destructive"
+              }`}
+            >
+              {qualityReport.score}/100 · {qualityReport.grade}
+            </Badge>
+          </button>
+        </div>
+
+        {showPreview && (
+          <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Composed prompt preview</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(livePreview.idea);
+                  toast.success("Copied composed prompt");
+                }}
+                className="text-[10px] flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-3 w-3" /> Copy
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap font-mono text-[11px] text-muted-foreground max-h-64 overflow-auto">
+              {livePreview.idea}
+            </pre>
+          </div>
+        )}
+
+        {showChecklist && (
+          <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Prompt quality checklist</span>
+              <span className="text-[11px] font-mono">
+                Grade <span className={qualityReport.grade === "A" || qualityReport.grade === "B" ? "text-primary" : "text-destructive"}>{qualityReport.grade}</span> · {qualityReport.score}/100
+              </span>
+            </div>
+            <Progress value={qualityReport.score} className="h-1.5 mb-3" />
+            <ul className="space-y-1">
+              {qualityReport.items.map(item => (
+                <li key={item.id} className="flex items-start gap-2 text-[11px]">
+                  {item.passed ? (
+                    <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <span className={item.passed ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                    {!item.passed && item.hint && (
+                      <p className="text-[10px] text-muted-foreground/80 italic">{item.hint}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">+{item.weight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             The AI agent will analyze → design → code → audit → package your extension
