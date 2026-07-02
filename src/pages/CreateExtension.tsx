@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
+import {
+  PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, composePrompt,
+} from "@/lib/prompt-presets";
 
 async function invokeWithRetry(
   fnName: string,
