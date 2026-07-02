@@ -297,15 +297,42 @@ export default function CreateExtension() {
       if (secData?.result) sessionStorage.setItem("security-audit", JSON.stringify(secData.result));
       if (compData?.result) sessionStorage.setItem("compliance-report", JSON.stringify(compData.result));
 
-      toast.success(`${extSpec.name} generated successfully!`);
-    } catch (e: any) {
-      console.error("Pipeline error:", e);
-      toast.error(e.message || "Pipeline failed");
-      // Mark remaining stages as idle
-      setStages(prev => prev.map(s => s.status === "running" ? { ...s, status: "error", error: e.message } : s));
-    } finally {
-      setIsRunning(false);
+      toast.success(`${extSpec.name}${variantLabel ? ` (${variantLabel})` : ""} generated!`);
+      return { ok: true as const, specName: extSpec.name };
+  };
+
+  const runPipeline = async () => {
+    if (!idea.trim()) {
+      toast.error("Please describe your extension idea");
+      return;
     }
+    setIsRunning(true);
+    setVariantResults([]);
+
+    const runs: (string | null)[] = selectedVariants.length ? selectedVariants : [null];
+
+    for (let i = 0; i < runs.length; i++) {
+      const variantId = runs[i];
+      const label = variantId
+        ? PROMPT_VARIATIONS.find(v => v.id === variantId)?.label || variantId
+        : "Default";
+      if (runs.length > 1) toast.info(`Variation ${i + 1}/${runs.length}: ${label}`);
+      // reset for each run
+      setStages(initialStages);
+      setSpec(null);
+      setGeneratedFiles(null);
+      setProgress(0);
+      try {
+        const res = await runOnce(variantId);
+        setVariantResults(prev => [...prev, { variantId, label, specName: res.specName, ok: true }]);
+      } catch (e: any) {
+        console.error("Pipeline error:", e);
+        toast.error(`${label}: ${e.message || "Pipeline failed"}`);
+        setStages(prev => prev.map(s => s.status === "running" ? { ...s, status: "error", error: e.message } : s));
+        setVariantResults(prev => [...prev, { variantId, label, specName: "—", ok: false, error: e.message }]);
+      }
+    }
+    setIsRunning(false);
   };
 
   const goToEditor = () => navigate("/editor");
