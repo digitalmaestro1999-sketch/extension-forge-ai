@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { generateAllFiles } from "@/lib/generate-extension";
 
 interface QueueItem {
   id: string;
@@ -100,7 +101,14 @@ export default function BatchQueue() {
         const { data: codeData, error: codeError } = await supabase.functions.invoke("agent-pipeline", {
           body: { spec: specData.spec, stage: "code" },
         });
-        if (codeError) throw codeError;
+        if (codeError) console.warn("AI code overlay failed; using local generator", codeError);
+
+        const localFiles = generateAllFiles(specData.spec);
+        const files = { ...localFiles };
+        for (const [name, content] of Object.entries((codeData?.result ?? {}) as Record<string, string>)) {
+          if (typeof content === "string" && content.trim().length > 50) files[name] = content;
+        }
+        files["manifest.json"] = localFiles["manifest.json"];
 
         // Save project
         const { data: project, error: projError } = await supabase.from("extension_projects").insert({
@@ -108,7 +116,7 @@ export default function BatchQueue() {
           name: specData.spec.name,
           description: specData.spec.description,
           spec: specData.spec,
-          files: codeData.result,
+          files,
           status: "generated",
         }).select().single();
 

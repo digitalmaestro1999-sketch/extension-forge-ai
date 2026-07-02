@@ -52,6 +52,16 @@ serve(async (req) => {
 
   try {
     const { spec, stage } = await req.json();
+
+    if (stage === "code") {
+      return new Response(JSON.stringify({
+        result: {},
+        warning: "Using the hardened local Manifest V3 generator to avoid long AI code-generation timeouts.",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
