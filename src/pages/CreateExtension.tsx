@@ -144,21 +144,10 @@ export default function CreateExtension() {
     setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
   }, []);
 
-  const runPipeline = async () => {
-    if (!idea.trim()) {
-      toast.error("Please describe your extension idea");
-      return;
-    }
-
-    setIsRunning(true);
-    setStages(initialStages);
-    setSpec(null);
-    setGeneratedFiles(null);
-    setProgress(0);
-
-    try {
-      // Compose the enriched prompt from Prompt Studio choices
-      const composed = composePrompt({ idea, presetId, styleId, toneId, boosterIds });
+  const runOnce = async (variantId: string | null) => {
+    // Compose the enriched prompt from Prompt Studio choices (+ variant)
+    const composed = composePrompt({ idea, presetId, styleId, toneId, boosterIds, variantId });
+    const variantLabel = PROMPT_VARIATIONS.find(v => v.id === variantId)?.label;
 
       // STAGE 1: Intent Analysis (uses existing generate-extension function)
       updateStage("intent", { status: "running" });
