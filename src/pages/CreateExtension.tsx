@@ -118,12 +118,15 @@ export default function CreateExtension() {
     setProgress(0);
 
     try {
+      // Compose the enriched prompt from Prompt Studio choices
+      const composed = composePrompt({ idea, presetId, styleId, toneId, boosterIds });
+
       // STAGE 1: Intent Analysis (uses existing generate-extension function)
       updateStage("intent", { status: "running" });
       const startIntent = Date.now();
 
-      const specData = await invokeWithRetry("generate-extension", { idea: idea.trim(), audience: "", functionality: "" });
-      const extSpec = specData.spec as ExtensionSpec;
+      const specData = await invokeWithRetry("generate-extension", { idea: composed.idea, audience: toneId ?? "", functionality: "" });
+      const extSpec = { ...(specData.spec as ExtensionSpec), profile: composed.profile } as ExtensionSpec & { profile: typeof composed.profile };
       setSpec(extSpec);
 
       updateStage("intent", {
