@@ -235,6 +235,7 @@ Return JSON:
             { role: "user", content: userPrompt },
           ],
           temperature: 0.7,
+          response_format: { type: "json_object" },
         }),
       });
 
@@ -309,9 +310,13 @@ Return JSON:
         }
       } catch (parseError) {
         console.error("Parse error attempt", attempt, ":", parseError);
-        // Don't burn the full 150s timeout looping on unparseable mega-responses
-        if (attempt >= 1) throw new Error("Failed to parse AI response after retries");
+        // Large code-gen responses (~80k chars) take ~80s each; a second attempt
+        // would blow past the 150s edge-function idle timeout. Fail fast.
+        if (stage === "code" || attempt >= 1) {
+          throw new Error("Failed to parse AI response");
+        }
       }
+
     }
 
     if (!result) {
