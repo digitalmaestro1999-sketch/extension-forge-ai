@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Loader2, CheckCircle2, XCircle, ArrowRight,
   Brain, Code2, Shield, FileCheck, Package, ChevronDown,
-  ChevronRight, Sparkles, AlertTriangle
+  ChevronRight, Sparkles, AlertTriangle, Eye, Copy, Pencil,
+  RotateCcw, ListChecks, Layers, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import {
-  PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, composePrompt,
+  PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, PROMPT_VARIATIONS,
+  composePrompt, scorePrompt, getPresetTemplate, setPresetOverride, resetPresetOverride,
 } from "@/lib/prompt-presets";
 
 async function invokeWithRetry(
