@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Loader2, CheckCircle2, XCircle, ArrowRight,
   Brain, Code2, Shield, FileCheck, Package, ChevronDown,
-  ChevronRight, Sparkles, AlertTriangle
+  ChevronRight, Sparkles, AlertTriangle, Eye, Copy, Pencil,
+  RotateCcw, ListChecks, Layers, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import {
-  PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, composePrompt,
+  PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, PROMPT_VARIATIONS,
+  composePrompt, scorePrompt, getPresetTemplate, setPresetOverride, resetPresetOverride,
 } from "@/lib/prompt-presets";
 
 async function invokeWithRetry(
@@ -92,8 +94,21 @@ export default function CreateExtension() {
   );
   const [showStudio, setShowStudio] = useState(true);
 
+  // NEW: preview / customizer / variations / checklist state
+  const [showPreview, setShowPreview] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [customizingPreset, setCustomizingPreset] = useState<string | null>(null);
+  const [presetDraft, setPresetDraft] = useState("");
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]); // empty = single default run
+  const [variantResults, setVariantResults] = useState<
+    Array<{ variantId: string | null; label: string; specName: string; ok: boolean; error?: string }>
+  >([]);
+
   const toggleBooster = (id: string) =>
     setBoosterIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleVariant = (id: string) =>
+    setSelectedVariants((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const applyPreset = (id: string) => {
     setPresetId(id);
@@ -101,25 +116,38 @@ export default function CreateExtension() {
     if (p && !idea.trim()) setIdea(p.short);
   };
 
+  const openCustomizer = (id: string) => {
+    setCustomizingPreset(id);
+    setPresetDraft(getPresetTemplate(id));
+  };
+  const saveCustomizer = () => {
+    if (!customizingPreset) return;
+    setPresetOverride(customizingPreset, presetDraft);
+    toast.success("Preset updated");
+    setCustomizingPreset(null);
+  };
+  const resetCustomizer = () => {
+    if (!customizingPreset) return;
+    resetPresetOverride(customizingPreset);
+    setPresetDraft(PROMPT_PRESETS.find((p) => p.id === customizingPreset)?.template || "");
+    toast.info("Preset reset to default");
+  };
+
+  // Live composed prompt (for Preview + Checklist)
+  const livePreview = useMemo(
+    () => composePrompt({ idea, presetId, styleId, toneId, boosterIds }),
+    [idea, presetId, styleId, toneId, boosterIds],
+  );
+  const qualityReport = useMemo(() => scorePrompt(livePreview, idea), [livePreview, idea]);
+
   const updateStage = useCallback((id: string, update: Partial<AgentStage>) => {
     setStages(prev => prev.map(s => s.id === id ? { ...s, ...update } : s));
   }, []);
 
-  const runPipeline = async () => {
-    if (!idea.trim()) {
-      toast.error("Please describe your extension idea");
-      return;
-    }
-
-    setIsRunning(true);
-    setStages(initialStages);
-    setSpec(null);
-    setGeneratedFiles(null);
-    setProgress(0);
-
-    try {
-      // Compose the enriched prompt from Prompt Studio choices
-      const composed = composePrompt({ idea, presetId, styleId, toneId, boosterIds });
+  const runOnce = async (variantId: string | null) => {
+    // Compose the enriched prompt from Prompt Studio choices (+ variant)
+    const composed = composePrompt({ idea, presetId, styleId, toneId, boosterIds, variantId });
+    const variantLabel = PROMPT_VARIATIONS.find(v => v.id === variantId)?.label;
 
       // STAGE 1: Intent Analysis (uses existing generate-extension function)
       updateStage("intent", { status: "running" });
@@ -269,15 +297,42 @@ export default function CreateExtension() {
       if (secData?.result) sessionStorage.setItem("security-audit", JSON.stringify(secData.result));
       if (compData?.result) sessionStorage.setItem("compliance-report", JSON.stringify(compData.result));
 
-      toast.success(`${extSpec.name} generated successfully!`);
-    } catch (e: any) {
-      console.error("Pipeline error:", e);
-      toast.error(e.message || "Pipeline failed");
-      // Mark remaining stages as idle
-      setStages(prev => prev.map(s => s.status === "running" ? { ...s, status: "error", error: e.message } : s));
-    } finally {
-      setIsRunning(false);
+      toast.success(`${extSpec.name}${variantLabel ? ` (${variantLabel})` : ""} generated!`);
+      return { ok: true as const, specName: extSpec.name };
+  };
+
+  const runPipeline = async () => {
+    if (!idea.trim()) {
+      toast.error("Please describe your extension idea");
+      return;
     }
+    setIsRunning(true);
+    setVariantResults([]);
+
+    const runs: (string | null)[] = selectedVariants.length ? selectedVariants : [null];
+
+    for (let i = 0; i < runs.length; i++) {
+      const variantId = runs[i];
+      const label = variantId
+        ? PROMPT_VARIATIONS.find(v => v.id === variantId)?.label || variantId
+        : "Default";
+      if (runs.length > 1) toast.info(`Variation ${i + 1}/${runs.length}: ${label}`);
+      // reset for each run
+      setStages(initialStages);
+      setSpec(null);
+      setGeneratedFiles(null);
+      setProgress(0);
+      try {
+        const res = await runOnce(variantId);
+        setVariantResults(prev => [...prev, { variantId, label, specName: res.specName, ok: true }]);
+      } catch (e: any) {
+        console.error("Pipeline error:", e);
+        toast.error(`${label}: ${e.message || "Pipeline failed"}`);
+        setStages(prev => prev.map(s => s.status === "running" ? { ...s, status: "error", error: e.message } : s));
+        setVariantResults(prev => [...prev, { variantId, label, specName: "—", ok: false, error: e.message }]);
+      }
+    }
+    setIsRunning(false);
   };
 
   const goToEditor = () => navigate("/editor");
@@ -364,9 +419,18 @@ export default function CreateExtension() {
                   ))}
                 </div>
                 {presetId && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    {PROMPT_PRESETS.find(p => p.id === presetId)?.short}
-                  </p>
+                  <div className="mt-2 flex items-start justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground flex-1">
+                      {PROMPT_PRESETS.find(p => p.id === presetId)?.short}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openCustomizer(presetId)}
+                      className="text-[10px] flex items-center gap-1 text-primary hover:underline shrink-0"
+                    >
+                      <Pencil className="h-3 w-3" /> Customize brief
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -457,6 +521,121 @@ export default function CreateExtension() {
             </div>
           )}
         </div>
+
+        {/* Multiple Variations */}
+        <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Layers className="h-3 w-3" /> Multiple variations
+            </p>
+            <span className="text-[10px] text-muted-foreground">
+              {selectedVariants.length === 0 ? "Single default run" : `${selectedVariants.length} variation runs`}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PROMPT_VARIATIONS.map(v => {
+              const active = selectedVariants.includes(v.id);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => toggleVariant(v.id)}
+                  className={`text-[11px] px-2 py-1 rounded-md border ${
+                    active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                  }`}
+                  title={v.description}
+                >
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Runs the pipeline once per selected variation, back-to-back. Leave empty for a single default run.
+          </p>
+        </div>
+
+
+        {/* Preview + Checklist toggles */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPreview(v => !v)}
+            className="text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card hover:border-primary/40"
+          >
+            <Eye className="h-3 w-3" /> {showPreview ? "Hide" : "Preview"} composed prompt
+            <Badge variant="secondary" className="text-[10px] font-mono">
+              {livePreview.idea.trim().split(/\s+/).filter(Boolean).length}w
+            </Badge>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowChecklist(v => !v)}
+            className="text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card hover:border-primary/40"
+          >
+            <ListChecks className="h-3 w-3" /> Quality checklist
+            <Badge
+              variant="secondary"
+              className={`text-[10px] font-mono ${
+                qualityReport.score >= 75 ? "text-primary" : qualityReport.score >= 50 ? "" : "text-destructive"
+              }`}
+            >
+              {qualityReport.score}/100 · {qualityReport.grade}
+            </Badge>
+          </button>
+        </div>
+
+        {showPreview && (
+          <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Composed prompt preview</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(livePreview.idea);
+                  toast.success("Copied composed prompt");
+                }}
+                className="text-[10px] flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-3 w-3" /> Copy
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap font-mono text-[11px] text-muted-foreground max-h-64 overflow-auto">
+              {livePreview.idea}
+            </pre>
+          </div>
+        )}
+
+        {showChecklist && (
+          <div className="mb-3 rounded-lg border border-border/60 bg-secondary/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Prompt quality checklist</span>
+              <span className="text-[11px] font-mono">
+                Grade <span className={qualityReport.grade === "A" || qualityReport.grade === "B" ? "text-primary" : "text-destructive"}>{qualityReport.grade}</span> · {qualityReport.score}/100
+              </span>
+            </div>
+            <Progress value={qualityReport.score} className="h-1.5 mb-3" />
+            <ul className="space-y-1">
+              {qualityReport.items.map(item => (
+                <li key={item.id} className="flex items-start gap-2 text-[11px]">
+                  {item.passed ? (
+                    <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <span className={item.passed ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                    {!item.passed && item.hint && (
+                      <p className="text-[10px] text-muted-foreground/80 italic">{item.hint}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">+{item.weight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
@@ -594,6 +773,71 @@ export default function CreateExtension() {
             </Button>
           </div>
         </motion.div>
+      )}
+
+      {/* Variation runs summary strip */}
+      {variantResults.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Layers className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Variation runs</h3>
+            <Badge variant="secondary" className="text-[10px]">{variantResults.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {variantResults.map((r, i) => (
+              <div
+                key={i}
+                className={`rounded-lg border p-2.5 ${
+                  r.ok ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-semibold">{r.label}</span>
+                  {r.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{r.ok ? r.specName : r.error}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Preset Customizer modal */}
+      {customizingPreset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4" onClick={() => setCustomizingPreset(null)}>
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">
+                  Customize brief — {PROMPT_PRESETS.find(p => p.id === customizingPreset)?.label}
+                </h3>
+              </div>
+              <button onClick={() => setCustomizingPreset(null)} className="text-muted-foreground hover:text-foreground">
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Edit the preset brief. Your version is saved locally and used whenever this preset is selected.
+            </p>
+            <Textarea
+              value={presetDraft}
+              onChange={(e) => setPresetDraft(e.target.value)}
+              className="min-h-[240px] font-mono text-[11px] bg-secondary border-border"
+            />
+            <div className="flex items-center justify-between mt-3">
+              <Button variant="ghost" size="sm" onClick={resetCustomizer}>
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset to default
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCustomizingPreset(null)}>Cancel</Button>
+                <Button size="sm" onClick={saveCustomizer} className="bg-gradient-cyber text-primary-foreground">
+                  <Check className="h-3.5 w-3.5 mr-1.5" /> Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

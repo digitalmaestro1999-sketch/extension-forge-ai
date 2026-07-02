@@ -415,19 +415,22 @@ export interface ComposedPrompt {
     tone: string | null;
     boosters: string[];
     directives: string[];
+    variant?: string | null;
   };
 }
 
-export function composePrompt(input: ComposeInput): ComposedPrompt {
+export function composePrompt(input: ComposeInput & { variantId?: string | null }): ComposedPrompt {
   const preset = PROMPT_PRESETS.find((p) => p.id === input.presetId) || null;
   const style  = DESIGN_STYLES.find((s) => s.id === input.styleId) || null;
   const tone   = AUDIENCE_TONES.find((t) => t.id === input.toneId) || null;
   const boosters = QUALITY_BOOSTERS.filter((b) => input.boosterIds.includes(b.id));
+  const variant = PROMPT_VARIATIONS.find((v) => v.id === input.variantId) || null;
+  const presetTemplate = preset ? getPresetTemplate(preset.id) : "";
 
   const sections: string[] = [];
 
   if (preset) {
-    sections.push(`## Preset brief: ${preset.label}\n${preset.template}`);
+    sections.push(`## Preset brief: ${preset.label}\n${presetTemplate || preset.template}`);
     if (preset.suggestedFeatures.length) {
       sections.push(`### Must-have features\n- ${preset.suggestedFeatures.join("\n- ")}`);
     }
@@ -441,6 +444,7 @@ export function composePrompt(input: ComposeInput): ComposedPrompt {
   if (style) directives.push(style.directive);
   if (tone) directives.push(tone.directive);
   for (const b of boosters) directives.push(b.directive);
+  if (variant) directives.push(variant.directive);
 
   if (directives.length) {
     sections.push(`## Quality directives (non-negotiable)\n- ${directives.join("\n- ")}`);
@@ -458,6 +462,196 @@ export function composePrompt(input: ComposeInput): ComposedPrompt {
       tone: tone?.id ?? null,
       boosters: boosters.map((b) => b.id),
       directives,
-    },
+      variant: variant?.id ?? null,
+    } as ComposedPrompt["profile"],
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMPT VARIATIONS — run the same brief with different creative angles
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PromptVariation {
+  id: string;
+  label: string;
+  description: string;
+  directive: string;
+}
+
+export const PROMPT_VARIATIONS: PromptVariation[] = [
+  {
+    id: "mvp",
+    label: "Lean MVP",
+    description: "Smallest viable feature set, ship-fast.",
+    directive:
+      "Variation: 'Lean MVP' — implement only the 2-3 must-have features, defer nice-to-haves, keep UI to a single popup screen, no options page complexity.",
+  },
+  {
+    id: "pro",
+    label: "Feature-Rich Pro",
+    description: "Full-featured, tabs, filters, exports.",
+    directive:
+      "Variation: 'Feature-Rich Pro' — implement every suggested feature plus advanced settings, filters, bulk actions, exports, and keyboard shortcuts. Assume power users.",
+  },
+  {
+    id: "minimal",
+    label: "Opinionated Minimal",
+    description: "One job done perfectly, no settings.",
+    directive:
+      "Variation: 'Opinionated Minimal' — do ONE thing exceptionally well with zero configuration. No options page. Sensible defaults only. Beautiful, tight UI.",
+  },
+  {
+    id: "privacy",
+    label: "Privacy-Maximal",
+    description: "Zero network calls, everything local.",
+    directive:
+      "Variation: 'Privacy-Maximal' — no network calls whatsoever, no analytics, no remote assets. Everything runs on-device with chrome.storage.local. Emphasize privacy in copy.",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRESET CUSTOMIZER — persist user edits to preset templates in localStorage
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PRESET_OVERRIDE_KEY = "prompt-preset-overrides:v1";
+
+function loadOverrides(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(PRESET_OVERRIDE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function getPresetTemplate(id: string): string {
+  const overrides = loadOverrides();
+  if (overrides[id]) return overrides[id];
+  return PROMPT_PRESETS.find((p) => p.id === id)?.template || "";
+}
+
+export function setPresetOverride(id: string, template: string): void {
+  const overrides = loadOverrides();
+  if (template.trim()) overrides[id] = template;
+  else delete overrides[id];
+  localStorage.setItem(PRESET_OVERRIDE_KEY, JSON.stringify(overrides));
+}
+
+export function resetPresetOverride(id: string): void {
+  const overrides = loadOverrides();
+  delete overrides[id];
+  localStorage.setItem(PRESET_OVERRIDE_KEY, JSON.stringify(overrides));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMPT QUALITY CHECKLIST — heuristic scoring of a composed prompt
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  passed: boolean;
+  weight: number; // contribution to score
+  hint?: string;
+}
+
+export interface PromptQualityReport {
+  score: number; // 0-100
+  grade: "A" | "B" | "C" | "D" | "F";
+  items: ChecklistItem[];
+}
+
+export function scorePrompt(composed: ComposedPrompt, rawIdea: string): PromptQualityReport {
+  const text = composed.idea.toLowerCase();
+  const wordCount = composed.idea.trim().split(/\s+/).filter(Boolean).length;
+  const items: ChecklistItem[] = [
+    {
+      id: "length",
+      label: "Sufficient detail (>= 60 words)",
+      passed: wordCount >= 60,
+      weight: 10,
+      hint: "Add more specifics about what the extension does and for whom.",
+    },
+    {
+      id: "not-too-long",
+      label: "Not bloated (<= 800 words)",
+      passed: wordCount <= 800,
+      weight: 5,
+      hint: "Trim redundant sentences — long prompts hurt code quality.",
+    },
+    {
+      id: "user-idea",
+      label: "User idea present",
+      passed: rawIdea.trim().length >= 12,
+      weight: 15,
+      hint: "Describe the extension in your own words in the main text area.",
+    },
+    {
+      id: "preset",
+      label: "Category preset selected",
+      passed: !!composed.profile.preset,
+      weight: 10,
+      hint: "Pick a category preset for a proven brief structure.",
+    },
+    {
+      id: "style",
+      label: "Design style chosen",
+      passed: !!composed.profile.style,
+      weight: 8,
+      hint: "Pick a visual style so the UI has a coherent design language.",
+    },
+    {
+      id: "tone",
+      label: "Audience tone chosen",
+      passed: !!composed.profile.tone,
+      weight: 7,
+      hint: "Pick an audience tone so copy is targeted, not generic.",
+    },
+    {
+      id: "polish",
+      label: "Polished UI booster",
+      passed: composed.profile.boosters.includes("polished-ui"),
+      weight: 8,
+    },
+    {
+      id: "a11y",
+      label: "Accessibility booster",
+      passed: composed.profile.boosters.includes("accessibility"),
+      weight: 8,
+    },
+    {
+      id: "errors",
+      label: "Error-handling booster",
+      passed: composed.profile.boosters.includes("error-handling"),
+      weight: 7,
+    },
+    {
+      id: "privacy",
+      label: "Privacy policy or least-privilege booster",
+      passed:
+        composed.profile.boosters.includes("privacy-policy") ||
+        composed.profile.boosters.includes("least-privilege"),
+      weight: 7,
+      hint: "Add at least one privacy/permission-hygiene booster.",
+    },
+    {
+      id: "mentions-features",
+      label: "Mentions concrete features (bullets, 'must', 'should')",
+      passed: /(\n\s*-\s|\bmust\b|\bshould\b)/.test(text),
+      weight: 10,
+    },
+    {
+      id: "no-vague",
+      label: "Avoids vague words ('etc', 'stuff', 'something')",
+      passed: !/\b(etc\.?|stuff|something|whatever)\b/.test(text),
+      weight: 5,
+      hint: "Replace vague words with specifics.",
+    },
+  ];
+
+  const totalWeight = items.reduce((a, i) => a + i.weight, 0);
+  const earned = items.filter((i) => i.passed).reduce((a, i) => a + i.weight, 0);
+  const score = Math.round((earned / totalWeight) * 100);
+  const grade: PromptQualityReport["grade"] =
+    score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 45 ? "D" : "F";
+  return { score, grade, items };
 }
