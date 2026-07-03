@@ -34,9 +34,15 @@ function getLanguage(filename: string) {
 }
 
 export default function CodeEditorPage() {
+  const { user } = useAuth();
   const [files, setFiles] = useState<GeneratedFiles>({});
   const [activeFile, setActiveFile] = useState("manifest.json");
   const [specName, setSpecName] = useState("extension");
+  const [spec, setSpec] = useState<ExtensionSpec | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(() => {
+    try { return sessionStorage.getItem("extension-project-id"); } catch { return null; }
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // Try AI-generated files first, then fallback to template
