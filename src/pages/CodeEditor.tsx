@@ -78,10 +78,38 @@ export default function CodeEditorPage() {
 
     if (storedSpec) {
       try {
-        setSpecName(JSON.parse(storedSpec).name?.toLowerCase().replace(/\s+/g, "-") || "extension");
+        const parsed = JSON.parse(storedSpec) as ExtensionSpec;
+        setSpec(parsed);
+        setSpecName(parsed.name?.toLowerCase().replace(/\s+/g, "-") || "extension");
       } catch {}
     }
   }, []);
+
+  const handleSave = async () => {
+    if (!user) { toast.error("Sign in required to save"); return; }
+    if (!Object.keys(files).length) { toast.error("Nothing to save"); return; }
+    setSaving(true);
+    try {
+      const name = spec?.name ?? specName ?? "Untitled Extension";
+      const { id } = await persistProject({
+        id: projectId,
+        userId: user.id,
+        name,
+        description: spec?.description,
+        source: "editor",
+        files,
+        status: "draft",
+        spec: (spec ?? {}) as unknown as Record<string, unknown>,
+      });
+      setProjectId(id);
+      try { sessionStorage.setItem("extension-project-id", id); } catch { /* noop */ }
+      toast.success("Saved", { description: `${Object.keys(files).length} files persisted.` });
+    } catch (e) {
+      toast.error("Save failed", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updateFile = useCallback((value: string | undefined) => {
     if (value !== undefined) {
