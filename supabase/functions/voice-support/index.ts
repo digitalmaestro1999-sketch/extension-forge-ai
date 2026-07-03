@@ -175,12 +175,22 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
-    const mode = String(body?.mode ?? "voice"); // "voice" | "text"
+    const mode = String(body?.mode ?? "voice"); // "voice" | "text" | "tts"
     const mime = String(body?.mime ?? "audio/webm");
     const audioB64 = typeof body?.audio_b64 === "string" ? body.audio_b64 : "";
     const textQuery = typeof body?.text === "string" ? body.text : "";
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // TTS-only path (used by voice onboarding tour). Skips STT + LLM + history.
+    if (mode === "tts") {
+      const t = textQuery.trim().slice(0, 1800);
+      if (!t) return json(400, { error: "Missing text" });
+      const dgKey = await getDeepgramKey(admin);
+      const out = await synthesize(t, dgKey);
+      return json(200, { audio_b64: out.b64, audio_mime: out.mime });
+    }
+
 
     let question = "";
     let audioMs: number | null = null;
