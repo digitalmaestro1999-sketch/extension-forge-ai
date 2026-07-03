@@ -183,25 +183,64 @@ export default function SoftwareIntelligence() {
     toast.success(`Applied rename across ${plan.filesAffected} files (in-memory).`);
   };
 
+  const scanToFileMap = (s: ProjectScan): Record<string, string> => {
+    const map: Record<string, string> = {};
+    for (const f of s.files) {
+      if (!f.binary && typeof f.content === "string") map[f.path] = f.content;
+    }
+    return map;
+  };
+
+  const saveScanToProjects = useCallback(async (next: ScriptSafeScan, note: string) => {
+    if (!user || !next) return;
+    setSaving(true);
+    try {
+      const files = scanToFileMap(next);
+      if (!Object.keys(files).length) { toast.error("No text files to persist"); return; }
+      const { id } = await persistProject({
+        id: scanProjectId,
+        userId: user.id,
+        name: next.name || "Imported Project",
+        description: `Intelligence Center · ${next.stack.join(" + ") || "project"}`,
+        source: "intelligence",
+        files,
+        status: "draft",
+        spec: { scores: next.scores, stack: next.stack, totalFiles: next.totalFiles },
+      });
+      setScanProjectId(id);
+      toast.success("Saved to Projects", { description: note });
+    } catch (e) {
+      toast.error("Save failed", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  }, [user, scanProjectId]);
+
   const applyNamingFix = (oldName: string, newName: string) => {
     if (!scan || !oldName || !newName || oldName === newName) return;
     const p = planRename(scan, oldName, newName);
     if (!p.totalOccurrences) { toast.error(`"${oldName}" not found in source`); return; }
-    setScan(applyRename(scan, p));
+    const next = applyRename(scan, p);
+    setScan(next);
     toast.success(`Renamed "${oldName}" → "${newName}" in ${p.filesAffected} files`);
+    void saveScanToProjects(next, `Renamed ${oldName} → ${newName}`);
   };
 
   const applySecurityFix = (f: SecurityFinding) => {
     if (!scan) return;
-    const next = redactSecurityFinding(scan, f);
-    setScan({ ...next, security: next.security.filter((x) => x !== f) });
+    const patched = redactSecurityFinding(scan, f);
+    const next = { ...patched, security: patched.security.filter((x) => x !== f) };
+    setScan(next);
     toast.success(`Patched ${f.category} at ${f.file}:${f.line}`);
+    void saveScanToProjects(next, `Security patch: ${f.category}`);
   };
 
   const applyTimerFix = (t: TimerFinding, ms: number) => {
     if (!scan || !ms || ms < 1) return;
-    setScan(updateTimerValue(scan, t, ms));
+    const next = updateTimerValue(scan, t, ms);
+    setScan(next);
     toast.success(`Updated ${t.kind} → ${ms}ms at ${t.file}:${t.line}`);
+    void saveScanToProjects(next, `Timer ${t.kind} → ${ms}ms`);
   };
 
   const applyAiAll = () => {
@@ -213,8 +252,10 @@ export default function SoftwareIntelligence() {
     const { scan: next, applied } = applyAiPatches(scan, patches);
     setScan(next);
     toast.success(`Applied ${applied} AI patch${applied === 1 ? "" : "es"}`);
+    void saveScanToProjects(next, `AI patches: ${applied}`);
   };
   void applyLineEdit;
+  void saving;
 
   const downloadReport = async () => {
     if (!scan) return;
