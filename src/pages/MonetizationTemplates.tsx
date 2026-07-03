@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, Copy, Check, CreditCard, Megaphone, Link2, Crown } from "lucide-react";
+import { DollarSign, Copy, Check, CreditCard, Megaphone, Link2, Crown, Rocket, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "react-router-dom";
+import { persistProject } from "@/lib/project-persist";
 
 const TEMPLATES = [
   {
@@ -170,12 +173,48 @@ function renderAd(containerId) {
 
 export default function MonetizationTemplates() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const copyCode = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
     toast.success("Code copied to clipboard");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const useTemplate = async (template: typeof TEMPLATES[number]) => {
+    if (!user) {
+      toast.error("Sign in to save templates as projects");
+      navigate("/auth");
+      return;
+    }
+    setSavingId(template.id);
+    try {
+      const files = { ...template.files } as Record<string, string>;
+      files["README.md"] =
+        `# ${template.name}\n\n${template.description}\n\n` +
+        `Estimated revenue: ${template.revenue}\nDifficulty: ${template.difficulty}\n\n` +
+        `Generated from a monetization template.`;
+      const { id } = await persistProject({
+        userId: user.id,
+        name: template.name,
+        description: template.description,
+        spec: { monetization: template.id, revenue: template.revenue },
+        files,
+        source: "generated",
+        status: "draft",
+      });
+      toast.success("Project created", { description: "Opening in editor…" });
+      sessionStorage.setItem("extension-files", JSON.stringify(files));
+      sessionStorage.setItem("extension-spec", JSON.stringify({ monetization: template.id, projectId: id }));
+      navigate("/editor");
+    } catch (e) {
+      toast.error("Failed to save", { description: (e as Error).message });
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
@@ -216,9 +255,20 @@ export default function MonetizationTemplates() {
                     <CardDescription>{template.description}</CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{template.difficulty}</Badge>
                   <Badge className="bg-primary/10 text-primary border-0">{template.revenue}</Badge>
+                  <Button
+                    size="sm"
+                    className="h-7 bg-gradient-cyber text-primary-foreground"
+                    disabled={savingId === template.id}
+                    onClick={() => useTemplate(template)}
+                  >
+                    {savingId === template.id
+                      ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      : <Rocket className="h-3.5 w-3.5 mr-1.5" />}
+                    Use as new project
+                  </Button>
                 </div>
               </div>
             </CardHeader>

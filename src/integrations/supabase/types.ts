@@ -311,6 +311,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_api_keys: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          hint: string | null
+          id: string
+          iv: string
+          label: string
+          service: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          hint?: string | null
+          id?: string
+          iv: string
+          label: string
+          service: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          hint?: string | null
+          id?: string
+          iv?: string
+          label?: string
+          service?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

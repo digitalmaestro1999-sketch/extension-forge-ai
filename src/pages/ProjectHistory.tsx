@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  FolderOpen, Trash2, Download, Code2, Eye,
-  Clock, CheckCircle2, Package, Loader2
+  FolderOpen, Trash2, Download, Code2, Pencil,
+  Clock, Package, Loader2, Check, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +39,9 @@ export default function ProjectHistory() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -88,6 +92,31 @@ export default function ProjectHistory() {
     toast.success("Project deleted");
   };
 
+  const startRename = (p: Project) => {
+    setRenamingId(p.id);
+    setRenameValue(p.name);
+  };
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+  const commitRename = async (id: string) => {
+    const name = renameValue.trim();
+    if (!name) { toast.error("Name cannot be empty"); return; }
+    if (name.length > 120) { toast.error("Name too long"); return; }
+    setRenameBusy(true);
+    const { error } = await supabase
+      .from("extension_projects")
+      .update({ name })
+      .eq("id", id)
+      .eq("user_id", user!.id);
+    setRenameBusy(false);
+    if (error) { toast.error("Rename failed", { description: error.message }); return; }
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    setRenamingId(null);
+    toast.success("Renamed");
+  };
+
   if (!user) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
@@ -136,9 +165,42 @@ export default function ProjectHistory() {
               transition={{ delay: i * 0.05 }}
               className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all group"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-semibold">{project.name}</h3>
+              <div className="flex items-start justify-between mb-2 gap-2">
+                <div className="min-w-0 flex-1">
+                  {renamingId === project.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        autoFocus
+                        value={renameValue}
+                        maxLength={120}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void commitRename(project.id);
+                          if (e.key === "Escape") cancelRename();
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                        disabled={renameBusy} onClick={() => commitRename(project.id)}>
+                        {renameBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                        onClick={cancelRename}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold truncate">{project.name}</h3>
+                      <button
+                        onClick={() => startRename(project)}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition"
+                        aria-label="Rename project"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
                 </div>
                 <Badge className={`text-[10px] ${statusColors[project.status] || statusColors.draft}`}>
@@ -164,6 +226,9 @@ export default function ProjectHistory() {
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => openInEditor(project)} className="flex-1">
                   <Code2 className="h-3.5 w-3.5 mr-1.5" /> Edit
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => startRename(project)} title="Rename">
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => downloadZip(project)}>
                   <Download className="h-3.5 w-3.5" />
