@@ -21,7 +21,10 @@ import {
   loadCustomThemes,
   saveCustomTheme,
   deleteCustomTheme,
+  summarizeContrast,
+  type ContrastCheck,
 } from "@/lib/extension-themes";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface Props {
   name: string;
