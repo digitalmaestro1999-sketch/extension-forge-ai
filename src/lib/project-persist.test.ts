@@ -15,14 +15,14 @@ import { persistProject } from "./project-persist";
 function buildInsertChain(returned: { data: unknown; error: unknown }) {
   const single = vi.fn().mockResolvedValue(returned);
   const select = vi.fn(() => ({ single }));
-  const insert = vi.fn(() => ({ select }));
+  const insert = vi.fn((_payload: Record<string, unknown>) => ({ select }));
   return { insert, select, single, from: vi.fn(() => ({ insert })) };
 }
 
 function buildUpdateChain(returned: { error: unknown }) {
-  const eq2 = vi.fn().mockResolvedValue(returned);
-  const eq1 = vi.fn(() => ({ eq: eq2 }));
-  const update = vi.fn(() => ({ eq: eq1 }));
+  const eq2 = vi.fn((_col: string, _val: string) => Promise.resolve(returned));
+  const eq1 = vi.fn((_col: string, _val: string) => ({ eq: eq2 }));
+  const update = vi.fn((_payload: Record<string, unknown>) => ({ eq: eq1 }));
   return { update, eq1, eq2, from: vi.fn(() => ({ update })) };
 }
 
