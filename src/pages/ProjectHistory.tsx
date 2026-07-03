@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  FolderOpen, Trash2, Download, Code2, Eye,
-  Clock, CheckCircle2, Package, Loader2
+  FolderOpen, Trash2, Download, Code2, Pencil,
+  Clock, Package, Loader2, Check, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
