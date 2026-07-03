@@ -563,7 +563,7 @@ export default function PackageExtension() {
           {files["manifest.json"] && (() => {
             let m: Record<string, unknown> | null = null;
             try { m = JSON.parse(files["manifest.json"]); } catch { m = null; }
-            return <BrowserCompatPanel manifest={m} files={files} />;
+            return <BrowserCompatPanel manifest={m} files={files} onFilesChange={setFiles} />;
           })()}
 
 
