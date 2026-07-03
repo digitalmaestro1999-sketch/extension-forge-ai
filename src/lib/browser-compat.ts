@@ -432,7 +432,110 @@ export function analyzeBrowserCompatibility(
     checkedFiles: count,
   };
 
-  return { findings, browsers, summary };
+  const overallScore = browsers.length
+    ? Math.round(browsers.reduce((s, b) => s + b.score, 0) / browsers.length)
+    : 100;
+  const overallVerdict: CompatReport["overallVerdict"] =
+    browsers.some((b) => b.verdict === "blocked") ? "blocked"
+    : browsers.some((b) => b.verdict === "review") ? "review"
+    : "ready";
+
+  return { findings, browsers, overallScore, overallVerdict, summary };
+}
+
+// ---------------------------------------------------------------------------
+// Auto-fix executor. Returns the mutated file map plus a log of changed paths.
+// ---------------------------------------------------------------------------
+export interface CompatFixResult {
+  files: Record<string, string>;
+  changed: string[];
+  message: string;
+}
+
+function slugify(v: string): string {
+  return String(v || "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "extension";
+}
+
+export function applyCompatFix(
+  fixId: CompatFixId,
+  files: Record<string, string>
+): CompatFixResult {
+  const next = { ...files };
+  const changed: string[] = [];
+  let manifest: Record<string, unknown> | null = null;
+  try { manifest = next["manifest.json"] ? JSON.parse(next["manifest.json"]) : null; } catch { manifest = null; }
+  const saveManifest = () => {
+    if (!manifest) return;
+    next["manifest.json"] = JSON.stringify(manifest, null, 2);
+    changed.push("manifest.json");
+  };
+
+  switch (fixId) {
+    case "remove-webrequest-blocking": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      const perms = (manifest.permissions as unknown[]) ?? [];
+      const filtered = perms.filter((p) => p !== "webRequestBlocking");
+      if (filtered.length === perms.length) return { files: next, changed, message: "No blocking webRequest permission found." };
+      manifest.permissions = filtered;
+      saveManifest();
+      return { files: next, changed, message: "Removed webRequestBlocking from permissions." };
+    }
+    case "add-webkit-backdrop-filter": {
+      let touched = 0;
+      for (const [path, content] of Object.entries(next)) {
+        if (!/\.css$/i.test(path) || typeof content !== "string") continue;
+        if (!/backdrop-filter\s*:/.test(content)) continue;
+        // Insert -webkit-backdrop-filter: <value>; before any unprefixed backdrop-filter that lacks a sibling prefix
+        const patched = content.replace(
+          /([^\-\w])(backdrop-filter\s*:\s*[^;]+;)/g,
+          (_m, lead, decl) => `${lead}-webkit-${decl.trim()}\n  ${decl}`
+        );
+        if (patched !== content) {
+          next[path] = patched;
+          changed.push(path);
+          touched++;
+        }
+      }
+      return { files: next, changed, message: touched ? `Prefixed backdrop-filter in ${touched} file(s).` : "No unprefixed backdrop-filter found." };
+    }
+    case "add-gecko-id": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      const bss = (manifest.browser_specific_settings as Record<string, unknown>) ?? {};
+      const gecko = (bss.gecko as Record<string, unknown>) ?? {};
+      if (gecko.id) return { files: next, changed, message: "Firefox ID already present." };
+      gecko.id = `${slugify(manifest.name as string)}@extension.local`;
+      gecko.strict_min_version = gecko.strict_min_version ?? "109.0";
+      bss.gecko = gecko;
+      manifest.browser_specific_settings = bss;
+      saveManifest();
+      return { files: next, changed, message: `Added Firefox ID: ${String(gecko.id)}` };
+    }
+    case "add-sidebar-action-mirror": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      if (manifest.side_panel) return { files: next, changed, message: "side_panel already defined." };
+      const sa = manifest.sidebar_action as { default_panel?: string } | undefined;
+      const panel = sa?.default_panel ?? "sidebar.html";
+      manifest.side_panel = { default_path: panel };
+      saveManifest();
+      return { files: next, changed, message: `Mirrored sidebar_action → side_panel (${panel}).` };
+    }
+    case "inject-browser-polyfill": {
+      const path = "lib/browser-polyfill.js";
+      if (next[path]) return { files: next, changed, message: "Polyfill shim already exists." };
+      next[path] =
+        `// Minimal WebExtension polyfill shim.\n` +
+        `// Aliases the promise-based \`browser\` namespace to \`chrome\` on Chromium.\n` +
+        `(function () {\n` +
+        `  if (typeof globalThis.browser === "undefined" && typeof globalThis.chrome !== "undefined") {\n` +
+        `    globalThis.browser = globalThis.chrome;\n` +
+        `  }\n` +
+        `})();\n`;
+      changed.push(path);
+      return { files: next, changed, message: "Added lib/browser-polyfill.js — load it before other scripts." };
+    }
+    default:
+      return { files: next, changed, message: `Unknown fix: ${fixId}` };
+  }
 }
 
 function deriveDetail(rule: Rule): string {
