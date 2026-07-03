@@ -68,6 +68,19 @@ const faqs = [
 
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  const [textScale, setTextScale] = useState(1);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.fontSize = `${textScale * 100}%`;
+    root.classList.toggle("contrast-boost", highContrast);
+    return () => {
+      root.style.fontSize = "";
+      root.classList.remove("contrast-boost");
+    };
+  }, [textScale, highContrast]);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
