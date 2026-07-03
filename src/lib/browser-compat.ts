@@ -12,6 +12,20 @@ export interface BrowserSupport {
   note?: string;
 }
 
+export type CompatFixId =
+  | "remove-webrequest-blocking"
+  | "add-webkit-backdrop-filter"
+  | "add-gecko-id"
+  | "add-sidebar-action-mirror"
+  | "inject-browser-polyfill";
+
+export interface CompatAutoFix {
+  id: CompatFixId;
+  label: string;
+  description: string;
+  writes: Array<"manifest" | "css" | "source">;
+}
+
 export interface CompatFinding {
   id: string;
   title: string;
@@ -21,6 +35,7 @@ export interface CompatFinding {
   detail: string;
   support: BrowserSupport[];
   suggestion?: string;
+  autoFix?: CompatAutoFix;
 }
 
 export interface BrowserScore {
@@ -35,6 +50,8 @@ export interface BrowserScore {
 export interface CompatReport {
   findings: CompatFinding[];
   browsers: BrowserScore[];
+  overallScore: number; // 0-100, average across browsers
+  overallVerdict: "ready" | "review" | "blocked";
   summary: {
     errors: number;
     warnings: number;
