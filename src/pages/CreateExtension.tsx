@@ -463,6 +463,13 @@ export default function CreateExtension() {
               })}
             </div>
           </div>
+
+          <ThemeStudio
+            name={spec?.name || idea.split("\n")[0] || "Extension"}
+            themeId={themeId}
+            logoStyleId={logoStyleId}
+            onChange={(t, l) => { setThemeId(t); setLogoStyleId(l); }}
+          />
         </div>
 
         {/* Prompt Studio */}
