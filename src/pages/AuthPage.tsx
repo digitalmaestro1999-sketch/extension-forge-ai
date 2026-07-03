@@ -23,7 +23,7 @@ export default function AuthPage() {
   const [magicSent, setMagicSent] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) navigate("/", { replace: true });
+    if (!authLoading && user) navigate("/dashboard", { replace: true });
   }, [user, authLoading, navigate]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
