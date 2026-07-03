@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import JSZip from "jszip";
-import { Palette, Grid3x3, Download, Plus, Trash2, Copy, Check } from "lucide-react";
+import { Palette, Grid3x3, Download, Plus, Trash2, Copy, Check, Wand2, Sparkles, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import {
   deleteCustomTheme,
   summarizeContrast,
   type ContrastCheck,
+  autoFixThemeContrast,
+  paletteFromBrand,
 } from "@/lib/extension-themes";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 
