@@ -272,6 +272,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Use `side_panel` for Chromium and keep `sidebar_action` for Firefox.",
+    autoFix: {
+      id: "add-sidebar-action-mirror",
+      label: "Mirror sidebar_action as side_panel",
+      description: "Adds a Chromium-compatible `side_panel` key derived from your `sidebar_action` panel.",
+      writes: ["manifest"],
+    },
   },
   {
     id: "applications-key",
