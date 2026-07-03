@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   BarChart3, ShieldCheck, Code2, Copy, Settings as SettingsIcon,
   Send, Sparkles, AlertTriangle, CheckCircle2, Loader2, FileCode2,
-  Users, Star, TrendingUp, Activity, Bot, User as UserIcon, Play,
+  Users, TrendingUp, Activity, Bot, User as UserIcon, Play,
   Upload, Download, X, ShieldHalf, KeyRound,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -45,26 +45,8 @@ const DEFAULT_EXT = {
   securityScore: 92,
 };
 
-const GROWTH = Array.from({ length: 30 }, (_, i) => ({
-  day: `D${i + 1}`,
-  users: Math.round(9000 + i * 110 + Math.sin(i / 3) * 350),
-}));
-
-const RATINGS = [
-  { stars: "1★", count: 4 },
-  { stars: "2★", count: 6 },
-  { stars: "3★", count: 11 },
-  { stars: "4★", count: 38 },
-  { stars: "5★", count: 83 },
-];
-
-const REVIEWS = [
-  { user: "alex_dev", rating: 5, comment: "Game-changer for tab management. Daily driver.", date: "2026-06-24" },
-  { user: "mia.k", rating: 4, comment: "Great UX, would love keyboard shortcuts on Mac.", date: "2026-06-22" },
-  { user: "ravi.s", rating: 5, comment: "Saved me from 200+ open tabs. Brilliant.", date: "2026-06-20" },
-  { user: "jenna", rating: 3, comment: "Solid but sync feels slow sometimes.", date: "2026-06-18" },
-  { user: "tomh", rating: 5, comment: "The grouping AI is uncanny — perfect picks.", date: "2026-06-15" },
-];
+// Static demo review data was removed — the Analytics tab now reads
+// real events from extension_events / extension_usage_daily.
 
 const DEFAULT_MANIFEST = {
   manifest_version: 3,
