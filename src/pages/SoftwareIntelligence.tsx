@@ -191,7 +191,7 @@ export default function SoftwareIntelligence() {
     return map;
   };
 
-  const saveScanToProjects = useCallback(async (next: ScriptSafeScan, note: string) => {
+  const saveScanToProjects = useCallback(async (next: ProjectScan, note: string) => {
     if (!user || !next) return;
     setSaving(true);
     try {
