@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
-import { Code2, Download, Play, RotateCcw } from "lucide-react";
+import { Code2, Download, RotateCcw, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import { saveAs } from "file-saver";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import { generateAllFiles, type GeneratedFiles } from "@/lib/generate-extension";
 import { generateExtensionIcons } from "@/lib/generate-icons";
+import { useAuth } from "@/hooks/use-auth";
+import { persistProject } from "@/lib/project-persist";
 
 const fileIcons: Record<string, string> = {
   "manifest.json": "📋",
