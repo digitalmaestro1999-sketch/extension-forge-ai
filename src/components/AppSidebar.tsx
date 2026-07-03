@@ -62,6 +62,7 @@ export function AppSidebar() {
   const renderItems = (items: NavItem[]) =>
     items
       .filter((item) => !item.adminOnly || isAdmin)
+      .filter((item) => !isPlaceholderRoute(item.url))
       .map((item) => (
       <SidebarMenuItem key={item.title}>
         <SidebarMenuButton asChild>
