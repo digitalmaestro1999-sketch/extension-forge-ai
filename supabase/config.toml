@@ -26,3 +26,5 @@ verify_jwt = false
 
 [functions.software-intel]
 verify_jwt = false
+[functions.voice-support]
+verify_jwt = true

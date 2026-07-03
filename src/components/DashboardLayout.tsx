@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { VoiceWidget } from "@/components/VoiceWidget";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
+        <VoiceWidget />
       </div>
     </SidebarProvider>
   );
