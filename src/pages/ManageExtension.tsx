@@ -911,9 +911,15 @@ function EditorView() {
               </div>
               <span className="text-xs font-mono text-muted-foreground ml-2">{active}</span>
             </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs"
-              onClick={() => toast.success("Code Changes Applied", { description: `${active} saved.` })}>
-              Save
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              disabled={ext.saving}
+              onClick={() => ext.saveProject()}
+            >
+              {ext.saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+              {ext.projectId ? "Save" : "Save to Projects"}
             </Button>
           </div>
           <Textarea
