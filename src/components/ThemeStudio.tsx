@@ -381,6 +381,16 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
                     Lowest: <span className="text-foreground">{draftA11y.worst.label}</span> — needs ≥ {draftA11y.worst.required}:1.
                   </p>
                 )}
+                {draftA11y.failing > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2 border-amber-500/40 text-amber-600 hover:text-amber-600"
+                    onClick={handleAutoFixContrast}
+                  >
+                    <Wand2 className="h-3.5 w-3.5" /> Auto-fix {draftA11y.failing} contrast issue{draftA11y.failing === 1 ? "" : "s"}
+                  </Button>
+                )}
               </div>
 
 
@@ -395,6 +405,7 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
               <Button size="sm" variant="secondary" className="w-full" onClick={() => exportAssets({ ...draft, id: draft.id || `custom-${slugify(draft.label)}` }, logoStyleId)}>
                 <Download className="h-3.5 w-3.5" /> Export this theme
               </Button>
+
             </div>
           </div>
         </DialogContent>
