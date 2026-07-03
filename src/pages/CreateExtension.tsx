@@ -20,6 +20,7 @@ import {
   composePrompt, scorePrompt, getPresetTemplate, setPresetOverride, resetPresetOverride,
 } from "@/lib/prompt-presets";
 import { THEME_PRESETS, LOGO_STYLES, logoDataUrl } from "@/lib/extension-themes";
+import { ThemeStudio } from "@/components/ThemeStudio";
 
 async function invokeWithRetry(
   fnName: string,
