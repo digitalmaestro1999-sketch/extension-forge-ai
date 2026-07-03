@@ -203,6 +203,41 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
         </Badge>
       </div>
 
+      {/* Generate palette from brand color */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <span className="text-[11px] font-medium">Generate from brand</span>
+        <input
+          type="color"
+          aria-label="Brand color"
+          value={brandColor}
+          onChange={e => setBrandColor(e.target.value)}
+          className="h-7 w-9 rounded border border-border cursor-pointer bg-transparent"
+        />
+        <Input
+          value={brandColor}
+          onChange={e => setBrandColor(e.target.value)}
+          className="h-7 w-24 text-xs font-mono"
+        />
+        <select
+          value={brandMode}
+          onChange={e => setBrandMode(e.target.value as any)}
+          className="h-7 rounded-md border border-border bg-background text-[11px] px-2"
+          aria-label="Palette mode"
+        >
+          <option value="auto">Auto</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+        <Button size="sm" variant="outline" onClick={() => { handleGenerateFromBrand(); setEditorOpen(true); }}>
+          <Wand2 className="h-3.5 w-3.5" /> Preview in editor
+        </Button>
+        <Button size="sm" onClick={handleQuickSaveBrand}>
+          <Plus className="h-3.5 w-3.5" /> Save as preset
+        </Button>
+      </div>
+
+
       {customs.length > 0 && (
         <div className="mt-3">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Your custom themes</p>
