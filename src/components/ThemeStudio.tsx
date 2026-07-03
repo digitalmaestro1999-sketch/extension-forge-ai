@@ -100,7 +100,29 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
     toast.success("Theme deleted");
   };
 
+  const handleAutoFixContrast = () => {
+    const { theme, changed } = autoFixThemeContrast(draft);
+    if (changed.length === 0) { toast.info("Contrast already passes — nothing to fix."); return; }
+    setDraft({ ...theme, id: draft.id, label: draft.label, description: draft.description });
+    toast.success(`Auto-fixed ${changed.length} color${changed.length === 1 ? "" : "s"}: ${changed.join(", ")}`);
+  };
+
+  const handleGenerateFromBrand = () => {
+    const theme = paletteFromBrand(brandColor, { mode: brandMode, label: `Brand ${brandColor.toUpperCase()}` });
+    setDraft({ ...theme, id: `custom-${Date.now().toString(36)}` });
+    toast.success("Generated palette from brand color");
+  };
+
+  const handleQuickSaveBrand = () => {
+    const theme = paletteFromBrand(brandColor, { mode: brandMode, label: `Brand ${brandColor.toUpperCase()}` });
+    const next = saveCustomTheme(theme);
+    setCustoms(next.filter(t => t.id.startsWith("custom-") || !THEME_PRESETS.some(p => p.id === t.id)));
+    onChange(theme.id, logoStyleId);
+    toast.success(`Saved "${theme.label}" as a preset`);
+  };
+
   const cssPreview = useMemo(() => themeCssVars(draft.id), [draft]);
+
 
   const copyCss = async () => {
     // Compose CSS for the draft directly (not yet saved)
