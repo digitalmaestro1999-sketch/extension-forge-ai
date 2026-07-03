@@ -1,10 +1,11 @@
 import { type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PendingAccess from "@/pages/PendingAccess";
+import { isPlaceholderRoute, getPlaceholderNote } from "@/lib/nav-registry";
 
 interface RouteGuardProps {
   children: ReactNode;
