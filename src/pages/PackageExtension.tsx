@@ -9,6 +9,8 @@ import { runPackageQA, type QASeverity } from "@/lib/package-qa";
 import { autoFixAndValidate, type AutoFix } from "@/lib/package-autofix";
 import { certifyExtension, type CertificationReport } from "@/lib/quality-suite";
 import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, checkAutoFixSafety, type PermissionRiskReport, type RiskLevel, type PermissionFinding } from "@/lib/permission-risk";
+import { BrowserCompatPanel } from "@/components/BrowserCompatPanel";
+import { analyzeBrowserCompatibility, compatReportMarkdown } from "@/lib/browser-compat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -208,6 +210,14 @@ export default function PackageExtension() {
         iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
       }
     }
+
+    // Bundle browser compatibility report inside the ZIP for QA archives
+    try {
+      const manifest = files["manifest.json"] ? JSON.parse(files["manifest.json"]) : null;
+      const compat = analyzeBrowserCompatibility(manifest, files);
+      zip.file("BROWSER_COMPAT_REPORT.md", compatReportMarkdown(compat));
+      zip.file("BROWSER_COMPAT_REPORT.json", JSON.stringify(compat, null, 2));
+    } catch { /* non-fatal */ }
 
     return zip.generateAsync({ type: "blob" });
   };
@@ -548,6 +558,15 @@ export default function PackageExtension() {
               }}
             />
           )}
+
+          {/* Browser Compatibility */}
+          {files["manifest.json"] && (() => {
+            let m: Record<string, unknown> | null = null;
+            try { m = JSON.parse(files["manifest.json"]); } catch { m = null; }
+            return <BrowserCompatPanel manifest={m} files={files} />;
+          })()}
+
+
 
 
 
