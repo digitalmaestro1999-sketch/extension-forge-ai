@@ -392,11 +392,20 @@ export default function PackageExtension() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Package className="h-6 w-6 text-primary" />
-          Package Extension
-        </h1>
-        <p className="text-muted-foreground mt-1">Build and download your extension as a .zip package</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Package className="h-6 w-6 text-primary" />
+              Package Extension
+            </h1>
+            <p className="text-muted-foreground mt-1">Build and download your extension as a .zip package</p>
+          </div>
+          {files["manifest.json"] && (() => {
+            let m: Record<string, unknown> | null = null;
+            try { m = JSON.parse(files["manifest.json"]); } catch { m = null; }
+            return <CompatScoreBadge manifest={m} files={files} />;
+          })()}
+        </div>
       </motion.div>
 
       {fileList.length === 0 ? (
