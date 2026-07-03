@@ -91,3 +91,9 @@
     font-family: 'JetBrains Mono', monospace;
   }
 }
+
+.contrast-boost {
+  --foreground: 0 0% 100%;
+  --muted-foreground: 210 20% 80%;
+  --border: 210 30% 40%;
+}
