@@ -111,8 +111,44 @@ export const THEME_PRESETS: ThemePreset[] = [
 
 export const DEFAULT_THEME_ID = "midnight-indigo";
 
+const CUSTOM_THEMES_KEY = "extforge:custom-themes:v1";
+
+export function loadCustomThemes(): ThemePreset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_THEMES_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr as ThemePreset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomTheme(theme: ThemePreset): ThemePreset[] {
+  const existing = loadCustomThemes().filter(t => t.id !== theme.id);
+  const next = [...existing, theme];
+  try {
+    window.localStorage.setItem(CUSTOM_THEMES_KEY, JSON.stringify(next));
+  } catch {}
+  return next;
+}
+
+export function deleteCustomTheme(id: string): ThemePreset[] {
+  const next = loadCustomThemes().filter(t => t.id !== id);
+  try {
+    window.localStorage.setItem(CUSTOM_THEMES_KEY, JSON.stringify(next));
+  } catch {}
+  return next;
+}
+
+export function getAllThemes(): ThemePreset[] {
+  return [...THEME_PRESETS, ...loadCustomThemes()];
+}
+
 export function getTheme(id?: string | null): ThemePreset {
-  return THEME_PRESETS.find(t => t.id === id) || THEME_PRESETS[0];
+  const all = getAllThemes();
+  return all.find(t => t.id === id) || all[0];
 }
 
 // ---------------- Logo mark styles ----------------
