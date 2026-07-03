@@ -194,10 +194,19 @@ export default function PackageExtension() {
       iconsFolder.file("icon48.png", icon48);
       iconsFolder.file("icon128.png", icon128);
     } else {
-      const icons = generateExtensionIcons();
-      iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
-      iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
-      iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
+      // Prefer theme-aware SVG-rendered PNGs when a theme/logoStyle is on the spec
+      try {
+        const { renderExtensionIcons } = await import("@/lib/extension-themes");
+        const icons = await renderExtensionIcons(spec?.name || "Extension", (spec as any)?.theme, (spec as any)?.logoStyle);
+        iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
+        iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
+        iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
+      } catch {
+        const icons = generateExtensionIcons();
+        iconsFolder.file("icon16.png", icons["icons/icon16.png"]);
+        iconsFolder.file("icon48.png", icons["icons/icon48.png"]);
+        iconsFolder.file("icon128.png", icons["icons/icon128.png"]);
+      }
     }
 
     return zip.generateAsync({ type: "blob" });
