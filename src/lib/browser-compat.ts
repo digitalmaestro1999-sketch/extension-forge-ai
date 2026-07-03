@@ -312,6 +312,12 @@ const RULES: Rule[] = [
     ],
     severity: "info",
     suggestion: 'Add `browser_specific_settings.gecko.id` (e.g. "your-ext@yourdomain.com") for Firefox publishing.',
+    autoFix: {
+      id: "add-gecko-id",
+      label: "Add Firefox extension ID",
+      description: "Inserts a placeholder `browser_specific_settings.gecko.id` derived from the extension name.",
+      writes: ["manifest"],
+    },
   },
   {
     id: "css-backdrop-filter",
