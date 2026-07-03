@@ -96,6 +96,23 @@ export default function AdminUsers() {
     }
   };
 
+  const setStatus = async (target: AdminUserRow, status: UserStatus) => {
+    setBusy(target.user_id + "status");
+    try {
+      const { error } = await supabase.rpc("admin_set_user_status", {
+        _user_id: target.user_id,
+        _status: status,
+      });
+      if (error) throw error;
+      toast.success(`${target.display_name} → ${status}`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Could not update status");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (authLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
