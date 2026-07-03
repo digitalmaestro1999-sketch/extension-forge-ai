@@ -939,7 +939,7 @@ function CloneView() {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold truncate">{ext.name}</h2>
               <p className="text-sm text-muted-foreground">
-                v{ext.version} · {isImported ? `${ext.files.length} files` : `${DEFAULT_EXT.users.toLocaleString()} users · ★ ${DEFAULT_EXT.rating}`}
+                v{ext.version} · {ext.files.length} file{ext.files.length === 1 ? "" : "s"} · {isImported ? "imported" : "workspace"}
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {perms.slice(0, 8).map((p) => (
