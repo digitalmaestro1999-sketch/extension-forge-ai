@@ -332,9 +332,11 @@ export default function ManageExtension() {
   };
 
   const active: ActiveExt = useMemo(() => {
+    const base = { projectId, saveProject, saving };
     if (imported) {
       const allPerms = [...imported.permissions, ...imported.hostPermissions];
       return {
+        ...base,
         imported,
         name: imported.name,
         version: imported.version,
@@ -348,6 +350,7 @@ export default function ManageExtension() {
       };
     }
     return {
+      ...base,
       imported: null,
       name: DEFAULT_EXT.name,
       version: DEFAULT_EXT.version,
@@ -359,7 +362,8 @@ export default function ManageExtension() {
       setFileContents,
       clear: clearImport,
     };
-  }, [imported, fileContents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imported, fileContents, projectId, saving]);
 
   return (
     <ExtCtx.Provider value={active}>
