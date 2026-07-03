@@ -374,7 +374,84 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 7. DEMO CTA / SANDBOX */}
+      {/* 7. INTEGRATIONS & COMPATIBILITY */}
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-3 border-[#00E5FF]/40 text-[#00E5FF]">Integrations</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Runs everywhere Chromium runs.</h2>
+            <p className="mt-3 text-muted-foreground">Plus every AI model and store API you care about.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { icon: Chrome, name: "Chrome", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: Globe, name: "Edge", tint: "text-[#B026FF] border-[#B026FF]/30" },
+              { icon: ShieldCheck, name: "Brave", tint: "text-amber-400 border-amber-400/30" },
+              { icon: Puzzle, name: "Opera", tint: "text-[#FF2E93] border-[#FF2E93]/30" },
+              { icon: Cpu, name: "NVIDIA NIM", tint: "text-emerald-400 border-emerald-400/30" },
+              { icon: Bot, name: "OpenAI · Gemini", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: KeyRound, name: "OAuth 2.0", tint: "text-[#B026FF] border-[#B026FF]/30" },
+              { icon: Package, name: "CWS Upload", tint: "text-amber-400 border-amber-400/30" },
+              { icon: LineChart, name: "Telemetry", tint: "text-emerald-400 border-emerald-400/30" },
+              { icon: Layers, name: "JSZip", tint: "text-[#FF2E93] border-[#FF2E93]/30" },
+              { icon: FileCheck, name: "WCAG 2.1", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: Lock, name: "HMAC · JWT", tint: "text-[#B026FF] border-[#B026FF]/30" },
+            ].map((it) => (
+              <div key={it.name} className={`rounded-xl border bg-card/60 p-4 flex flex-col items-center justify-center text-center gap-2 hover:bg-card transition ${it.tint}`}>
+                <it.icon className="h-6 w-6" />
+                <span className="text-xs font-mono text-foreground">{it.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. SECURITY & COMPLIANCE */}
+      <section className="py-20 px-4 sm:px-6 border-y border-border bg-secondary/20">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <Badge variant="outline" className="mb-3 border-emerald-400/40 text-emerald-400">Security & Compliance</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Shipped hardened. By default.</h2>
+            <p className="mt-4 text-muted-foreground">
+              Every generated extension passes a 16-point Chrome Web Store policy scan, a permission risk analyzer,
+              and a WCAG 2.1 contrast audit before you can download the ZIP.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {[
+                { icon: ShieldCheck, label: "CSP hardened" },
+                { icon: Award, label: "MV3 certified" },
+                { icon: Gauge, label: "99% pass rate" },
+                { icon: FileCheck, label: "WCAG AA" },
+                { icon: Lock, label: "HMAC signed" },
+                { icon: KeyRound, label: "RLS enforced" },
+              ].map((b) => (
+                <div key={b.label} className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-sm">
+                  <b.icon className="h-4 w-4 text-primary" /> {b.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <Card className="p-6 bg-card border-border font-mono text-xs relative overflow-hidden">
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse-glow" />
+              <span className="text-emerald-400">SCAN PASSED</span>
+            </div>
+            <div className="text-muted-foreground">// qa-report.json</div>
+            <div className="mt-3 space-y-1.5">
+              <div><span className="text-[#00E5FF]">"csp"</span>: <span className="text-emerald-400">"strict"</span>,</div>
+              <div><span className="text-[#00E5FF]">"permissions_risk"</span>: <span className="text-emerald-400">"low"</span>,</div>
+              <div><span className="text-[#00E5FF]">"host_patterns"</span>: <span className="text-amber-400">"scoped"</span>,</div>
+              <div><span className="text-[#00E5FF]">"cws_policy_checks"</span>: <span className="text-emerald-400">"16/16"</span>,</div>
+              <div><span className="text-[#00E5FF]">"wcag"</span>: <span className="text-emerald-400">"AA"</span>,</div>
+              <div><span className="text-[#00E5FF]">"secrets_leaked"</span>: <span className="text-emerald-400">0</span>,</div>
+              <div><span className="text-[#00E5FF]">"remote_scripts"</span>: <span className="text-emerald-400">0</span></div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* 9. DEMO CTA / SANDBOX */}
+
       <section id="demo" className="py-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto rounded-3xl border border-border bg-gradient-to-br from-[#00E5FF]/10 via-transparent to-[#B026FF]/10 p-8 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
