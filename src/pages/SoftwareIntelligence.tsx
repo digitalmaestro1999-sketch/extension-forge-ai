@@ -20,6 +20,8 @@ import {
   type ProjectScan, type FolderNode, type RenamePlan, type ScanProgress,
   type SecurityFinding, type TimerFinding, type AiPatch,
 } from "@/lib/project-intel";
+import { useAuth } from "@/hooks/use-auth";
+import { persistProject } from "@/lib/project-persist";
 
 function ScoreRing({ label, value }: { label: string; value: number }) {
   const color = value >= 80 ? "text-emerald-400" : value >= 60 ? "text-amber-400" : "text-rose-400";
