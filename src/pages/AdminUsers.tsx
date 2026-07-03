@@ -274,6 +274,28 @@ export default function AdminUsers() {
                       </div>
                     </div>
 
+                    <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[row.status]}`}>
+                      {row.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                      {row.status === "active" && <Check className="h-3 w-3 mr-1" />}
+                      {row.status === "declined" && <X className="h-3 w-3 mr-1" />}
+                      {row.status}
+                    </Badge>
+
+                    {row.status !== "active" && row.user_id !== user.id && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs"
+                        disabled={busy === row.user_id + "status"}
+                        onClick={() => setStatus(row, "active")}>
+                        <UserCheck className="h-3 w-3 mr-1" /> Activate
+                      </Button>
+                    )}
+                    {row.status === "active" && row.user_id !== user.id && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                        disabled={busy === row.user_id + "status"}
+                        onClick={() => setStatus(row, "declined")}>
+                        <UserX className="h-3 w-3 mr-1" /> Revoke access
+                      </Button>
+                    )}
+
                     <div className="hidden xl:flex flex-col text-[11px] text-muted-foreground min-w-[160px]">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" /> Joined {new Date(row.created_at).toLocaleDateString()}
