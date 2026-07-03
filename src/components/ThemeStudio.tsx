@@ -70,6 +70,8 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
   useEffect(() => { setCustoms(loadCustomThemes()); }, []);
 
   const currentTheme = getTheme(themeId);
+  const currentA11y = useMemo(() => summarizeContrast(currentTheme), [currentTheme]);
+  const draftA11y = useMemo(() => summarizeContrast(draft), [draft]);
 
   const openEditor = (base?: ThemePreset) => {
     setDraft(base ? { ...base, id: base.id.startsWith("custom-") ? base.id : `custom-${Date.now().toString(36)}`, label: base.label + (base.id.startsWith("custom-") ? "" : " (Custom)") } : blankTheme(currentTheme));
