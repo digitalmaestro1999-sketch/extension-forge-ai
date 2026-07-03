@@ -56,6 +56,7 @@ const STEP_HINTS: Record<number, string> = {
 const ACCENTS = ["from-primary to-accent", "from-accent to-primary"];
 
 export default function ExtensionWizard() {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
 
   // Step 1
