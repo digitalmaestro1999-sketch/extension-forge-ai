@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { buildAllFiles, buildManifest, type WizardSpec } from "@/lib/wizard-codegen";
 import { generateExtensionIcons } from "@/lib/generate-icons";
 import { runHealthScan, type HealthFinding, type HealthReport } from "@/lib/wizard-health";
+import { useAuth } from "@/hooks/use-auth";
+import { persistProject } from "@/lib/project-persist";
 
 type ExtensionType = "popup" | "sidepanel" | "content" | "background";
 
@@ -54,6 +56,7 @@ const STEP_HINTS: Record<number, string> = {
 const ACCENTS = ["from-primary to-accent", "from-accent to-primary"];
 
 export default function ExtensionWizard() {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
 
   // Step 1
@@ -204,6 +207,23 @@ export default function ExtensionWizard() {
       a.download = `${(spec.name || "extension").toLowerCase().replace(/\s+/g, "-")}.zip`;
       a.click();
       URL.revokeObjectURL(url);
+
+      // Persist to extension_projects so Wizard output shows up in history.
+      if (user) {
+        try {
+          await persistProject({
+            userId: user.id,
+            name: spec.name || "Wizard Extension",
+            description: spec.description,
+            source: "wizard",
+            files,
+            status: "draft",
+            spec: spec as unknown as Record<string, unknown>,
+          });
+        } catch (err) {
+          console.warn("persist wizard project failed", err);
+        }
+      }
 
       toast.success("Ready to Download!", { id: toastId });
     } catch (err) {

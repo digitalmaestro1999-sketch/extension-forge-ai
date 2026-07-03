@@ -32,6 +32,7 @@ import {
   importExtensionFile, exportImportedExtension, classifyPermission,
   type ImportedExtension,
 } from "@/lib/import-extension";
+import { persistProject } from "@/lib/project-persist";
 
 // ---------------- Default (mock) data ----------------
 const DEFAULT_EXT = {
@@ -135,6 +136,9 @@ type ActiveExt = {
   fileContents: Record<string, string>;
   setFileContents: (next: Record<string, string>) => void;
   clear: () => void;
+  projectId: string | null;
+  saveProject: () => Promise<void>;
+  saving: boolean;
 };
 
 const ExtCtx = createContext<ActiveExt | null>(null);
@@ -164,6 +168,8 @@ export default function ManageExtension() {
   const [securing, setSecuring] = useState(false);
   const [lastInstall, setLastInstall] = useState<{ id: string; secret: string } | null>(null);
   const [showSecret, setShowSecret] = useState<{ id: string; secret: string; shim: string } | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem("lv_auto_inject", autoInject ? "1" : "0"); } catch { /* noop */ }
@@ -219,6 +225,26 @@ export default function ManageExtension() {
       }
       setImported(ext);
       setFileContents(nextFiles);
+      setProjectId(null);
+
+      // Persist as an imported project so it survives refresh.
+      if (user) {
+        try {
+          const { id } = await persistProject({
+            userId: user.id,
+            name: ext.name,
+            description: ext.description,
+            source: "imported",
+            files: nextFiles,
+            status: "draft",
+            spec: { version: ext.version, permissions: ext.permissions, hostPermissions: ext.hostPermissions },
+            extras: { sourceName: ext.sourceName },
+          });
+          setProjectId(id);
+        } catch (err) {
+          console.warn("persist import failed", err);
+        }
+      }
       toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(nextFiles).length} editable files` });
     } catch (e) {
       toast.error("Import failed", { description: (e as Error).message });
@@ -272,13 +298,45 @@ export default function ManageExtension() {
     setImported(null);
     setFileContents(DEFAULT_FILE_CONTENTS);
     setLastInstall(null);
+    setProjectId(null);
     toast.info("Reverted to demo extension");
   };
 
+  const saveProject = async () => {
+    if (!user) { toast.error("Sign in required to save"); return; }
+    setSaving(true);
+    try {
+      const name = imported?.name ?? DEFAULT_EXT.name;
+      const description = imported?.description ?? DEFAULT_MANIFEST.description;
+      const { id } = await persistProject({
+        id: projectId,
+        userId: user.id,
+        name,
+        description,
+        source: imported ? "imported" : "editor",
+        files: fileContents,
+        status: "draft",
+        spec: {
+          version: imported?.version ?? DEFAULT_EXT.version,
+          permissions: imported?.permissions ?? [],
+          hostPermissions: imported?.hostPermissions ?? [],
+        },
+      });
+      setProjectId(id);
+      toast.success("Saved", { description: `${Object.keys(fileContents).length} files persisted.` });
+    } catch (e) {
+      toast.error("Save failed", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const active: ActiveExt = useMemo(() => {
+    const base = { projectId, saveProject, saving };
     if (imported) {
       const allPerms = [...imported.permissions, ...imported.hostPermissions];
       return {
+        ...base,
         imported,
         name: imported.name,
         version: imported.version,
@@ -292,6 +350,7 @@ export default function ManageExtension() {
       };
     }
     return {
+      ...base,
       imported: null,
       name: DEFAULT_EXT.name,
       version: DEFAULT_EXT.version,
@@ -303,7 +362,8 @@ export default function ManageExtension() {
       setFileContents,
       clear: clearImport,
     };
-  }, [imported, fileContents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imported, fileContents, projectId, saving]);
 
   return (
     <ExtCtx.Provider value={active}>
@@ -851,9 +911,15 @@ function EditorView() {
               </div>
               <span className="text-xs font-mono text-muted-foreground ml-2">{active}</span>
             </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs"
-              onClick={() => toast.success("Code Changes Applied", { description: `${active} saved.` })}>
-              Save
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              disabled={ext.saving}
+              onClick={() => ext.saveProject()}
+            >
+              {ext.saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+              {ext.projectId ? "Save" : "Save to Projects"}
             </Button>
           </div>
           <Textarea
@@ -872,6 +938,7 @@ function EditorView() {
 // ---------------- Clone ----------------
 function CloneView() {
   const ext = useExt();
+  const { user } = useAuth();
   const isImported = !!ext.imported;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(`${ext.name} · Clone`);
@@ -887,18 +954,38 @@ function CloneView() {
   const clone = async () => {
     setCloning(true);
     try {
-      if (isImported && ext.imported) {
-        // Rewrite manifest name/version, then export ZIP
-        const patched = { ...ext.fileContents };
-        const manifestKey = Object.keys(patched).find((k) => k === "manifest.json" || k.endsWith("/manifest.json"));
-        if (manifestKey) {
-          try {
-            const parsed = JSON.parse(patched[manifestKey]);
-            parsed.name = name;
-            parsed.version = parsed.version ?? "1.0.0";
-            patched[manifestKey] = JSON.stringify(parsed, null, 2);
-          } catch {/* leave as-is */}
+      // Build the cloned file map (rewrite manifest name/version).
+      const patched: Record<string, string> = { ...ext.fileContents };
+      const manifestKey =
+        Object.keys(patched).find((k) => k === "manifest.json" || k.endsWith("/manifest.json")) ?? "manifest.json";
+      try {
+        const parsed = manifestKey in patched
+          ? JSON.parse(patched[manifestKey])
+          : { ...(ext.manifest as Record<string, unknown>) };
+        (parsed as Record<string, unknown>).name = name;
+        (parsed as Record<string, unknown>).version =
+          (parsed as { version?: string }).version ?? "1.0.0";
+        patched[manifestKey] = JSON.stringify(parsed, null, 2);
+      } catch {/* leave manifest as-is */}
+
+      // Persist clone as a NEW project row (never overwrite the source).
+      if (user) {
+        try {
+          await persistProject({
+            userId: user.id,
+            name,
+            description: ext.description,
+            source: "cloned",
+            files: patched,
+            status: "draft",
+            spec: { clonedFrom: ext.name, cloneId: id, resetAnalytics: reset },
+          });
+        } catch (err) {
+          console.warn("persist clone failed", err);
         }
+      }
+
+      if (isImported && ext.imported) {
         const blob = await exportImportedExtension(ext.imported, patched);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -906,9 +993,9 @@ function CloneView() {
         a.download = `${id}.zip`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("Clone exported", { description: `${name} downloaded as ${id}.zip` });
+        toast.success("Clone saved & exported", { description: `${name} downloaded as ${id}.zip` });
       } else {
-        toast.success("Extension Cloned Successfully", { description: `${name} created with ID ${id}.` });
+        toast.success("Extension Cloned Successfully", { description: `${name} saved to your Projects (ID ${id}).` });
       }
     } catch (e) {
       toast.error("Clone failed", { description: (e as Error).message });
@@ -917,6 +1004,7 @@ function CloneView() {
       setOpen(false);
     }
   };
+
 
   const perms = Array.isArray((ext.manifest as { permissions?: string[] }).permissions)
     ? (ext.manifest as { permissions: string[] }).permissions

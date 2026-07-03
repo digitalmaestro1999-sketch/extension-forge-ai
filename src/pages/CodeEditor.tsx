@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
-import { Code2, Download, Play, RotateCcw } from "lucide-react";
+import { Code2, Download, RotateCcw, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import { saveAs } from "file-saver";
 import type { ExtensionSpec } from "@/lib/generate-extension";
 import { generateAllFiles, type GeneratedFiles } from "@/lib/generate-extension";
 import { generateExtensionIcons } from "@/lib/generate-icons";
+import { useAuth } from "@/hooks/use-auth";
+import { persistProject } from "@/lib/project-persist";
 
 const fileIcons: Record<string, string> = {
   "manifest.json": "📋",
@@ -32,9 +34,15 @@ function getLanguage(filename: string) {
 }
 
 export default function CodeEditorPage() {
+  const { user } = useAuth();
   const [files, setFiles] = useState<GeneratedFiles>({});
   const [activeFile, setActiveFile] = useState("manifest.json");
   const [specName, setSpecName] = useState("extension");
+  const [spec, setSpec] = useState<ExtensionSpec | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(() => {
+    try { return sessionStorage.getItem("extension-project-id"); } catch { return null; }
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // Try AI-generated files first, then fallback to template
@@ -70,10 +78,38 @@ export default function CodeEditorPage() {
 
     if (storedSpec) {
       try {
-        setSpecName(JSON.parse(storedSpec).name?.toLowerCase().replace(/\s+/g, "-") || "extension");
+        const parsed = JSON.parse(storedSpec) as ExtensionSpec;
+        setSpec(parsed);
+        setSpecName(parsed.name?.toLowerCase().replace(/\s+/g, "-") || "extension");
       } catch {}
     }
   }, []);
+
+  const handleSave = async () => {
+    if (!user) { toast.error("Sign in required to save"); return; }
+    if (!Object.keys(files).length) { toast.error("Nothing to save"); return; }
+    setSaving(true);
+    try {
+      const name = spec?.name ?? specName ?? "Untitled Extension";
+      const { id } = await persistProject({
+        id: projectId,
+        userId: user.id,
+        name,
+        description: spec?.description,
+        source: "editor",
+        files,
+        status: "draft",
+        spec: (spec ?? {}) as unknown as Record<string, unknown>,
+      });
+      setProjectId(id);
+      try { sessionStorage.setItem("extension-project-id", id); } catch { /* noop */ }
+      toast.success("Saved", { description: `${Object.keys(files).length} files persisted.` });
+    } catch (e) {
+      toast.error("Save failed", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updateFile = useCallback((value: string | undefined) => {
     if (value !== undefined) {
@@ -126,6 +162,10 @@ export default function CodeEditorPage() {
         <div className="flex gap-2">
           <Button onClick={handleRegenerate} size="sm" variant="outline">
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
+          </Button>
+          <Button onClick={handleSave} size="sm" variant="outline" disabled={saving || !user}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+            {projectId ? "Save" : "Save to Projects"}
           </Button>
           <Button onClick={handleDownloadZip} size="sm" className="bg-gradient-cyber text-primary-foreground">
             <Download className="h-3.5 w-3.5 mr-1.5" /> Download .zip
