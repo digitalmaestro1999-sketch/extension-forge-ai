@@ -18,11 +18,15 @@ export const PLACEHOLDER_NOTES: Readonly<Record<string, string>> = {
   // "/experimental-analytics": "Rolling out to superadmins first.",
 };
 
+/** Strip a single trailing slash so "/foo" and "/foo/" match the same entry.
+ *  Exported so tests can verify the normalization behavior directly. */
+export function normalizePath(path: string): string {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+
 export function isPlaceholderRoute(path: string | undefined | null): boolean {
   if (!path) return false;
-  // Normalize trailing slashes so "/foo" and "/foo/" match the same entry.
-  const normalized = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
-  return PLACEHOLDER_ROUTES.has(normalized);
+  return PLACEHOLDER_ROUTES.has(normalizePath(path));
 }
 
 export function getPlaceholderNote(path: string): string | undefined {
