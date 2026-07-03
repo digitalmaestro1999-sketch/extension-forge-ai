@@ -211,6 +211,91 @@ export function getTheme(id?: string | null): ThemePreset {
   return all.find(t => t.id === id) || all[0];
 }
 
+// ---------------- Contrast (WCAG 2.1) ----------------
+
+function hexToRgbTriplet(hex: string): [number, number, number] {
+  const h = (hex || "").replace("#", "").trim();
+  const v = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const n = parseInt(v || "000000", 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgbTriplet(hex).map(v => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function contrastRatio(fg: string, bg: string): number {
+  const L1 = relativeLuminance(fg);
+  const L2 = relativeLuminance(bg);
+  const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+export type WcagLevel = "AAA" | "AA" | "AA Large" | "Fail";
+
+export function wcagLevel(ratio: number, largeText = false): WcagLevel {
+  if (ratio >= 7) return "AAA";
+  if (ratio >= 4.5) return "AA";
+  if (ratio >= 3 && largeText) return "AA Large";
+  return "Fail";
+}
+
+export interface ContrastCheck {
+  label: string;
+  fg: string;
+  bg: string;
+  ratio: number;
+  level: WcagLevel;
+  largeText: boolean;
+  required: number;
+  passes: boolean;
+}
+
+export function auditThemeContrast(t: ThemePreset): ContrastCheck[] {
+  const pairs: Array<Omit<ContrastCheck, "ratio" | "level" | "passes">> = [
+    { label: "Body text on background",     fg: t.text,          bg: t.bg,         largeText: false, required: 4.5 },
+    { label: "Body text on elevated",       fg: t.text,          bg: t.bgElevated, largeText: false, required: 4.5 },
+    { label: "Secondary text on surface",   fg: t.textSecondary, bg: t.surface,    largeText: false, required: 4.5 },
+    { label: "Muted text on background",    fg: t.textMuted,     bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Accent button label",         fg: t.logoFg,        bg: t.accent,     largeText: false, required: 4.5 },
+    { label: "Accent on background (UI)",   fg: t.accent,        bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Border vs background (UI)",   fg: t.border,        bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Input text on input bg",      fg: t.text,          bg: t.bgInput,    largeText: false, required: 4.5 },
+  ];
+  return pairs.map(p => {
+    const ratio = contrastRatio(p.fg, p.bg);
+    return {
+      ...p,
+      ratio,
+      level: wcagLevel(ratio, p.largeText),
+      passes: ratio >= p.required,
+    };
+  });
+}
+
+export interface ContrastSummary {
+  checks: ContrastCheck[];
+  score: number;   // 0-100
+  passing: number;
+  failing: number;
+  worst: ContrastCheck | null;
+}
+
+export function summarizeContrast(t: ThemePreset): ContrastSummary {
+  const checks = auditThemeContrast(t);
+  const passing = checks.filter(c => c.passes).length;
+  const failing = checks.length - passing;
+  const score = Math.round((passing / checks.length) * 100);
+  const worst = checks.slice().sort((a, b) => a.ratio - b.ratio)[0] || null;
+  return { checks, score, passing, failing, worst };
+}
+
+
+
 // ---------------- Logo mark styles ----------------
 
 export interface LogoStyle {
