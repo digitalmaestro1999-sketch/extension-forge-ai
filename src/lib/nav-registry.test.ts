@@ -62,5 +62,37 @@ describe("nav-registry — exports", () => {
   });
 });
 
-// Silence unused-import warnings if vi is not otherwise referenced.
-void vi;
+describe("nav-registry — runtime validator", () => {
+  it("the live registry has no drift against the mounted routes", () => {
+    const result = validateNavRegistry();
+    expect(result.unknownPlaceholders, "unknown placeholders").toEqual([]);
+    expect(result.orphanNotes, "notes referencing unflagged paths").toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("flags placeholders that don't exist in KNOWN_ROUTES", () => {
+    const result = validateNavRegistry(
+      new Set(["/dashboard"]),
+      new Set(["/dashboard", "/ghost-route"]),
+      {},
+    );
+    expect(result.ok).toBe(false);
+    expect(result.unknownPlaceholders).toEqual(["/ghost-route"]);
+  });
+
+  it("flags notes attached to paths that aren't placeholders", () => {
+    const result = validateNavRegistry(
+      new Set(["/dashboard"]),
+      new Set<string>(),
+      { "/dashboard": "note without a placeholder" },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.orphanNotes).toEqual(["/dashboard"]);
+  });
+
+  it("KNOWN_ROUTES contains the always-shipping core routes", () => {
+    for (const r of ["/dashboard", "/create", "/wizard", "/manage", "/manual"]) {
+      expect(KNOWN_ROUTES.has(r), `${r} must be in KNOWN_ROUTES`).toBe(true);
+    }
+  });
+});
