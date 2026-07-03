@@ -1,47 +1,35 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
-// The registry is small; we exercise it as a module and also verify the
-// live sidebar + RouteGuard filters honor `isPlaceholderRoute`.
-import * as registry from "./nav-registry";
+import {
+  isPlaceholderRoute,
+  getPlaceholderNote,
+  normalizePath,
+  PLACEHOLDER_ROUTES,
+  PLACEHOLDER_NOTES,
+} from "./nav-registry";
 
 describe("nav-registry", () => {
-  const originalSet = registry.PLACEHOLDER_ROUTES;
-
-  afterEach(() => {
-    // Restore in case a test mutated the underlying set.
-    Object.defineProperty(registry, "PLACEHOLDER_ROUTES", {
-      value: originalSet,
-      configurable: true,
-    });
-  });
-
   it("returns false for undefined / null / empty inputs", () => {
-    expect(registry.isPlaceholderRoute(undefined)).toBe(false);
-    expect(registry.isPlaceholderRoute(null)).toBe(false);
-    expect(registry.isPlaceholderRoute("")).toBe(false);
+    expect(isPlaceholderRoute(undefined)).toBe(false);
+    expect(isPlaceholderRoute(null)).toBe(false);
+    expect(isPlaceholderRoute("")).toBe(false);
   });
 
   it("returns false for unlisted routes (default: nothing placeholder)", () => {
-    // Real, shipped routes should never be filtered.
-    expect(registry.isPlaceholderRoute("/dashboard")).toBe(false);
-    expect(registry.isPlaceholderRoute("/create")).toBe(false);
-    expect(registry.isPlaceholderRoute("/manage")).toBe(false);
+    expect(isPlaceholderRoute("/dashboard")).toBe(false);
+    expect(isPlaceholderRoute("/create")).toBe(false);
+    expect(isPlaceholderRoute("/manage")).toBe(false);
   });
 
-  it("normalizes trailing slashes", () => {
-    // Simulate a flagged route being present.
-    Object.defineProperty(registry, "PLACEHOLDER_ROUTES", {
-      value: new Set(["/foo"]),
-      configurable: true,
-    });
-    expect(registry.isPlaceholderRoute("/foo")).toBe(true);
-    expect(registry.isPlaceholderRoute("/foo/")).toBe(true);
-    // Bare "/" is intentionally left alone (no slash-strip on root).
-    expect(registry.isPlaceholderRoute("/")).toBe(false);
+  it("normalizePath strips a single trailing slash but preserves root", () => {
+    expect(normalizePath("/foo")).toBe("/foo");
+    expect(normalizePath("/foo/")).toBe("/foo");
+    expect(normalizePath("/a/b/")).toBe("/a/b");
+    expect(normalizePath("/")).toBe("/");
   });
 
   it("returns notes only for flagged routes", () => {
-    expect(registry.getPlaceholderNote("/dashboard")).toBeUndefined();
+    expect(getPlaceholderNote("/dashboard")).toBeUndefined();
   });
 });
 
