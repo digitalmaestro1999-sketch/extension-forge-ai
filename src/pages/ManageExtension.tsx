@@ -225,6 +225,26 @@ export default function ManageExtension() {
       }
       setImported(ext);
       setFileContents(nextFiles);
+      setProjectId(null);
+
+      // Persist as an imported project so it survives refresh.
+      if (user) {
+        try {
+          const { id } = await persistProject({
+            userId: user.id,
+            name: ext.name,
+            description: ext.description,
+            source: "imported",
+            files: nextFiles,
+            status: "draft",
+            spec: { version: ext.version, permissions: ext.permissions, hostPermissions: ext.hostPermissions },
+            extras: { sourceName: ext.sourceName },
+          });
+          setProjectId(id);
+        } catch (err) {
+          console.warn("persist import failed", err);
+        }
+      }
       toast.success("Extension imported", { description: `${ext.name} v${ext.version} — ${Object.keys(nextFiles).length} editable files` });
     } catch (e) {
       toast.error("Import failed", { description: (e as Error).message });
