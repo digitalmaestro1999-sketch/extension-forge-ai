@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { VoiceWidget } from "@/components/VoiceWidget";
+import { VoiceOnboarding } from "@/components/VoiceOnboarding";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
