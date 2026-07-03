@@ -74,9 +74,14 @@ export default function AuthPage() {
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
-    if (result.error) {
-      toast.error("Google sign-in failed");
-    }
+    if (result.error) toast.error("Google sign-in failed");
+  };
+
+  const handleAppleAuth = async () => {
+    const result = await lovable.auth.signInWithOAuth("apple", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) toast.error("Apple sign-in failed");
   };
 
   return (
