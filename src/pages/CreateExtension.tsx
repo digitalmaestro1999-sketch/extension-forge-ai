@@ -94,6 +94,10 @@ export default function CreateExtension() {
   );
   const [showStudio, setShowStudio] = useState(true);
 
+  // Theme & logo variations
+  const [themeId, setThemeId] = useState<string>("midnight-indigo");
+  const [logoStyleId, setLogoStyleId] = useState<string>("monogram");
+
   // NEW: preview / customizer / variations / checklist state
   const [showPreview, setShowPreview] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
