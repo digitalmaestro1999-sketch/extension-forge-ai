@@ -125,7 +125,47 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
     toast.success(`Saved "${theme.label}" as a preset`);
   };
 
+  const exportWcagReport = async (themes: ThemePreset[], filenameBase: string) => {
+    try {
+      const report = buildWcagReport(themes);
+      const zip = new JSZip();
+      const folder = zip.folder(`${filenameBase}-wcag-report`)!;
+      folder.file("report.html", wcagReportHtml(report));
+      folder.file("report.md", wcagReportMarkdown(report));
+      folder.file("report.json", JSON.stringify(report, null, 2));
+      folder.file("report.csv", wcagReportCsv(report));
+      folder.file(
+        "README.txt",
+        [
+          "WCAG 2.1 Contrast Audit Report",
+          "-------------------------------",
+          `Generated: ${report.generatedAt}`,
+          `Themes: ${report.totals.themes}`,
+          `Checks: ${report.totals.passing}/${report.totals.checks} passing (avg ${report.totals.averageScore}/100)`,
+          "",
+          "Open report.html in a browser for the visual report (also print-friendly).",
+          "report.md and report.json are machine-readable copies.",
+          "report.csv is spreadsheet-friendly.",
+          "",
+          "Suggested FG values are auto-computed to meet the required contrast ratio.",
+        ].join("\n"),
+      );
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filenameBase}-wcag-report.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`WCAG report exported (${report.totals.passing}/${report.totals.checks} pass)`);
+    } catch (e: any) {
+      toast.error("WCAG export failed: " + (e?.message || String(e)));
+    }
+  };
+
   const cssPreview = useMemo(() => themeCssVars(draft.id), [draft]);
+
+
 
 
   const copyCss = async () => {
