@@ -32,6 +32,7 @@ import {
   importExtensionFile, exportImportedExtension, classifyPermission,
   type ImportedExtension,
 } from "@/lib/import-extension";
+import { persistProject } from "@/lib/project-persist";
 
 // ---------------- Default (mock) data ----------------
 const DEFAULT_EXT = {
