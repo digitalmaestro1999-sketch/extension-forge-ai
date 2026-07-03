@@ -234,6 +234,24 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
         <Button size="sm" variant="default" onClick={() => exportAssets(currentTheme, logoStyleId)} disabled={exporting}>
           <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting…" : "Export assets & CSS"}
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => exportWcagReport([currentTheme], slugify(currentTheme.label))}
+          disabled={exporting}
+          title="Export WCAG 2.1 audit for the current theme (HTML + Markdown + JSON + CSV)"
+        >
+          <FileText className="h-3.5 w-3.5" /> Export WCAG report
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => exportWcagReport(getAllThemes(), "all-themes")}
+          disabled={exporting}
+          title="Audit every preset + custom theme in one report"
+        >
+          <FileText className="h-3.5 w-3.5" /> All themes
+        </Button>
         {customs.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">{customs.length} custom</Badge>
         )}
@@ -246,6 +264,7 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
           A11y {currentA11y.score}
         </Badge>
       </div>
+
 
       {/* Generate palette from brand color */}
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
