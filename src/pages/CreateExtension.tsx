@@ -389,6 +389,81 @@ export default function CreateExtension() {
           disabled={isRunning}
         />
 
+        {/* Theme & Logo Variations */}
+        <div className="mb-4 rounded-lg border border-border/60 bg-secondary/40 p-3 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xs font-semibold">
+              <Layers className="h-3.5 w-3.5 text-primary" />
+              Theme & Logo Variations
+              <Badge variant="secondary" className="text-[10px]">
+                {THEME_PRESETS.find(t => t.id === themeId)?.label} · {LOGO_STYLES.find(l => l.id === logoStyleId)?.label}
+              </Badge>
+            </span>
+            <img
+              src={logoDataUrl(spec?.name || idea.split("\n")[0] || "Extension", themeId, logoStyleId, 128)}
+              alt="Logo preview"
+              className="h-10 w-10 rounded-md ring-1 ring-border"
+            />
+          </div>
+
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Color theme (8 professional presets)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {THEME_PRESETS.map(t => {
+                const active = themeId === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => setThemeId(t.id)}
+                    title={t.description}
+                    className={`text-left p-2 rounded-md border transition-all ${
+                      active ? "border-primary ring-1 ring-primary/40 bg-primary/5" : "border-border bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="flex gap-1 mb-1.5 h-4 rounded overflow-hidden">
+                      <span className="flex-1" style={{ background: t.bg }} />
+                      <span className="flex-1" style={{ background: t.bgElevated }} />
+                      <span className="flex-1" style={{ background: t.accent }} />
+                      <span className="flex-1" style={{ background: t.accentHover }} />
+                    </div>
+                    <div className="text-[11px] font-medium text-foreground truncate">{t.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Logo mark style (6 variations)</p>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {LOGO_STYLES.map(l => {
+                const active = logoStyleId === l.id;
+                return (
+                  <button
+                    key={l.id}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => setLogoStyleId(l.id)}
+                    title={l.description}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-md border transition-all ${
+                      active ? "border-primary ring-1 ring-primary/40 bg-primary/5" : "border-border bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <img
+                      src={logoDataUrl(spec?.name || idea.split("\n")[0] || "Extension", themeId, l.id, 128)}
+                      alt={l.label}
+                      className="h-10 w-10 rounded"
+                    />
+                    <span className="text-[10px] text-muted-foreground">{l.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Prompt Studio */}
         <div className="mb-4 rounded-lg border border-border/60 bg-secondary/40">
           <button
