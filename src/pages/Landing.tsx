@@ -512,7 +512,41 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 9. TESTIMONIALS */}
+      {/* 10a. COMPARISON */}
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge variant="outline" className="mb-3 border-[#FF2E93]/40 text-[#FF2E93]">Why Forge</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Manual builds vs. Forge AI.</h2>
+          </div>
+          <div className="rounded-2xl border border-border overflow-hidden bg-card/60">
+            <div className="grid grid-cols-3 text-sm">
+              <div className="p-4 font-semibold text-muted-foreground border-b border-border">Capability</div>
+              <div className="p-4 font-semibold text-muted-foreground border-b border-l border-border">Manual dev</div>
+              <div className="p-4 font-semibold text-primary border-b border-l border-border bg-primary/5">Extension Forge AI</div>
+              {[
+                ["Time to first ship", "3–14 days", "~6 seconds"],
+                ["MV3 compliance", "Manual review", "Auto-certified"],
+                ["Permission risk audit", "Optional", "Blocking gate"],
+                ["Icons & branding", "Designer needed", "Theme Studio + AI"],
+                ["Chrome Web Store listing", "Copywriter", "AI-drafted"],
+                ["Portfolio scaling", "1 at a time", "100+ / day batch"],
+              ].map((row, i) => (
+                <div key={i} className="contents">
+                  <div className={`p-4 border-t border-border ${i % 2 ? "bg-secondary/20" : ""}`}>{row[0]}</div>
+                  <div className={`p-4 border-t border-l border-border text-muted-foreground ${i % 2 ? "bg-secondary/20" : ""}`}>{row[1]}</div>
+                  <div className={`p-4 border-t border-l border-border bg-primary/5 flex items-center gap-2`}>
+                    <Check className="h-4 w-4 text-primary" /> {row[2]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. TESTIMONIALS */}
+
       <section className="py-20 px-4 sm:px-6 bg-secondary/20 border-y border-border">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
