@@ -814,12 +814,8 @@ export function generateOptionsHtml(spec: ExtensionSpec): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${spec.name} — Settings</title>
   <style>
+${themeCssVars(spec.theme)}
     :root {
-      --accent: #6366f1; --accent-hover: #818cf8;
-      --accent-subtle: rgba(99, 102, 241, 0.08); --accent-border: rgba(99, 102, 241, 0.18);
-      --bg: #09090b; --bg-elevated: #18181b; --surface: #1c1c20; --surface-hover: #232327;
-      --text: #fafafa; --text-secondary: #a1a1aa; --text-muted: #71717a;
-      --border: #27272a; --border-subtle: #1f1f23;
       --success: #22c55e; --warning: #f59e0b; --error: #ef4444; --info: #3b82f6;
       --radius: 12px; --radius-sm: 8px;
     }
