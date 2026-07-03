@@ -20,6 +20,7 @@ import {
   composePrompt, scorePrompt, getPresetTemplate, setPresetOverride, resetPresetOverride,
 } from "@/lib/prompt-presets";
 import { THEME_PRESETS, LOGO_STYLES, logoDataUrl } from "@/lib/extension-themes";
+import { ThemeStudio } from "@/components/ThemeStudio";
 
 async function invokeWithRetry(
   fnName: string,
@@ -462,6 +463,13 @@ export default function CreateExtension() {
               })}
             </div>
           </div>
+
+          <ThemeStudio
+            name={spec?.name || idea.split("\n")[0] || "Extension"}
+            themeId={themeId}
+            logoStyleId={logoStyleId}
+            onChange={(t, l) => { setThemeId(t); setLogoStyleId(l); }}
+          />
         </div>
 
         {/* Prompt Studio */}
