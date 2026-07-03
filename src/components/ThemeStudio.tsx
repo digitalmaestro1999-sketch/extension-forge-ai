@@ -68,8 +68,10 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
   const [draft, setDraft] = useState<ThemePreset>(() => blankTheme(THEME_PRESETS[0]));
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
-
-  useEffect(() => { setCustoms(loadCustomThemes()); }, []);
+  const [brandColor, setBrandColor] = useState("#6366f1");
+  const [brandMode, setBrandMode] = useState<"dark" | "light" | "auto">("auto");
+  const [gallerySort, setGallerySort] = useState<"default" | "a11y" | "a11yAsc">("a11y");
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "passing">("all");
 
   const currentTheme = getTheme(themeId);
   const currentA11y = useMemo(() => summarizeContrast(currentTheme), [currentTheme]);
