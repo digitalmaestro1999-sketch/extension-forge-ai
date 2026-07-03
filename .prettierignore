@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.next
+coverage
+bun.lockb
+package-lock.json
+supabase/.branches
+supabase/.temp
+src/integrations/supabase/types.ts
