@@ -8,3 +8,5 @@ package-lock.json
 supabase/.branches
 supabase/.temp
 src/integrations/supabase/types.ts
+playwright-report
+test-results
