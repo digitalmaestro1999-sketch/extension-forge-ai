@@ -660,6 +660,38 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Accessibility Toolbar */}
+      <div className="fixed bottom-4 right-4 z-40 rounded-full border border-border bg-card/90 backdrop-blur-xl shadow-lg flex items-center gap-1 p-1">
+        <button
+          aria-label="Decrease text size"
+          onClick={() => setTextScale((s) => Math.max(0.85, +(s - 0.05).toFixed(2)))}
+          className="h-9 w-9 rounded-full hover:bg-secondary flex items-center justify-center"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <span className="text-xs font-mono w-10 text-center text-muted-foreground">
+          <Type className="h-3 w-3 inline mr-0.5" />{Math.round(textScale * 100)}%
+        </span>
+        <button
+          aria-label="Increase text size"
+          onClick={() => setTextScale((s) => Math.min(1.3, +(s + 0.05).toFixed(2)))}
+          className="h-9 w-9 rounded-full hover:bg-secondary flex items-center justify-center"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <div className="h-6 w-px bg-border mx-1" />
+        <button
+          aria-label="Toggle high contrast"
+          onClick={() => setHighContrast((v) => !v)}
+          className={`h-9 px-3 rounded-full text-xs font-medium flex items-center gap-1.5 transition ${
+            highContrast ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+          }`}
+        >
+          <Eye className="h-3.5 w-3.5" /> Contrast
+        </button>
+      </div>
     </div>
   );
 }
+
