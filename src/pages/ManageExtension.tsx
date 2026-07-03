@@ -481,93 +481,233 @@ export default function ManageExtension() {
   );
 }
 
-// ---------------- Analytics ----------------
+// ---------------- Analytics (real telemetry) ----------------
+type InstallRow = {
+  id: string;
+  extension_name: string;
+  extension_version: string | null;
+  status: string;
+  kill_switch: boolean;
+  last_seen_at: string | null;
+  created_at: string;
+};
+type UsageRow = { day: string; minutes_used: number; actions_count: number; errors_count: number };
+type EventRow = { event_type: string; action_name: string | null; ts: string; error_message: string | null };
+
 function AnalyticsView() {
   const ext = useExt();
-  const isImported = !!ext.imported;
-  const kpis = [
-    { label: "Active Installs", value: isImported ? "—" : DEFAULT_EXT.users.toLocaleString(), trend: isImported ? "n/a" : "+12%", icon: Users },
-    { label: "Weekly Active", value: isImported ? "—" : DEFAULT_EXT.weeklyActive.toLocaleString(), trend: isImported ? "n/a" : "+4.3%", icon: Activity },
-    { label: "Avg Rating", value: isImported ? "—" : DEFAULT_EXT.rating.toFixed(1), trend: isImported ? "n/a" : "+0.2", icon: Star },
-    { label: "Security Score", value: isImported ? `${Math.max(40, 100 - ext.permissions.filter(p => p.level !== "safe").length * 12)}/100` : `${DEFAULT_EXT.securityScore}/100`, trend: "live", icon: ShieldCheck },
-  ];
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [installs, setInstalls] = useState<InstallRow[]>([]);
+  const [usage, setUsage] = useState<UsageRow[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
+
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data: ins } = await supabase
+        .from("extension_installs")
+        .select("id, extension_name, extension_version, status, kill_switch, last_seen_at, created_at")
+        .eq("owner_id", user.id)
+        .eq("extension_name", ext.name)
+        .order("created_at", { ascending: false });
+      const installRows = (ins || []) as InstallRow[];
+      if (cancelled) return;
+      setInstalls(installRows);
+      const ids = installRows.map((r) => r.id);
+      if (ids.length === 0) {
+        setUsage([]); setEvents([]); setLoading(false); return;
+      }
+      const since = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+      const [u, e] = await Promise.all([
+        supabase.from("extension_usage_daily")
+          .select("day, minutes_used, actions_count, errors_count")
+          .in("install_id", ids)
+          .gte("day", since)
+          .order("day", { ascending: true }),
+        supabase.from("extension_events")
+          .select("event_type, action_name, ts, error_message")
+          .in("install_id", ids)
+          .order("ts", { ascending: false })
+          .limit(25),
+      ]);
+      if (cancelled) return;
+      setUsage((u.data as UsageRow[]) || []);
+      setEvents((e.data as EventRow[]) || []);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [user, ext.name]);
+
+  const totalInstalls = installs.length;
+  const activeInstalls = installs.filter(
+    (i) => !i.kill_switch && i.status === "active" && i.last_seen_at &&
+      Date.now() - new Date(i.last_seen_at).getTime() < 7 * 86400_000
+  ).length;
+  const dailyTotals = { minutes: 0, actions: 0, errors: 0 };
+  const byDay = new Map<string, { day: string; actions: number; errors: number; minutes: number }>();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+    byDay.set(d, { day: d.slice(5), actions: 0, errors: 0, minutes: 0 });
+  }
+  for (const r of usage) {
+    dailyTotals.minutes += r.minutes_used;
+    dailyTotals.actions += r.actions_count;
+    dailyTotals.errors += r.errors_count;
+    const b = byDay.get(r.day);
+    if (b) { b.actions += r.actions_count; b.errors += r.errors_count; b.minutes += r.minutes_used; }
+  }
+  const series = Array.from(byDay.values());
+  const errorRate = dailyTotals.actions > 0 ? (dailyTotals.errors / dailyTotals.actions) * 100 : 0;
+  const securityScore = Math.max(40, 100 - ext.permissions.filter((p) => p.level !== "safe").length * 12);
+
+  if (loading) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading telemetry for {ext.name}…</div>;
+  }
+
+  const hasTelemetry = installs.length > 0;
+
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-bold text-gradient-cyber">{ext.name}</h1>
-        <p className="text-sm text-muted-foreground">v{ext.version} · {isImported ? "imported (local)" : DEFAULT_EXT.id}</p>
+      <header className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gradient-cyber">{ext.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            v{ext.version} · {ext.imported ? "imported (local)" : "workspace"}
+          </p>
+        </div>
+        {hasTelemetry && (
+          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
+            <Activity className="h-2.5 w-2.5 mr-1" /> Live telemetry
+          </Badge>
+        )}
       </header>
 
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {kpis.map((k) => (
-          <Card key={k.label} className="bg-card/40 backdrop-blur border-border/60 hover:border-primary/40 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <k.icon className="h-4 w-4 text-primary" />
-                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
-                  <TrendingUp className="h-2.5 w-2.5 mr-1" />{k.trend}
-                </Badge>
-              </div>
-              <p className="text-2xl font-bold mt-2">{k.value}</p>
-              <p className="text-xs text-muted-foreground">{k.label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 bg-card/40 backdrop-blur border-border/60">
-          <CardHeader><CardTitle className="text-base">User Growth · 30 days</CardTitle></CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={GROWTH}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }} />
-                <Line type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+      {!hasTelemetry ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 mx-auto text-muted-foreground" />
+            <div>
+              <p className="font-medium">No monitoring enabled for “{ext.name}”</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                Analytics here are pulled from real installs — no simulated numbers. Register this
+                extension in Live Control to receive install, session and error metrics.
+              </p>
+            </div>
+            <Button asChild size="sm" className="bg-gradient-cyber text-primary-foreground">
+              <Link to="/control">Enable monitoring →</Link>
+            </Button>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: "Installs", value: totalInstalls.toString(), icon: Users },
+              { label: "Active (7d)", value: activeInstalls.toString(), icon: Activity },
+              { label: "Actions (30d)", value: dailyTotals.actions.toLocaleString(), icon: TrendingUp },
+              { label: "Error rate", value: `${errorRate.toFixed(2)}%`, icon: ShieldCheck },
+            ].map((k) => (
+              <Card key={k.label} className="bg-card/40 backdrop-blur border-border/60">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <k.icon className="h-4 w-4 text-primary" />
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">real</Badge>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 font-mono">{k.value}</p>
+                  <p className="text-xs text-muted-foreground">{k.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-        <Card className="bg-card/40 backdrop-blur border-border/60">
-          <CardHeader><CardTitle className="text-base">Rating Distribution</CardTitle></CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={RATINGS}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="stars" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="lg:col-span-2 bg-card/40 backdrop-blur border-border/60">
+              <CardHeader><CardTitle className="text-base">Actions & errors · 30 days</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }} />
+                    <Line type="monotone" dataKey="actions" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="errors" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-      <Card className="bg-card/40 backdrop-blur border-border/60">
-        <CardHeader><CardTitle className="text-base">Recent Reviews</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-muted-foreground border-b border-border/60">
-              <tr><th className="text-left p-3">User</th><th className="text-left p-3">Rating</th><th className="text-left p-3">Comment</th><th className="text-left p-3">Date</th></tr>
-            </thead>
-            <tbody>
-              {REVIEWS.map((r) => (
-                <tr key={r.user} className="border-b border-border/40 hover:bg-muted/20">
-                  <td className="p-3 font-medium">{r.user}</td>
-                  <td className="p-3 text-amber-400">{"★".repeat(r.rating)}<span className="text-muted-foreground">{"★".repeat(5 - r.rating)}</span></td>
-                  <td className="p-3 text-muted-foreground">{r.comment}</td>
-                  <td className="p-3 text-xs text-muted-foreground">{r.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+            <Card className="bg-card/40 backdrop-blur border-border/60">
+              <CardHeader><CardTitle className="text-base">Minutes / day</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={series}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }} />
+                    <Bar dataKey="minutes" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="lg:col-span-2 bg-card/40 backdrop-blur border-border/60">
+              <CardHeader><CardTitle className="text-base">Recent events</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                {events.length === 0 ? (
+                  <div className="p-6 text-sm text-muted-foreground">No events reported yet.</div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="text-xs uppercase text-muted-foreground border-b border-border/60">
+                      <tr>
+                        <th className="text-left p-3">Type</th>
+                        <th className="text-left p-3">Action</th>
+                        <th className="text-left p-3">Detail</th>
+                        <th className="text-left p-3">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map((e, i) => (
+                        <tr key={i} className="border-b border-border/40 hover:bg-muted/20">
+                          <td className="p-3">
+                            <Badge variant="outline" className={
+                              e.event_type === "error" ? "text-red-400 border-red-500/40" :
+                              "text-muted-foreground"
+                            }>{e.event_type}</Badge>
+                          </td>
+                          <td className="p-3 font-mono text-xs">{e.action_name || "—"}</td>
+                          <td className="p-3 text-xs text-muted-foreground truncate max-w-xs">{e.error_message || ""}</td>
+                          <td className="p-3 text-xs text-muted-foreground">{new Date(e.ts).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 backdrop-blur border-border/60">
+              <CardHeader><CardTitle className="text-base">Security score</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-4xl font-bold font-mono">{securityScore}<span className="text-lg text-muted-foreground">/100</span></p>
+                <p className="text-xs text-muted-foreground">
+                  Derived from the {ext.permissions.length} declared permission
+                  {ext.permissions.length === 1 ? "" : "s"} — {ext.permissions.filter(p => p.level !== "safe").length} non-safe.
+                </p>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <Link to="/control">Open Live Control →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
