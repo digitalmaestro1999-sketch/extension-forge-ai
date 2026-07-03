@@ -18,7 +18,7 @@ import {
 type NavItem = { title: string; url: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
 const mainItems: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trend Discovery", url: "/trends", icon: TrendingUp, adminOnly: true },
   { title: "Create Extension", url: "/create", icon: Wand2 },
   { title: "Wizard Workspace", url: "/wizard", icon: Blocks },
