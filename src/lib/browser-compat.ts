@@ -337,6 +337,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Add `-webkit-backdrop-filter` alongside `backdrop-filter` for Safari.",
+    autoFix: {
+      id: "add-webkit-backdrop-filter",
+      label: "Add -webkit-backdrop-filter prefix",
+      description: "Duplicates every `backdrop-filter` declaration with a `-webkit-` prefixed version for Safari.",
+      writes: ["css"],
+    },
   },
   {
     id: "css-has",
