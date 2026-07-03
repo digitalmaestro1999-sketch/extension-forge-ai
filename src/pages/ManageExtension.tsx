@@ -168,6 +168,8 @@ export default function ManageExtension() {
   const [securing, setSecuring] = useState(false);
   const [lastInstall, setLastInstall] = useState<{ id: string; secret: string } | null>(null);
   const [showSecret, setShowSecret] = useState<{ id: string; secret: string; shim: string } | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem("lv_auto_inject", autoInject ? "1" : "0"); } catch { /* noop */ }
