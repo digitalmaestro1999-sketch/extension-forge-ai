@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { buildAllFiles, buildManifest, type WizardSpec } from "@/lib/wizard-codegen";
 import { generateExtensionIcons } from "@/lib/generate-icons";
 import { runHealthScan, type HealthFinding, type HealthReport } from "@/lib/wizard-health";
+import { useAuth } from "@/hooks/use-auth";
+import { persistProject } from "@/lib/project-persist";
 
 type ExtensionType = "popup" | "sidepanel" | "content" | "background";
 
