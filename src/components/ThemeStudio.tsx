@@ -21,7 +21,10 @@ import {
   loadCustomThemes,
   saveCustomTheme,
   deleteCustomTheme,
+  summarizeContrast,
+  type ContrastCheck,
 } from "@/lib/extension-themes";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface Props {
   name: string;
@@ -67,6 +70,8 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
   useEffect(() => { setCustoms(loadCustomThemes()); }, []);
 
   const currentTheme = getTheme(themeId);
+  const currentA11y = useMemo(() => summarizeContrast(currentTheme), [currentTheme]);
+  const draftA11y = useMemo(() => summarizeContrast(draft), [draft]);
 
   const openEditor = (base?: ThemePreset) => {
     setDraft(base ? { ...base, id: base.id.startsWith("custom-") ? base.id : `custom-${Date.now().toString(36)}`, label: base.label + (base.id.startsWith("custom-") ? "" : " (Custom)") } : blankTheme(currentTheme));
@@ -160,6 +165,14 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
         {customs.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">{customs.length} custom</Badge>
         )}
+        <Badge
+          variant="secondary"
+          className={`text-[10px] gap-1 ${currentA11y.failing === 0 ? "bg-emerald-500/15 text-emerald-500" : currentA11y.failing <= 2 ? "bg-amber-500/15 text-amber-500" : "bg-destructive/15 text-destructive"}`}
+          title={`${currentA11y.passing}/${currentA11y.checks.length} WCAG checks pass`}
+        >
+          {currentA11y.failing === 0 ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+          A11y {currentA11y.score}
+        </Badge>
       </div>
 
       {customs.length > 0 && (
@@ -271,6 +284,42 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
                   Primary action
                 </button>
               </div>
+
+              {/* Contrast / A11y panel */}
+              <div className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    {draftA11y.failing === 0 ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> : <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />}
+                    WCAG contrast
+                  </div>
+                  <Badge variant="secondary" className={`text-[10px] ${draftA11y.failing === 0 ? "bg-emerald-500/15 text-emerald-500" : draftA11y.failing <= 2 ? "bg-amber-500/15 text-amber-500" : "bg-destructive/15 text-destructive"}`}>
+                    {draftA11y.passing}/{draftA11y.checks.length} pass · {draftA11y.score}
+                  </Badge>
+                </div>
+                <ul className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                  {draftA11y.checks.map((c: ContrastCheck) => (
+                    <li key={c.label} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className="inline-flex h-4 w-6 shrink-0 items-center justify-center rounded text-[9px] font-bold"
+                          style={{ background: c.bg, color: c.fg, border: "1px solid hsl(var(--border))" }}
+                          aria-hidden
+                        >Aa</span>
+                        <span className="truncate text-muted-foreground">{c.label}</span>
+                      </span>
+                      <span className={`font-mono tabular-nums ${c.passes ? "text-emerald-500" : "text-destructive"}`}>
+                        {c.ratio.toFixed(2)} · {c.level}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {draftA11y.worst && !draftA11y.worst.passes && (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    Lowest: <span className="text-foreground">{draftA11y.worst.label}</span> — needs ≥ {draftA11y.worst.required}:1.
+                  </p>
+                )}
+              </div>
+
 
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={copyCss}>

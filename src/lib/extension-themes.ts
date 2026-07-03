@@ -107,6 +107,66 @@ export const THEME_PRESETS: ThemePreset[] = [
     border: "#d8d3c8", borderSubtle: "#e4dfd4",
     logoBg: "#0d0d0d", logoBgTo: "#2d2d2d", logoFg: "#f5f3ee",
   },
+  {
+    id: "solar-flare",
+    label: "Solar Flare",
+    description: "Deep charcoal with molten amber. Warm, confident, premium.",
+    accent: "#f59e0b", accentHover: "#fbbf24", accentSoft: "#f59e0b",
+    bg: "#0c0a09", bgElevated: "#1a1613", surface: "#26201b", surfaceHover: "#332a22", bgInput: "#2b241d",
+    text: "#fef7e0", textSecondary: "#bfae86", textMuted: "#857960",
+    border: "#332a22", borderSubtle: "#26201b",
+    logoBg: "#7c2d12", logoBgTo: "#f59e0b", logoFg: "#0c0a09",
+  },
+  {
+    id: "rose-quartz",
+    label: "Rose Quartz",
+    description: "Soft rose on plum. Elegant, lifestyle, wellness-friendly.",
+    accent: "#f472b6", accentHover: "#f9a8d4", accentSoft: "#f472b6",
+    bg: "#150d14", bgElevated: "#1f1520", surface: "#2b1e2c", surfaceHover: "#382838", bgInput: "#31232f",
+    text: "#fdf2f8", textSecondary: "#c9a8be", textMuted: "#8a7080",
+    border: "#382838", borderSubtle: "#2b1e2c",
+    logoBg: "#831843", logoBgTo: "#f472b6", logoFg: "#fdf2f8",
+  },
+  {
+    id: "carbon-lime",
+    label: "Carbon Lime",
+    description: "Industrial carbon with neon lime. Hacker, terminal energy.",
+    accent: "#a3e635", accentHover: "#bef264", accentSoft: "#a3e635",
+    bg: "#0a0b0a", bgElevated: "#131513", surface: "#1c1f1c", surfaceHover: "#252925", bgInput: "#1f2320",
+    text: "#f7fee7", textSecondary: "#a3b09c", textMuted: "#6a7566",
+    border: "#252925", borderSubtle: "#1c1f1c",
+    logoBg: "#365314", logoBgTo: "#a3e635", logoFg: "#0a0b0a",
+  },
+  {
+    id: "porcelain",
+    label: "Porcelain",
+    description: "Bright airy neutrals with cobalt accent. Docs & productivity.",
+    accent: "#2563eb", accentHover: "#3b82f6", accentSoft: "#2563eb",
+    bg: "#ffffff", bgElevated: "#f7f8fa", surface: "#eef1f5", surfaceHover: "#e4e8ee", bgInput: "#ffffff",
+    text: "#0f172a", textSecondary: "#475569", textMuted: "#64748b",
+    border: "#d8dee6", borderSubtle: "#e4e8ee",
+    logoBg: "#1e40af", logoBgTo: "#3b82f6", logoFg: "#ffffff",
+  },
+  {
+    id: "sakura-light",
+    label: "Sakura Light",
+    description: "Warm off-white with cherry accent. Soft, friendly, welcoming.",
+    accent: "#e11d48", accentHover: "#f43f5e", accentSoft: "#e11d48",
+    bg: "#fdf7f5", bgElevated: "#ffffff", surface: "#f7ebe8", surfaceHover: "#f0dcd7", bgInput: "#ffffff",
+    text: "#1c0f10", textSecondary: "#5a3a3d", textMuted: "#8a6a6d",
+    border: "#e8d2ce", borderSubtle: "#f0dcd7",
+    logoBg: "#9f1239", logoBgTo: "#f43f5e", logoFg: "#fdf7f5",
+  },
+  {
+    id: "matcha-cream",
+    label: "Matcha Cream",
+    description: "Cream backdrop with matcha green. Calm, organic, editorial.",
+    accent: "#4d7c0f", accentHover: "#65a30d", accentSoft: "#4d7c0f",
+    bg: "#fbfaf3", bgElevated: "#ffffff", surface: "#f0eee0", surfaceHover: "#e5e2ce", bgInput: "#ffffff",
+    text: "#1a1c10", textSecondary: "#4b5238", textMuted: "#7a8064",
+    border: "#dcd8c0", borderSubtle: "#e5e2ce",
+    logoBg: "#365314", logoBgTo: "#65a30d", logoFg: "#fbfaf3",
+  },
 ];
 
 export const DEFAULT_THEME_ID = "midnight-indigo";
@@ -150,6 +210,91 @@ export function getTheme(id?: string | null): ThemePreset {
   const all = getAllThemes();
   return all.find(t => t.id === id) || all[0];
 }
+
+// ---------------- Contrast (WCAG 2.1) ----------------
+
+function hexToRgbTriplet(hex: string): [number, number, number] {
+  const h = (hex || "").replace("#", "").trim();
+  const v = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const n = parseInt(v || "000000", 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgbTriplet(hex).map(v => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function contrastRatio(fg: string, bg: string): number {
+  const L1 = relativeLuminance(fg);
+  const L2 = relativeLuminance(bg);
+  const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+export type WcagLevel = "AAA" | "AA" | "AA Large" | "Fail";
+
+export function wcagLevel(ratio: number, largeText = false): WcagLevel {
+  if (ratio >= 7) return "AAA";
+  if (ratio >= 4.5) return "AA";
+  if (ratio >= 3 && largeText) return "AA Large";
+  return "Fail";
+}
+
+export interface ContrastCheck {
+  label: string;
+  fg: string;
+  bg: string;
+  ratio: number;
+  level: WcagLevel;
+  largeText: boolean;
+  required: number;
+  passes: boolean;
+}
+
+export function auditThemeContrast(t: ThemePreset): ContrastCheck[] {
+  const pairs: Array<Omit<ContrastCheck, "ratio" | "level" | "passes">> = [
+    { label: "Body text on background",     fg: t.text,          bg: t.bg,         largeText: false, required: 4.5 },
+    { label: "Body text on elevated",       fg: t.text,          bg: t.bgElevated, largeText: false, required: 4.5 },
+    { label: "Secondary text on surface",   fg: t.textSecondary, bg: t.surface,    largeText: false, required: 4.5 },
+    { label: "Muted text on background",    fg: t.textMuted,     bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Accent button label",         fg: t.logoFg,        bg: t.accent,     largeText: false, required: 4.5 },
+    { label: "Accent on background (UI)",   fg: t.accent,        bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Border vs background (UI)",   fg: t.border,        bg: t.bg,         largeText: true,  required: 3   },
+    { label: "Input text on input bg",      fg: t.text,          bg: t.bgInput,    largeText: false, required: 4.5 },
+  ];
+  return pairs.map(p => {
+    const ratio = contrastRatio(p.fg, p.bg);
+    return {
+      ...p,
+      ratio,
+      level: wcagLevel(ratio, p.largeText),
+      passes: ratio >= p.required,
+    };
+  });
+}
+
+export interface ContrastSummary {
+  checks: ContrastCheck[];
+  score: number;   // 0-100
+  passing: number;
+  failing: number;
+  worst: ContrastCheck | null;
+}
+
+export function summarizeContrast(t: ThemePreset): ContrastSummary {
+  const checks = auditThemeContrast(t);
+  const passing = checks.filter(c => c.passes).length;
+  const failing = checks.length - passing;
+  const score = Math.round((passing / checks.length) * 100);
+  const worst = checks.slice().sort((a, b) => a.ratio - b.ratio)[0] || null;
+  return { checks, score, passing, failing, worst };
+}
+
+
 
 // ---------------- Logo mark styles ----------------
 
