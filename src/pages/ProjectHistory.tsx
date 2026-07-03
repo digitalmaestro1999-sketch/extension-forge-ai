@@ -92,6 +92,31 @@ export default function ProjectHistory() {
     toast.success("Project deleted");
   };
 
+  const startRename = (p: Project) => {
+    setRenamingId(p.id);
+    setRenameValue(p.name);
+  };
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+  const commitRename = async (id: string) => {
+    const name = renameValue.trim();
+    if (!name) { toast.error("Name cannot be empty"); return; }
+    if (name.length > 120) { toast.error("Name too long"); return; }
+    setRenameBusy(true);
+    const { error } = await supabase
+      .from("extension_projects")
+      .update({ name })
+      .eq("id", id)
+      .eq("user_id", user!.id);
+    setRenameBusy(false);
+    if (error) { toast.error("Rename failed", { description: error.message }); return; }
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    setRenamingId(null);
+    toast.success("Renamed");
+  };
+
   if (!user) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
