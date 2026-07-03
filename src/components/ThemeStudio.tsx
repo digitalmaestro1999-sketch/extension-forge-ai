@@ -73,6 +73,8 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
   const [gallerySort, setGallerySort] = useState<"default" | "a11y" | "a11yAsc">("a11y");
   const [galleryFilter, setGalleryFilter] = useState<"all" | "passing">("all");
 
+  useEffect(() => { setCustoms(loadCustomThemes()); }, []);
+
   const currentTheme = getTheme(themeId);
   const currentA11y = useMemo(() => summarizeContrast(currentTheme), [currentTheme]);
   const draftA11y = useMemo(() => summarizeContrast(draft), [draft]);
