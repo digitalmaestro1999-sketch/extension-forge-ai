@@ -255,9 +255,20 @@ export default function MonetizationTemplates() {
                     <CardDescription>{template.description}</CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{template.difficulty}</Badge>
                   <Badge className="bg-primary/10 text-primary border-0">{template.revenue}</Badge>
+                  <Button
+                    size="sm"
+                    className="h-7 bg-gradient-cyber text-primary-foreground"
+                    disabled={savingId === template.id}
+                    onClick={() => useTemplate(template)}
+                  >
+                    {savingId === template.id
+                      ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      : <Rocket className="h-3.5 w-3.5 mr-1.5" />}
+                    Use as new project
+                  </Button>
                 </div>
               </div>
             </CardHeader>
