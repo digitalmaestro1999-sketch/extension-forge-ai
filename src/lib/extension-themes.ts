@@ -404,6 +404,183 @@ export function paletteFromBrand(
   return autoFixThemeContrast(raw).theme;
 }
 
+// ---------------- WCAG audit report ----------------
+
+export interface WcagReportTheme {
+  id: string;
+  label: string;
+  description: string;
+  score: number;
+  passing: number;
+  failing: number;
+  worst: { label: string; ratio: number; required: number } | null;
+  checks: Array<{
+    label: string;
+    fg: string;
+    bg: string;
+    ratio: number;
+    level: WcagLevel;
+    largeText: boolean;
+    required: number;
+    passes: boolean;
+    fixSuggestion?: string;
+  }>;
+}
+
+export interface WcagReport {
+  generatedAt: string;
+  standard: "WCAG 2.1 (relative luminance)";
+  totals: { themes: number; checks: number; passing: number; failing: number; averageScore: number };
+  themes: WcagReportTheme[];
+}
+
+export function buildWcagReport(themes: ThemePreset[]): WcagReport {
+  const rows: WcagReportTheme[] = themes.map(t => {
+    const s = summarizeContrast(t);
+    return {
+      id: t.id,
+      label: t.label,
+      description: t.description,
+      score: s.score,
+      passing: s.passing,
+      failing: s.failing,
+      worst: s.worst ? { label: s.worst.label, ratio: s.worst.ratio, required: s.worst.required } : null,
+      checks: s.checks.map(c => ({
+        label: c.label,
+        fg: c.fg,
+        bg: c.bg,
+        ratio: c.ratio,
+        level: c.level,
+        largeText: c.largeText,
+        required: c.required,
+        passes: c.passes,
+        fixSuggestion: c.passes ? undefined : autoFixColor(c.fg, c.bg, c.required),
+      })),
+    };
+  });
+  const totalChecks = rows.reduce((n, r) => n + r.checks.length, 0);
+  const totalPassing = rows.reduce((n, r) => n + r.passing, 0);
+  return {
+    generatedAt: new Date().toISOString(),
+    standard: "WCAG 2.1 (relative luminance)",
+    totals: {
+      themes: rows.length,
+      checks: totalChecks,
+      passing: totalPassing,
+      failing: totalChecks - totalPassing,
+      averageScore: rows.length ? Math.round(rows.reduce((n, r) => n + r.score, 0) / rows.length) : 0,
+    },
+    themes: rows,
+  };
+}
+
+function escHtml(s: string): string {
+  return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+}
+
+export function wcagReportMarkdown(report: WcagReport): string {
+  const lines: string[] = [];
+  lines.push(`# WCAG 2.1 Contrast Audit Report`);
+  lines.push("");
+  lines.push(`- Generated: ${report.generatedAt}`);
+  lines.push(`- Standard: ${report.standard}`);
+  lines.push(`- Themes audited: **${report.totals.themes}**`);
+  lines.push(`- Checks: **${report.totals.passing}/${report.totals.checks} pass** (avg score ${report.totals.averageScore})`);
+  lines.push(`- Failing checks: **${report.totals.failing}**`);
+  lines.push("");
+  for (const t of report.themes) {
+    lines.push(`## ${t.label} — ${t.score}/100 (${t.passing}/${t.checks.length} pass)`);
+    lines.push(`_${t.description}_`);
+    lines.push("");
+    lines.push(`| Check | FG | BG | Ratio | Required | Level | Result | Suggested FG |`);
+    lines.push(`|---|---|---|---|---|---|---|---|`);
+    for (const c of t.checks) {
+      lines.push(`| ${c.label}${c.largeText ? " *(large)*" : ""} | \`${c.fg}\` | \`${c.bg}\` | ${c.ratio.toFixed(2)}:1 | ${c.required}:1 | ${c.level} | ${c.passes ? "✅ Pass" : "❌ Fail"} | ${c.fixSuggestion ? "`" + c.fixSuggestion + "`" : "—"} |`);
+    }
+    if (t.worst && t.failing > 0) {
+      lines.push("");
+      lines.push(`> Lowest contrast: **${t.worst.label}** at ${t.worst.ratio.toFixed(2)}:1 (needs ≥ ${t.worst.required}:1).`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+export function wcagReportHtml(report: WcagReport): string {
+  const themeSections = report.themes.map(t => {
+    const rows = t.checks.map(c => `
+      <tr class="${c.passes ? "pass" : "fail"}">
+        <td>${escHtml(c.label)}${c.largeText ? " <em>(large)</em>" : ""}</td>
+        <td><span class="sw" style="background:${c.bg};color:${c.fg}">Aa</span></td>
+        <td><code>${c.fg}</code> on <code>${c.bg}</code></td>
+        <td class="num">${c.ratio.toFixed(2)}:1</td>
+        <td class="num">${c.required}:1</td>
+        <td>${c.level}</td>
+        <td>${c.passes ? "✅ Pass" : "❌ Fail"}</td>
+        <td>${c.fixSuggestion ? `<code>${c.fixSuggestion}</code>` : "—"}</td>
+      </tr>`).join("");
+    const badgeClass = t.failing === 0 ? "ok" : t.failing <= 2 ? "warn" : "bad";
+    return `
+    <section>
+      <h2>${escHtml(t.label)} <span class="badge ${badgeClass}">${t.score}/100 · ${t.passing}/${t.checks.length}</span></h2>
+      <p class="desc">${escHtml(t.description)}</p>
+      <table>
+        <thead><tr><th>Check</th><th>Sample</th><th>Colors</th><th>Ratio</th><th>Required</th><th>Level</th><th>Result</th><th>Suggested FG</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>`;
+  }).join("");
+
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>WCAG Contrast Audit Report</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 -apple-system, 'SF Pro Display', system-ui, sans-serif; margin: 32px; max-width: 1080px; }
+  h1 { margin: 0 0 4px; }
+  h2 { margin: 24px 0 4px; display: flex; align-items: center; gap: 10px; font-size: 18px; }
+  .desc { color: #666; margin: 0 0 12px; }
+  .summary { background: #f5f5f7; border: 1px solid #e2e2e7; border-radius: 8px; padding: 12px 16px; margin: 12px 0 24px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid #e2e2e7; padding: 6px 8px; text-align: left; vertical-align: middle; }
+  th { background: #f5f5f7; font-weight: 600; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  tr.fail td { background: rgba(220, 38, 38, 0.06); }
+  tr.pass td { background: rgba(16, 185, 129, 0.04); }
+  .sw { display:inline-flex; align-items:center; justify-content:center; width:36px; height:22px; border-radius:4px; border:1px solid #e2e2e7; font-weight:700; font-size:11px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .badge.ok { background:#10b98122; color:#059669; }
+  .badge.warn { background:#f59e0b22; color:#b45309; }
+  .badge.bad { background:#ef444422; color:#b91c1c; }
+  @media print { body { margin: 12mm; } section { break-inside: avoid; } }
+</style></head><body>
+  <h1>WCAG 2.1 Contrast Audit Report</h1>
+  <div class="summary">
+    <div><strong>Generated:</strong> ${escHtml(report.generatedAt)}</div>
+    <div><strong>Standard:</strong> ${escHtml(report.standard)}</div>
+    <div><strong>Themes:</strong> ${report.totals.themes} · <strong>Checks:</strong> ${report.totals.passing}/${report.totals.checks} pass · <strong>Average score:</strong> ${report.totals.averageScore}/100 · <strong>Failing:</strong> ${report.totals.failing}</div>
+  </div>
+  ${themeSections}
+  <p style="margin-top:32px;color:#888;font-size:12px;">Suggested FG values are auto-computed with a luminance-nudge algorithm to meet the required ratio while staying close to the original hue.</p>
+</body></html>`;
+}
+
+export function wcagReportCsv(report: WcagReport): string {
+  const rows: string[] = ["theme_id,theme_label,check,fg,bg,ratio,required,level,large_text,passes,suggested_fg"];
+  for (const t of report.themes) {
+    for (const c of t.checks) {
+      rows.push([
+        t.id, JSON.stringify(t.label), JSON.stringify(c.label),
+        c.fg, c.bg, c.ratio.toFixed(3), c.required, c.level, c.largeText, c.passes,
+        c.fixSuggestion || "",
+      ].join(","));
+    }
+  }
+  return rows.join("\n");
+}
+
+
 
 
 

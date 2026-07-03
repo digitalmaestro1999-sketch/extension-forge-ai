@@ -25,8 +25,12 @@ import {
   type ContrastCheck,
   autoFixThemeContrast,
   paletteFromBrand,
+  buildWcagReport,
+  wcagReportMarkdown,
+  wcagReportHtml,
+  wcagReportCsv,
 } from "@/lib/extension-themes";
-import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { ShieldCheck, ShieldAlert, FileText } from "lucide-react";
 
 interface Props {
   name: string;
@@ -121,7 +125,47 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
     toast.success(`Saved "${theme.label}" as a preset`);
   };
 
+  const exportWcagReport = async (themes: ThemePreset[], filenameBase: string) => {
+    try {
+      const report = buildWcagReport(themes);
+      const zip = new JSZip();
+      const folder = zip.folder(`${filenameBase}-wcag-report`)!;
+      folder.file("report.html", wcagReportHtml(report));
+      folder.file("report.md", wcagReportMarkdown(report));
+      folder.file("report.json", JSON.stringify(report, null, 2));
+      folder.file("report.csv", wcagReportCsv(report));
+      folder.file(
+        "README.txt",
+        [
+          "WCAG 2.1 Contrast Audit Report",
+          "-------------------------------",
+          `Generated: ${report.generatedAt}`,
+          `Themes: ${report.totals.themes}`,
+          `Checks: ${report.totals.passing}/${report.totals.checks} passing (avg ${report.totals.averageScore}/100)`,
+          "",
+          "Open report.html in a browser for the visual report (also print-friendly).",
+          "report.md and report.json are machine-readable copies.",
+          "report.csv is spreadsheet-friendly.",
+          "",
+          "Suggested FG values are auto-computed to meet the required contrast ratio.",
+        ].join("\n"),
+      );
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filenameBase}-wcag-report.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`WCAG report exported (${report.totals.passing}/${report.totals.checks} pass)`);
+    } catch (e: any) {
+      toast.error("WCAG export failed: " + (e?.message || String(e)));
+    }
+  };
+
   const cssPreview = useMemo(() => themeCssVars(draft.id), [draft]);
+
+
 
 
   const copyCss = async () => {
@@ -190,6 +234,24 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
         <Button size="sm" variant="default" onClick={() => exportAssets(currentTheme, logoStyleId)} disabled={exporting}>
           <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting…" : "Export assets & CSS"}
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => exportWcagReport([currentTheme], slugify(currentTheme.label))}
+          disabled={exporting}
+          title="Export WCAG 2.1 audit for the current theme (HTML + Markdown + JSON + CSV)"
+        >
+          <FileText className="h-3.5 w-3.5" /> Export WCAG report
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => exportWcagReport(getAllThemes(), "all-themes")}
+          disabled={exporting}
+          title="Audit every preset + custom theme in one report"
+        >
+          <FileText className="h-3.5 w-3.5" /> All themes
+        </Button>
         {customs.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">{customs.length} custom</Badge>
         )}
@@ -202,6 +264,7 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
           A11y {currentA11y.score}
         </Badge>
       </div>
+
 
       {/* Generate palette from brand color */}
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
@@ -457,7 +520,16 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
                   <Badge variant="secondary" className="text-[10px] ml-auto">
                     Showing {sorted.length} × {LOGO_STYLES.length} = {sorted.length * LOGO_STYLES.length}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportWcagReport(sorted.map(s => s.t), `gallery-${gallerySort}-${galleryFilter}`)}
+                    disabled={exporting || sorted.length === 0}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Export WCAG report
+                  </Button>
                 </div>
+
 
                 <div className="space-y-6">
                   {sorted.map(({ t: theme, a11y }) => (
