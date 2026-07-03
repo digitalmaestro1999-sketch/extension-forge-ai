@@ -269,6 +269,36 @@ export type Database = {
         }
         Relationships: []
       }
+      support_conversations: {
+        Row: {
+          answer: string
+          audio_ms: number | null
+          created_at: string
+          id: string
+          model: string | null
+          question: string
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          audio_ms?: number | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          question: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          audio_ms?: number | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          question?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trend_discoveries: {
         Row: {
           category: string | null
