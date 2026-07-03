@@ -1,3 +1,5 @@
+import { themeCssVars } from "./extension-themes";
+
 export interface ExtensionSpec {
   name: string;
   description: string;
@@ -5,6 +7,10 @@ export interface ExtensionSpec {
   permissions: string[];
   hostPermissions: string[];
   apis: string[];
+  /** Optional theme preset id from THEME_PRESETS. */
+  theme?: string;
+  /** Optional logo style id from LOGO_STYLES. */
+  logoStyle?: string;
 }
 
 export function generateManifest(spec: ExtensionSpec): string {
