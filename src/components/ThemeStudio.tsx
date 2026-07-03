@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import JSZip from "jszip";
-import { Palette, Grid3x3, Download, Plus, Trash2, Copy, Check } from "lucide-react";
+import { Palette, Grid3x3, Download, Plus, Trash2, Copy, Check, Wand2, Sparkles, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import {
   deleteCustomTheme,
   summarizeContrast,
   type ContrastCheck,
+  autoFixThemeContrast,
+  paletteFromBrand,
 } from "@/lib/extension-themes";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 
@@ -66,6 +68,10 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
   const [draft, setDraft] = useState<ThemePreset>(() => blankTheme(THEME_PRESETS[0]));
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [brandColor, setBrandColor] = useState("#6366f1");
+  const [brandMode, setBrandMode] = useState<"dark" | "light" | "auto">("auto");
+  const [gallerySort, setGallerySort] = useState<"default" | "a11y" | "a11yAsc">("a11y");
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "passing">("all");
 
   useEffect(() => { setCustoms(loadCustomThemes()); }, []);
 
@@ -94,7 +100,29 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
     toast.success("Theme deleted");
   };
 
+  const handleAutoFixContrast = () => {
+    const { theme, changed } = autoFixThemeContrast(draft);
+    if (changed.length === 0) { toast.info("Contrast already passes — nothing to fix."); return; }
+    setDraft({ ...theme, id: draft.id, label: draft.label, description: draft.description });
+    toast.success(`Auto-fixed ${changed.length} color${changed.length === 1 ? "" : "s"}: ${changed.join(", ")}`);
+  };
+
+  const handleGenerateFromBrand = () => {
+    const theme = paletteFromBrand(brandColor, { mode: brandMode, label: `Brand ${brandColor.toUpperCase()}` });
+    setDraft({ ...theme, id: `custom-${Date.now().toString(36)}` });
+    toast.success("Generated palette from brand color");
+  };
+
+  const handleQuickSaveBrand = () => {
+    const theme = paletteFromBrand(brandColor, { mode: brandMode, label: `Brand ${brandColor.toUpperCase()}` });
+    const next = saveCustomTheme(theme);
+    setCustoms(next.filter(t => t.id.startsWith("custom-") || !THEME_PRESETS.some(p => p.id === t.id)));
+    onChange(theme.id, logoStyleId);
+    toast.success(`Saved "${theme.label}" as a preset`);
+  };
+
   const cssPreview = useMemo(() => themeCssVars(draft.id), [draft]);
+
 
   const copyCss = async () => {
     // Compose CSS for the draft directly (not yet saved)
@@ -174,6 +202,41 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
           A11y {currentA11y.score}
         </Badge>
       </div>
+
+      {/* Generate palette from brand color */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <span className="text-[11px] font-medium">Generate from brand</span>
+        <input
+          type="color"
+          aria-label="Brand color"
+          value={brandColor}
+          onChange={e => setBrandColor(e.target.value)}
+          className="h-7 w-9 rounded border border-border cursor-pointer bg-transparent"
+        />
+        <Input
+          value={brandColor}
+          onChange={e => setBrandColor(e.target.value)}
+          className="h-7 w-24 text-xs font-mono"
+        />
+        <select
+          value={brandMode}
+          onChange={e => setBrandMode(e.target.value as any)}
+          className="h-7 rounded-md border border-border bg-background text-[11px] px-2"
+          aria-label="Palette mode"
+        >
+          <option value="auto">Auto</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+        <Button size="sm" variant="outline" onClick={() => { handleGenerateFromBrand(); setEditorOpen(true); }}>
+          <Wand2 className="h-3.5 w-3.5" /> Preview in editor
+        </Button>
+        <Button size="sm" onClick={handleQuickSaveBrand}>
+          <Plus className="h-3.5 w-3.5" /> Save as preset
+        </Button>
+      </div>
+
 
       {customs.length > 0 && (
         <div className="mt-3">
@@ -318,6 +381,16 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
                     Lowest: <span className="text-foreground">{draftA11y.worst.label}</span> — needs ≥ {draftA11y.worst.required}:1.
                   </p>
                 )}
+                {draftA11y.failing > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2 border-amber-500/40 text-amber-600 hover:text-amber-600"
+                    onClick={handleAutoFixContrast}
+                  >
+                    <Wand2 className="h-3.5 w-3.5" /> Auto-fix {draftA11y.failing} contrast issue{draftA11y.failing === 1 ? "" : "s"}
+                  </Button>
+                )}
               </div>
 
 
@@ -332,6 +405,7 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
               <Button size="sm" variant="secondary" className="w-full" onClick={() => exportAssets({ ...draft, id: draft.id || `custom-${slugify(draft.label)}` }, logoStyleId)}>
                 <Download className="h-3.5 w-3.5" /> Export this theme
               </Button>
+
             </div>
           </div>
         </DialogContent>
@@ -347,42 +421,99 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
-            {getAllThemes().map(theme => (
-              <div key={theme.id}>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="text-sm font-semibold">{theme.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{theme.description}</div>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => exportAssets(theme, logoStyleId)} disabled={exporting}>
-                    <Download className="h-3.5 w-3.5" /> Export set
-                  </Button>
+          {(() => {
+            const scored = getAllThemes().map(t => ({ t, a11y: summarizeContrast(t) }));
+            const filtered = galleryFilter === "passing" ? scored.filter(s => s.a11y.failing === 0) : scored;
+            const sorted = gallerySort === "default"
+              ? filtered
+              : filtered.slice().sort((a, b) =>
+                  gallerySort === "a11y" ? b.a11y.score - a.a11y.score : a.a11y.score - b.a11y.score
+                );
+            return (
+              <>
+                <div className="flex flex-wrap items-center gap-2 mb-3 text-[11px]">
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Sort</span>
+                  <select
+                    value={gallerySort}
+                    onChange={e => setGallerySort(e.target.value as any)}
+                    className="h-7 rounded-md border border-border bg-background px-2"
+                    aria-label="Sort gallery"
+                  >
+                    <option value="a11y">A11y score (high → low)</option>
+                    <option value="a11yAsc">A11y score (low → high)</option>
+                    <option value="default">Default</option>
+                  </select>
+                  <span className="text-muted-foreground ml-2">Filter</span>
+                  <select
+                    value={galleryFilter}
+                    onChange={e => setGalleryFilter(e.target.value as any)}
+                    className="h-7 rounded-md border border-border bg-background px-2"
+                    aria-label="Filter gallery"
+                  >
+                    <option value="all">All themes ({scored.length})</option>
+                    <option value="passing">Passing WCAG only ({scored.filter(s => s.a11y.failing === 0).length})</option>
+                  </select>
+                  <Badge variant="secondary" className="text-[10px] ml-auto">
+                    Showing {sorted.length} × {LOGO_STYLES.length} = {sorted.length * LOGO_STYLES.length}
+                  </Badge>
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {LOGO_STYLES.map(style => {
-                    const active = themeId === theme.id && logoStyleId === style.id;
-                    return (
-                      <button
-                        key={style.id}
-                        type="button"
-                        onClick={() => { onChange(theme.id, style.id); setGalleryOpen(false); }}
-                        className={`p-2 rounded-md border transition-all ${active ? "border-primary ring-1 ring-primary/40" : "border-border hover:border-primary/40"}`}
-                        style={{ background: theme.bgElevated }}
-                      >
-                        <img
-                          src={logoDataUrl(name || theme.label, theme.id, style.id, 96)}
-                          alt={`${theme.label} ${style.label}`}
-                          className="h-16 w-16 mx-auto rounded"
-                        />
-                        <div className="text-[10px] mt-1 text-center" style={{ color: theme.textSecondary }}>{style.label}</div>
-                      </button>
-                    );
-                  })}
+
+                <div className="space-y-6">
+                  {sorted.map(({ t: theme, a11y }) => (
+                    <div key={theme.id}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold flex items-center gap-2">
+                            {theme.label}
+                            <Badge
+                              variant="secondary"
+                              className={`text-[10px] gap-1 ${a11y.failing === 0 ? "bg-emerald-500/15 text-emerald-500" : a11y.failing <= 2 ? "bg-amber-500/15 text-amber-500" : "bg-destructive/15 text-destructive"}`}
+                              title={`${a11y.passing}/${a11y.checks.length} WCAG checks pass`}
+                            >
+                              {a11y.failing === 0 ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+                              A11y {a11y.score}
+                            </Badge>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">{theme.description}</div>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => exportAssets(theme, logoStyleId)} disabled={exporting}>
+                          <Download className="h-3.5 w-3.5" /> Export set
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {LOGO_STYLES.map(style => {
+                          const active = themeId === theme.id && logoStyleId === style.id;
+                          return (
+                            <button
+                              key={style.id}
+                              type="button"
+                              onClick={() => { onChange(theme.id, style.id); setGalleryOpen(false); }}
+                              className={`p-2 rounded-md border transition-all ${active ? "border-primary ring-1 ring-primary/40" : "border-border hover:border-primary/40"}`}
+                              style={{ background: theme.bgElevated }}
+                            >
+                              <img
+                                src={logoDataUrl(name || theme.label, theme.id, style.id, 96)}
+                                alt={`${theme.label} ${style.label}`}
+                                className="h-16 w-16 mx-auto rounded"
+                              />
+                              <div className="text-[10px] mt-1 text-center" style={{ color: theme.textSecondary }}>{style.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {sorted.length === 0 && (
+                    <div className="text-center text-xs text-muted-foreground py-8">
+                      No themes match the current filter.
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              </>
+            );
+          })()}
+
         </DialogContent>
       </Dialog>
     </>

@@ -294,6 +294,118 @@ export function summarizeContrast(t: ThemePreset): ContrastSummary {
   return { checks, score, passing, failing, worst };
 }
 
+// ---------------- Auto-fix contrast ----------------
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+/** Nudge a foreground hex toward white or black until it meets `required` contrast on bg. */
+export function autoFixColor(fg: string, bg: string, required: number): string {
+  if (contrastRatio(fg, bg) >= required) return fg;
+  const bgLum = relativeLuminance(bg);
+  const target: [number, number, number] = bgLum < 0.5 ? [255, 255, 255] : [0, 0, 0];
+  const [r, g, b] = hexToRgbTriplet(fg);
+  let best = fg;
+  let bestRatio = contrastRatio(fg, bg);
+  for (let step = 0.05; step <= 1.0001; step += 0.05) {
+    const nr = r + (target[0] - r) * step;
+    const ng = g + (target[1] - g) * step;
+    const nb = b + (target[2] - b) * step;
+    const cand = rgbToHex(nr, ng, nb);
+    const ratio = contrastRatio(cand, bg);
+    if (ratio > bestRatio) { best = cand; bestRatio = ratio; }
+    if (ratio >= required) return cand;
+  }
+  return best;
+}
+
+/** Return a new theme with text/border colors adjusted so all WCAG checks pass. */
+export function autoFixThemeContrast(t: ThemePreset): { theme: ThemePreset; changed: Array<keyof ThemePreset> } {
+  const changed: Array<keyof ThemePreset> = [];
+  const next: ThemePreset = { ...t };
+  const fix = (key: keyof ThemePreset, bg: string, required: number) => {
+    const cur = next[key] as string;
+    const nv = autoFixColor(cur, bg, required);
+    if (nv.toLowerCase() !== cur.toLowerCase()) {
+      (next as any)[key] = nv;
+      changed.push(key);
+    }
+  };
+  fix("text", next.bg, 4.5);
+  fix("text", next.bgElevated, 4.5);
+  fix("textSecondary", next.surface, 4.5);
+  fix("textMuted", next.bg, 3);
+  fix("logoFg", next.accent, 4.5);
+  fix("accent", next.bg, 3);
+  fix("border", next.bg, 3);
+  return { theme: next, changed };
+}
+
+// ---------------- Palette from brand color ----------------
+
+function mix(hex: string, target: [number, number, number], amount: number): string {
+  const [r, g, b] = hexToRgbTriplet(hex);
+  return rgbToHex(r + (target[0] - r) * amount, g + (target[1] - g) * amount, b + (target[2] - b) * amount);
+}
+
+/** Generate a full ThemePreset from a single brand color. Mode auto-picks dark/light. */
+export function paletteFromBrand(
+  brand: string,
+  opts: { mode?: "dark" | "light" | "auto"; label?: string } = {},
+): ThemePreset {
+  const mode: "dark" | "light" =
+    opts.mode && opts.mode !== "auto" ? opts.mode : (relativeLuminance(brand) > 0.5 ? "light" : "dark");
+  const BLACK: [number, number, number] = [0, 0, 0];
+  const WHITE: [number, number, number] = [255, 255, 255];
+
+  const base = mode === "dark"
+    ? {
+        bg: mix(brand, BLACK, 0.94),
+        bgElevated: mix(brand, BLACK, 0.88),
+        surface: mix(brand, BLACK, 0.80),
+        surfaceHover: mix(brand, BLACK, 0.72),
+        bgInput: mix(brand, BLACK, 0.78),
+        text: mix(brand, WHITE, 0.92),
+        textSecondary: mix(brand, WHITE, 0.55),
+        textMuted: mix(brand, WHITE, 0.35),
+        border: mix(brand, BLACK, 0.68),
+        borderSubtle: mix(brand, BLACK, 0.78),
+      }
+    : {
+        bg: mix(brand, WHITE, 0.96),
+        bgElevated: "#ffffff",
+        surface: mix(brand, WHITE, 0.88),
+        surfaceHover: mix(brand, WHITE, 0.80),
+        bgInput: "#ffffff",
+        text: mix(brand, BLACK, 0.88),
+        textSecondary: mix(brand, BLACK, 0.55),
+        textMuted: mix(brand, BLACK, 0.38),
+        border: mix(brand, WHITE, 0.72),
+        borderSubtle: mix(brand, WHITE, 0.82),
+      };
+
+  const accentHover = mode === "dark" ? mix(brand, WHITE, 0.18) : mix(brand, BLACK, 0.14);
+  const logoFg = relativeLuminance(brand) > 0.55 ? "#0a0a0a" : "#ffffff";
+  const raw: ThemePreset = {
+    id: `custom-brand-${Date.now().toString(36)}`,
+    label: opts.label || "Brand Palette",
+    description: `Generated from ${brand.toUpperCase()} (${mode})`,
+    accent: brand,
+    accentHover,
+    accentSoft: brand,
+    ...base,
+    logoBg: mix(brand, BLACK, 0.35),
+    logoBgTo: brand,
+    logoFg,
+  };
+  // Ensure it lands accessible out of the box.
+  return autoFixThemeContrast(raw).theme;
+}
+
+
+
 
 
 // ---------------- Logo mark styles ----------------
