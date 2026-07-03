@@ -211,6 +211,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Bundle Mozilla's `webextension-polyfill` or feature-detect: `const api = globalThis.browser ?? globalThis.chrome`.",
+    autoFix: {
+      id: "inject-browser-polyfill",
+      label: "Inject browser polyfill shim",
+      description: "Adds `lib/browser-polyfill.js` shim that aliases `browser` to `chrome` when missing.",
+      writes: ["source"],
+    },
   },
   {
     id: "promise-callbacks",
