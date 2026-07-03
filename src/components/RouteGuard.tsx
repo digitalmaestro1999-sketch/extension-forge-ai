@@ -4,15 +4,15 @@ import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import PendingAccess from "@/pages/PendingAccess";
 
 interface RouteGuardProps {
   children: ReactNode;
-  /** Require user to be signed in. Defaults to true. */
   requireAuth?: boolean;
-  /** Require ANY of these roles. */
   anyRole?: AppRole[];
-  /** Require ALL of these roles. */
   allRoles?: AppRole[];
+  /** Skip the pending-status gate (e.g. the pending screen itself). */
+  skipStatusGate?: boolean;
 }
 
 export function RouteGuard({
@@ -20,8 +20,9 @@ export function RouteGuard({
   requireAuth = true,
   anyRole,
   allRoles,
+  skipStatusGate = false,
 }: RouteGuardProps) {
-  const { user, loading, roles, isSuperadmin } = useAuth();
+  const { user, loading, roles, isSuperadmin, status } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -36,7 +37,11 @@ export function RouteGuard({
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
-  // Superadmin bypasses all role checks
+  // Superadmin bypasses the pending gate too
+  if (!skipStatusGate && user && !isSuperadmin && status && status !== "active") {
+    return <PendingAccess />;
+  }
+
   if (!isSuperadmin) {
     if (anyRole && anyRole.length > 0 && !anyRole.some((r) => roles.includes(r))) {
       return <Forbidden required={anyRole.join(" or ")} />;
@@ -61,7 +66,7 @@ function Forbidden({ required }: { required: string }) {
         </p>
       </div>
       <Button asChild variant="outline">
-        <Link to="/">Back to Dashboard</Link>
+        <Link to="/dashboard">Back to Dashboard</Link>
       </Button>
     </div>
   );
