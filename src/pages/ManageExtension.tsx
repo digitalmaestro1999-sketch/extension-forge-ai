@@ -938,6 +938,7 @@ function EditorView() {
 // ---------------- Clone ----------------
 function CloneView() {
   const ext = useExt();
+  const { user } = useAuth();
   const isImported = !!ext.imported;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(`${ext.name} · Clone`);
@@ -953,18 +954,38 @@ function CloneView() {
   const clone = async () => {
     setCloning(true);
     try {
-      if (isImported && ext.imported) {
-        // Rewrite manifest name/version, then export ZIP
-        const patched = { ...ext.fileContents };
-        const manifestKey = Object.keys(patched).find((k) => k === "manifest.json" || k.endsWith("/manifest.json"));
-        if (manifestKey) {
-          try {
-            const parsed = JSON.parse(patched[manifestKey]);
-            parsed.name = name;
-            parsed.version = parsed.version ?? "1.0.0";
-            patched[manifestKey] = JSON.stringify(parsed, null, 2);
-          } catch {/* leave as-is */}
+      // Build the cloned file map (rewrite manifest name/version).
+      const patched: Record<string, string> = { ...ext.fileContents };
+      const manifestKey =
+        Object.keys(patched).find((k) => k === "manifest.json" || k.endsWith("/manifest.json")) ?? "manifest.json";
+      try {
+        const parsed = manifestKey in patched
+          ? JSON.parse(patched[manifestKey])
+          : { ...(ext.manifest as Record<string, unknown>) };
+        (parsed as Record<string, unknown>).name = name;
+        (parsed as Record<string, unknown>).version =
+          (parsed as { version?: string }).version ?? "1.0.0";
+        patched[manifestKey] = JSON.stringify(parsed, null, 2);
+      } catch {/* leave manifest as-is */}
+
+      // Persist clone as a NEW project row (never overwrite the source).
+      if (user) {
+        try {
+          await persistProject({
+            userId: user.id,
+            name,
+            description: ext.description,
+            source: "cloned",
+            files: patched,
+            status: "draft",
+            spec: { clonedFrom: ext.name, cloneId: id, resetAnalytics: reset },
+          });
+        } catch (err) {
+          console.warn("persist clone failed", err);
         }
+      }
+
+      if (isImported && ext.imported) {
         const blob = await exportImportedExtension(ext.imported, patched);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -972,9 +993,9 @@ function CloneView() {
         a.download = `${id}.zip`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("Clone exported", { description: `${name} downloaded as ${id}.zip` });
+        toast.success("Clone saved & exported", { description: `${name} downloaded as ${id}.zip` });
       } else {
-        toast.success("Extension Cloned Successfully", { description: `${name} created with ID ${id}.` });
+        toast.success("Extension Cloned Successfully", { description: `${name} saved to your Projects (ID ${id}).` });
       }
     } catch (e) {
       toast.error("Clone failed", { description: (e as Error).message });
@@ -983,6 +1004,7 @@ function CloneView() {
       setOpen(false);
     }
   };
+
 
   const perms = Array.isArray((ext.manifest as { permissions?: string[] }).permissions)
     ? (ext.manifest as { permissions: string[] }).permissions
