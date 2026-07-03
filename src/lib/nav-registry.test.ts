@@ -4,6 +4,8 @@ import {
   isPlaceholderRoute,
   getPlaceholderNote,
   normalizePath,
+  validateNavRegistry,
+  KNOWN_ROUTES,
   PLACEHOLDER_ROUTES,
   PLACEHOLDER_NOTES,
 } from "./nav-registry";
