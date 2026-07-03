@@ -267,7 +267,42 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 5. FEATURE GRID */}
+      {/* 5. HOW IT WORKS — pipeline steps */}
+      <section id="how" className="py-20 px-4 sm:px-6 border-y border-border bg-secondary/10">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <Badge variant="outline" className="mb-3 border-[#00E5FF]/40 text-[#00E5FF]">How it works</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">From one sentence to a signed ZIP.</h2>
+            <p className="mt-3 text-muted-foreground">Six agents, one autonomous pipeline. Watch it run in real time.</p>
+          </div>
+          <ol className="relative grid md:grid-cols-5 gap-4">
+            {[
+              { n: "01", icon: Sparkles, title: "Describe", desc: "Prompt your idea in plain English.", color: "text-[#00E5FF] border-[#00E5FF]/40" },
+              { n: "02", icon: Cpu, title: "Architect", desc: "Agent picks MV3 surface & APIs.", color: "text-[#B026FF] border-[#B026FF]/40" },
+              { n: "03", icon: Code2, title: "Generate", desc: "Full source, manifest, and CSP.", color: "text-[#FF2E93] border-[#FF2E93]/40" },
+              { n: "04", icon: ShieldCheck, title: "Harden", desc: "Auto-fix permissions & risks.", color: "text-emerald-400 border-emerald-400/40" },
+              { n: "05", icon: Package, title: "Ship", desc: "ZIP, icons, listing, done.", color: "text-amber-400 border-amber-400/40" },
+            ].map((s, i) => (
+              <motion.li
+                key={s.n}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className={`relative rounded-2xl border bg-card/60 p-5 ${s.color}`}
+              >
+                <div className="font-mono text-xs opacity-70">{s.n}</div>
+                <s.icon className="h-6 w-6 mt-2" />
+                <div className="mt-3 font-semibold text-foreground">{s.title}</div>
+                <div className="text-xs text-muted-foreground mt-1">{s.desc}</div>
+              </motion.li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* 6. FEATURE GRID */}
+
       <section id="features" className="py-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-14">
