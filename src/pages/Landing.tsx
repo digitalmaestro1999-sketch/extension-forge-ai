@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   Zap, Sparkles, ShieldCheck, Rocket, Cpu, Boxes, Wand2, Bot, Code2, Layers,
   Palette, LineChart, Lock, Globe, Github, Twitter, ArrowRight, Check, Play,
-  Star, ChevronDown, Menu, X, Mail, Terminal, Package, Users,
+  Star, ChevronDown, Menu, X, Mail, Terminal, Package, Users, Chrome, Puzzle,
+  FileCheck, Award, Gauge, KeyRound, Eye, Type, Minus, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,19 @@ const faqs = [
 
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  const [textScale, setTextScale] = useState(1);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.fontSize = `${textScale * 100}%`;
+    root.classList.toggle("contrast-boost", highContrast);
+    return () => {
+      root.style.fontSize = "";
+      root.classList.remove("contrast-boost");
+    };
+  }, [textScale, highContrast]);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
@@ -253,7 +267,42 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 5. FEATURE GRID */}
+      {/* 5. HOW IT WORKS — pipeline steps */}
+      <section id="how" className="py-20 px-4 sm:px-6 border-y border-border bg-secondary/10">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <Badge variant="outline" className="mb-3 border-[#00E5FF]/40 text-[#00E5FF]">How it works</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">From one sentence to a signed ZIP.</h2>
+            <p className="mt-3 text-muted-foreground">Six agents, one autonomous pipeline. Watch it run in real time.</p>
+          </div>
+          <ol className="relative grid md:grid-cols-5 gap-4">
+            {[
+              { n: "01", icon: Sparkles, title: "Describe", desc: "Prompt your idea in plain English.", color: "text-[#00E5FF] border-[#00E5FF]/40" },
+              { n: "02", icon: Cpu, title: "Architect", desc: "Agent picks MV3 surface & APIs.", color: "text-[#B026FF] border-[#B026FF]/40" },
+              { n: "03", icon: Code2, title: "Generate", desc: "Full source, manifest, and CSP.", color: "text-[#FF2E93] border-[#FF2E93]/40" },
+              { n: "04", icon: ShieldCheck, title: "Harden", desc: "Auto-fix permissions & risks.", color: "text-emerald-400 border-emerald-400/40" },
+              { n: "05", icon: Package, title: "Ship", desc: "ZIP, icons, listing, done.", color: "text-amber-400 border-amber-400/40" },
+            ].map((s, i) => (
+              <motion.li
+                key={s.n}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className={`relative rounded-2xl border bg-card/60 p-5 ${s.color}`}
+              >
+                <div className="font-mono text-xs opacity-70">{s.n}</div>
+                <s.icon className="h-6 w-6 mt-2" />
+                <div className="mt-3 font-semibold text-foreground">{s.title}</div>
+                <div className="text-xs text-muted-foreground mt-1">{s.desc}</div>
+              </motion.li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* 6. FEATURE GRID */}
+
       <section id="features" className="py-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-14">
@@ -325,7 +374,84 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 7. DEMO CTA / SANDBOX */}
+      {/* 7. INTEGRATIONS & COMPATIBILITY */}
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-3 border-[#00E5FF]/40 text-[#00E5FF]">Integrations</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Runs everywhere Chromium runs.</h2>
+            <p className="mt-3 text-muted-foreground">Plus every AI model and store API you care about.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { icon: Chrome, name: "Chrome", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: Globe, name: "Edge", tint: "text-[#B026FF] border-[#B026FF]/30" },
+              { icon: ShieldCheck, name: "Brave", tint: "text-amber-400 border-amber-400/30" },
+              { icon: Puzzle, name: "Opera", tint: "text-[#FF2E93] border-[#FF2E93]/30" },
+              { icon: Cpu, name: "NVIDIA NIM", tint: "text-emerald-400 border-emerald-400/30" },
+              { icon: Bot, name: "OpenAI · Gemini", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: KeyRound, name: "OAuth 2.0", tint: "text-[#B026FF] border-[#B026FF]/30" },
+              { icon: Package, name: "CWS Upload", tint: "text-amber-400 border-amber-400/30" },
+              { icon: LineChart, name: "Telemetry", tint: "text-emerald-400 border-emerald-400/30" },
+              { icon: Layers, name: "JSZip", tint: "text-[#FF2E93] border-[#FF2E93]/30" },
+              { icon: FileCheck, name: "WCAG 2.1", tint: "text-[#00E5FF] border-[#00E5FF]/30" },
+              { icon: Lock, name: "HMAC · JWT", tint: "text-[#B026FF] border-[#B026FF]/30" },
+            ].map((it) => (
+              <div key={it.name} className={`rounded-xl border bg-card/60 p-4 flex flex-col items-center justify-center text-center gap-2 hover:bg-card transition ${it.tint}`}>
+                <it.icon className="h-6 w-6" />
+                <span className="text-xs font-mono text-foreground">{it.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. SECURITY & COMPLIANCE */}
+      <section className="py-20 px-4 sm:px-6 border-y border-border bg-secondary/20">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <Badge variant="outline" className="mb-3 border-emerald-400/40 text-emerald-400">Security & Compliance</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Shipped hardened. By default.</h2>
+            <p className="mt-4 text-muted-foreground">
+              Every generated extension passes a 16-point Chrome Web Store policy scan, a permission risk analyzer,
+              and a WCAG 2.1 contrast audit before you can download the ZIP.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {[
+                { icon: ShieldCheck, label: "CSP hardened" },
+                { icon: Award, label: "MV3 certified" },
+                { icon: Gauge, label: "99% pass rate" },
+                { icon: FileCheck, label: "WCAG AA" },
+                { icon: Lock, label: "HMAC signed" },
+                { icon: KeyRound, label: "RLS enforced" },
+              ].map((b) => (
+                <div key={b.label} className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-sm">
+                  <b.icon className="h-4 w-4 text-primary" /> {b.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <Card className="p-6 bg-card border-border font-mono text-xs relative overflow-hidden">
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse-glow" />
+              <span className="text-emerald-400">SCAN PASSED</span>
+            </div>
+            <div className="text-muted-foreground">// qa-report.json</div>
+            <div className="mt-3 space-y-1.5">
+              <div><span className="text-[#00E5FF]">"csp"</span>: <span className="text-emerald-400">"strict"</span>,</div>
+              <div><span className="text-[#00E5FF]">"permissions_risk"</span>: <span className="text-emerald-400">"low"</span>,</div>
+              <div><span className="text-[#00E5FF]">"host_patterns"</span>: <span className="text-amber-400">"scoped"</span>,</div>
+              <div><span className="text-[#00E5FF]">"cws_policy_checks"</span>: <span className="text-emerald-400">"16/16"</span>,</div>
+              <div><span className="text-[#00E5FF]">"wcag"</span>: <span className="text-emerald-400">"AA"</span>,</div>
+              <div><span className="text-[#00E5FF]">"secrets_leaked"</span>: <span className="text-emerald-400">0</span>,</div>
+              <div><span className="text-[#00E5FF]">"remote_scripts"</span>: <span className="text-emerald-400">0</span></div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* 9. DEMO CTA / SANDBOX */}
+
       <section id="demo" className="py-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto rounded-3xl border border-border bg-gradient-to-br from-[#00E5FF]/10 via-transparent to-[#B026FF]/10 p-8 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
@@ -386,7 +512,41 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 9. TESTIMONIALS */}
+      {/* 10a. COMPARISON */}
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge variant="outline" className="mb-3 border-[#FF2E93]/40 text-[#FF2E93]">Why Forge</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold">Manual builds vs. Forge AI.</h2>
+          </div>
+          <div className="rounded-2xl border border-border overflow-hidden bg-card/60">
+            <div className="grid grid-cols-3 text-sm">
+              <div className="p-4 font-semibold text-muted-foreground border-b border-border">Capability</div>
+              <div className="p-4 font-semibold text-muted-foreground border-b border-l border-border">Manual dev</div>
+              <div className="p-4 font-semibold text-primary border-b border-l border-border bg-primary/5">Extension Forge AI</div>
+              {[
+                ["Time to first ship", "3–14 days", "~6 seconds"],
+                ["MV3 compliance", "Manual review", "Auto-certified"],
+                ["Permission risk audit", "Optional", "Blocking gate"],
+                ["Icons & branding", "Designer needed", "Theme Studio + AI"],
+                ["Chrome Web Store listing", "Copywriter", "AI-drafted"],
+                ["Portfolio scaling", "1 at a time", "100+ / day batch"],
+              ].map((row, i) => (
+                <div key={i} className="contents">
+                  <div className={`p-4 border-t border-border ${i % 2 ? "bg-secondary/20" : ""}`}>{row[0]}</div>
+                  <div className={`p-4 border-t border-l border-border text-muted-foreground ${i % 2 ? "bg-secondary/20" : ""}`}>{row[1]}</div>
+                  <div className={`p-4 border-t border-l border-border bg-primary/5 flex items-center gap-2`}>
+                    <Check className="h-4 w-4 text-primary" /> {row[2]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. TESTIMONIALS */}
+
       <section className="py-20 px-4 sm:px-6 bg-secondary/20 border-y border-border">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
@@ -500,6 +660,38 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Accessibility Toolbar */}
+      <div className="fixed bottom-4 right-4 z-40 rounded-full border border-border bg-card/90 backdrop-blur-xl shadow-lg flex items-center gap-1 p-1">
+        <button
+          aria-label="Decrease text size"
+          onClick={() => setTextScale((s) => Math.max(0.85, +(s - 0.05).toFixed(2)))}
+          className="h-9 w-9 rounded-full hover:bg-secondary flex items-center justify-center"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <span className="text-xs font-mono w-10 text-center text-muted-foreground">
+          <Type className="h-3 w-3 inline mr-0.5" />{Math.round(textScale * 100)}%
+        </span>
+        <button
+          aria-label="Increase text size"
+          onClick={() => setTextScale((s) => Math.min(1.3, +(s + 0.05).toFixed(2)))}
+          className="h-9 w-9 rounded-full hover:bg-secondary flex items-center justify-center"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <div className="h-6 w-px bg-border mx-1" />
+        <button
+          aria-label="Toggle high contrast"
+          onClick={() => setHighContrast((v) => !v)}
+          className={`h-9 px-3 rounded-full text-xs font-medium flex items-center gap-1.5 transition ${
+            highContrast ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+          }`}
+        >
+          <Eye className="h-3.5 w-3.5" /> Contrast
+        </button>
+      </div>
     </div>
   );
 }
+
