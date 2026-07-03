@@ -173,12 +173,48 @@ function renderAd(containerId) {
 
 export default function MonetizationTemplates() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const copyCode = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
     toast.success("Code copied to clipboard");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const useTemplate = async (template: typeof TEMPLATES[number]) => {
+    if (!user) {
+      toast.error("Sign in to save templates as projects");
+      navigate("/auth");
+      return;
+    }
+    setSavingId(template.id);
+    try {
+      const files = { ...template.files } as Record<string, string>;
+      files["README.md"] =
+        `# ${template.name}\n\n${template.description}\n\n` +
+        `Estimated revenue: ${template.revenue}\nDifficulty: ${template.difficulty}\n\n` +
+        `Generated from a monetization template.`;
+      const { id } = await persistProject({
+        userId: user.id,
+        name: template.name,
+        description: template.description,
+        spec: { monetization: template.id, revenue: template.revenue },
+        files,
+        source: "generated",
+        status: "draft",
+      });
+      toast.success("Project created", { description: "Opening in editor…" });
+      sessionStorage.setItem("extension-files", JSON.stringify(files));
+      sessionStorage.setItem("extension-spec", JSON.stringify({ monetization: template.id, projectId: id }));
+      navigate("/editor");
+    } catch (e) {
+      toast.error("Failed to save", { description: (e as Error).message });
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
