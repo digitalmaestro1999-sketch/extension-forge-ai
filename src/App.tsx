@@ -40,6 +40,14 @@ const queryClient = new QueryClient();
 const adminOnly = ["admin"] as const;
 const superadminOnly = ["superadmin"] as const;
 
+// Public landing at `/` for signed-out visitors; redirect to /dashboard when signed-in.
+const HomeGate = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Landing />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
