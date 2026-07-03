@@ -25,8 +25,12 @@ import {
   type ContrastCheck,
   autoFixThemeContrast,
   paletteFromBrand,
+  buildWcagReport,
+  wcagReportMarkdown,
+  wcagReportHtml,
+  wcagReportCsv,
 } from "@/lib/extension-themes";
-import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { ShieldCheck, ShieldAlert, FileText } from "lucide-react";
 
 interface Props {
   name: string;
