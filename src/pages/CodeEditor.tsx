@@ -163,6 +163,10 @@ export default function CodeEditorPage() {
           <Button onClick={handleRegenerate} size="sm" variant="outline">
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
           </Button>
+          <Button onClick={handleSave} size="sm" variant="outline" disabled={saving || !user}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+            {projectId ? "Save" : "Save to Projects"}
+          </Button>
           <Button onClick={handleDownloadZip} size="sm" className="bg-gradient-cyber text-primary-foreground">
             <Download className="h-3.5 w-3.5 mr-1.5" /> Download .zip
           </Button>
