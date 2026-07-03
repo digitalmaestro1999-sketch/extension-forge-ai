@@ -170,6 +170,57 @@ export default function AdminUsers() {
       </div>
 
       <div className="p-6 max-w-[1400px] mx-auto space-y-4">
+        {/* Pending approval queue */}
+        {(() => {
+          const pending = rows.filter((r) => r.status === "pending");
+          if (loading || pending.length === 0) return null;
+          return (
+            <Card className="border-amber-400/30 bg-amber-400/[0.03]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-400">
+                  <Clock className="h-4 w-4" /> Pending approvals
+                  <Badge variant="outline" className="border-amber-400/40 text-amber-400 text-[10px] ml-1">
+                    {pending.length}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>New sign-ups waiting for you to approve or decline.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 divide-y divide-border">
+                {pending.map((row) => {
+                  const isBusy = busy === row.user_id + "status";
+                  return (
+                    <div key={row.user_id} className="px-5 py-3 flex flex-wrap items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center font-semibold text-sm shrink-0">
+                        {row.display_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{row.display_name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{row.email}</p>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        Joined {new Date(row.created_at).toLocaleDateString()}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={isBusy}
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                          onClick={() => setStatus(row, "declined")}>
+                          <UserX className="h-3.5 w-3.5 mr-1" /> Decline
+                        </Button>
+                        <Button size="sm" disabled={isBusy}
+                          className="bg-emerald-500 text-white hover:bg-emerald-600"
+                          onClick={() => setStatus(row, "active")}>
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5 mr-1" />}
+                          Approve
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
