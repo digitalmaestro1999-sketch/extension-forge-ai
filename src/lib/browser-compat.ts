@@ -189,6 +189,12 @@ const RULES: Rule[] = [
     ],
     severity: "error",
     suggestion: "Migrate to `declarativeNetRequest` for MV3 Chromium browsers.",
+    autoFix: {
+      id: "remove-webrequest-blocking",
+      label: "Remove webRequestBlocking permission",
+      description: "Deletes `webRequestBlocking` from manifest permissions (Chrome MV3 rejects it).",
+      writes: ["manifest"],
+    },
   },
   {
     id: "browser-namespace",
