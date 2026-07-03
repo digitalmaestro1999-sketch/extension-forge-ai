@@ -165,9 +165,42 @@ export default function ProjectHistory() {
               transition={{ delay: i * 0.05 }}
               className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all group"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-semibold">{project.name}</h3>
+              <div className="flex items-start justify-between mb-2 gap-2">
+                <div className="min-w-0 flex-1">
+                  {renamingId === project.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        autoFocus
+                        value={renameValue}
+                        maxLength={120}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void commitRename(project.id);
+                          if (e.key === "Escape") cancelRename();
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                        disabled={renameBusy} onClick={() => commitRename(project.id)}>
+                        {renameBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                        onClick={cancelRename}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold truncate">{project.name}</h3>
+                      <button
+                        onClick={() => startRename(project)}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition"
+                        aria-label="Rename project"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
                 </div>
                 <Badge className={`text-[10px] ${statusColors[project.status] || statusColors.draft}`}>
@@ -193,6 +226,9 @@ export default function ProjectHistory() {
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => openInEditor(project)} className="flex-1">
                   <Code2 className="h-3.5 w-3.5 mr-1.5" /> Edit
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => startRename(project)} title="Rename">
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => downloadZip(project)}>
                   <Download className="h-3.5 w-3.5" />
