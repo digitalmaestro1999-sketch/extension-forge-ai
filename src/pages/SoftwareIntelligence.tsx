@@ -59,7 +59,10 @@ const LOG_MAX = 2000;
 
 
 export default function SoftwareIntelligence() {
+  const { user } = useAuth();
   const [scan, setScan] = useState<ProjectScan | null>(null);
+  const [scanProjectId, setScanProjectId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
