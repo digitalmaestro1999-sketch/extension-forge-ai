@@ -68,65 +68,13 @@ serve(async (req) => {
     let systemPrompt = "";
     let userPrompt = "";
 
-    if (stage === "code") {
-      systemPrompt = `You are an expert Chrome Extension developer specializing in Manifest V3. Generate production-ready, fully functional code.
-
-CRITICAL RULES:
-1. NEVER use external CDNs (no Tailwind CDN, no external scripts). All CSS must be inline/bundled. External scripts VIOLATE Manifest V3 Content Security Policy.
-2. All popup/options CSS must use a professional dark theme with CSS custom properties.
-3. All chrome.runtime.sendMessage / onMessage patterns must correctly return true for async responses.
-4. Content scripts must implement ACTUAL functionality for the described features, not just placeholder TODO comments.
-5. Background service workers must properly handle all message types.
-6. Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
-      
-      userPrompt = `Generate a complete, FUNCTIONAL Chrome extension:
-
-Name: ${spec.name}
-Description: ${spec.description}
-Features: ${spec.features?.join(", ")}
-Permissions: ${spec.permissions?.join(", ")}
-APIs: ${spec.apis?.join(", ") || "None"}
-
-Return JSON with this structure (all values are strings of file content):
-{
-  "manifest.json": "...",
-  "background.js": "...",
-  "content.js": "...",
-  "popup.html": "...",
-  "popup.js": "...",
-  "styles.css": "...",
-  "options.html": "...",
-  "options.js": "..."
-}
-
-REQUIREMENTS:
-- manifest.json: Valid Manifest V3. Icons at "icons/icon16.png", "icons/icon48.png", "icons/icon128.png". Content scripts must reference "content.js" and "content-styles.css". Action popup is "popup.html".
-- popup.html: Must link to "styles.css" for styling. 380px width. NO external CDN links. Use semantic HTML.
-- styles.css: Complete dark-theme CSS using CSS custom properties. Professional UI with:
-  * Dark background (#09090b), elevated surfaces (#18181b), accent color (#6366f1)
-  * Clean typography, proper spacing, rounded corners
-  * Status indicators, hover states, smooth transitions
-  * Scrollbar styling, focus states
-  * 380px popup width, min-height 480px
-- popup.js: Full event handling, chrome API calls, async/await, error handling. Wire up ALL buttons.
-- background.js: Service worker with chrome.runtime.onInstalled, message handling, storage management. Must handle messages from content.js and popup.js.
-- content.js: MUST implement actual DOM manipulation for the described features. Wrap in IIFE with double-injection guard. Must respond to messages with sendResponse.
-- options.html: Full settings page with dark theme (inline CSS or link to a CSS file). Include toggles for enable/disable, notification preferences. NO external CDNs.
-- options.js: Load/save settings with chrome.storage.local. Wire up all form elements.
-
-The extension must ACTUALLY WORK when loaded in Chrome. Every button must do something. Every feature must have real implementation.`;
-
-      // Prompt Studio profile: honor style/tone/booster directives from the UI
-      const profile = spec?.profile;
-      if (profile && Array.isArray(profile.directives) && profile.directives.length) {
-        userPrompt += `\n\n## Prompt Studio quality directives (non-negotiable)\n- ${profile.directives.join("\n- ")}`;
-        if (profile.style) userPrompt += `\n\nDesign style key: ${profile.style}`;
-        if (profile.tone) userPrompt += `\nAudience tone key: ${profile.tone}`;
-        if (Array.isArray(profile.boosters) && profile.boosters.length) {
-          userPrompt += `\nActive quality boosters: ${profile.boosters.join(", ")}`;
-        }
-      }
-    } else if (stage === "compliance") {
+    // NOTE: The `code` stage returns early above and delegates to the
+    // deterministic client-side generator in `src/lib/generate-extension.ts`
+    // (mirrored by wizard-codegen/quality-suite). Mirroring generateAllFiles()
+    // server-side would duplicate hundreds of lines of templates for no user
+    // benefit and reintroduce the 150s edge-timeout risk that motivated the
+    // stub. This branch is intentionally unreachable; see the early return.
+    if (stage === "compliance") {
       systemPrompt = "You are a Chrome Web Store compliance expert. Analyze extensions for policy violations. Return ONLY valid JSON.";
       userPrompt = `Analyze this Chrome extension for Chrome Web Store compliance:
 
