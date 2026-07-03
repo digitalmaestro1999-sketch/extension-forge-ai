@@ -136,6 +136,9 @@ type ActiveExt = {
   fileContents: Record<string, string>;
   setFileContents: (next: Record<string, string>) => void;
   clear: () => void;
+  projectId: string | null;
+  saveProject: () => Promise<void>;
+  saving: boolean;
 };
 
 const ExtCtx = createContext<ActiveExt | null>(null);
