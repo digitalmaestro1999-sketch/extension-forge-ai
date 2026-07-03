@@ -44,20 +44,19 @@ describe("nav-registry — safety net", () => {
     ];
     for (const route of mustBeLive) {
       expect(
-        registry.isPlaceholderRoute(route),
+        isPlaceholderRoute(route),
         `Route ${route} was flagged as placeholder but must ship`,
       ).toBe(false);
     }
   });
 });
 
-// Guard against a silent regression where someone imports the wrong symbol.
 describe("nav-registry — exports", () => {
   it("exposes the expected surface", () => {
-    expect(typeof registry.isPlaceholderRoute).toBe("function");
-    expect(typeof registry.getPlaceholderNote).toBe("function");
-    expect(registry.PLACEHOLDER_ROUTES).toBeInstanceOf(Set);
-    expect(registry.PLACEHOLDER_NOTES).toBeTypeOf("object");
+    expect(typeof isPlaceholderRoute).toBe("function");
+    expect(typeof getPlaceholderNote).toBe("function");
+    expect(PLACEHOLDER_ROUTES).toBeInstanceOf(Set);
+    expect(PLACEHOLDER_NOTES).toBeTypeOf("object");
   });
 });
 
