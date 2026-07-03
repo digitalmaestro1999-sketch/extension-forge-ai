@@ -49,13 +49,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<HomeGate />} />
             <Route
               path="*"
               element={
                 <RouteGuard>
                   <DashboardLayout>
                     <Routes>
-                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/create" element={<CreateExtension />} />
                       <Route path="/wizard" element={<ExtensionWizard />} />
                       <Route path="/ai-builder" element={<AIBuilder />} />
