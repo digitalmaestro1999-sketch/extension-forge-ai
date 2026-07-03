@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, Crown, User as UserIcon, Loader2, Search, RefreshCw,
-  ShieldAlert, Mail, Calendar, Check, X,
+  ShieldAlert, Mail, Calendar, Check, X, Clock, UserCheck, UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, type AppRole } from "@/hooks/use-auth";
+import { useAuth, type AppRole, type UserStatus } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 
 interface AdminUserRow {
   user_id: string;
   email: string;
   display_name: string;
+  status: UserStatus;
   created_at: string;
   last_sign_in_at: string | null;
   roles: AppRole[];
@@ -27,6 +28,12 @@ const ALL_ROLES: { value: AppRole; label: string; icon: typeof Crown; tone: stri
   { value: "admin",      label: "Admin",      icon: ShieldCheck, tone: "text-primary border-primary/30 bg-primary/5" },
   { value: "user",       label: "User",       icon: UserIcon, tone: "text-muted-foreground border-border bg-muted/20" },
 ];
+
+const STATUS_STYLE: Record<UserStatus, string> = {
+  pending: "border-amber-400/40 text-amber-400 bg-amber-400/5",
+  active: "border-emerald-400/40 text-emerald-400 bg-emerald-400/5",
+  declined: "border-destructive/40 text-destructive bg-destructive/5",
+};
 
 export default function AdminUsers() {
   const { user, isSuperadmin, loading: authLoading } = useAuth();
