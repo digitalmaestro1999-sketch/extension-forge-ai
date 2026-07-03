@@ -19,6 +19,7 @@ import {
   PROMPT_PRESETS, QUALITY_BOOSTERS, DESIGN_STYLES, AUDIENCE_TONES, PROMPT_VARIATIONS,
   composePrompt, scorePrompt, getPresetTemplate, setPresetOverride, resetPresetOverride,
 } from "@/lib/prompt-presets";
+import { THEME_PRESETS, LOGO_STYLES, logoDataUrl } from "@/lib/extension-themes";
 
 async function invokeWithRetry(
   fnName: string,
