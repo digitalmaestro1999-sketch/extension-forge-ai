@@ -520,7 +520,16 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
                   <Badge variant="secondary" className="text-[10px] ml-auto">
                     Showing {sorted.length} × {LOGO_STYLES.length} = {sorted.length * LOGO_STYLES.length}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportWcagReport(sorted.map(s => s.t), `gallery-${gallerySort}-${galleryFilter}`)}
+                    disabled={exporting || sorted.length === 0}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Export WCAG report
+                  </Button>
                 </div>
+
 
                 <div className="space-y-6">
                   {sorted.map(({ t: theme, a11y }) => (
