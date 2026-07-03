@@ -158,7 +158,12 @@ export default function CreateExtension() {
       const startIntent = Date.now();
 
       const specData = await invokeWithRetry("generate-extension", { idea: composed.idea, audience: toneId ?? "", functionality: "" });
-      const extSpec = { ...(specData.spec as ExtensionSpec), profile: composed.profile } as ExtensionSpec & { profile: typeof composed.profile };
+      const extSpec = {
+        ...(specData.spec as ExtensionSpec),
+        theme: themeId,
+        logoStyle: logoStyleId,
+        profile: composed.profile,
+      } as ExtensionSpec & { profile: typeof composed.profile };
       setSpec(extSpec);
 
       updateStage("intent", {
