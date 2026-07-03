@@ -202,7 +202,7 @@ export default function SoftwareIntelligence() {
         userId: user.id,
         name: next.name || "Imported Project",
         description: `Intelligence Center · ${next.stack.join(" + ") || "project"}`,
-        source: "intelligence",
+        source: "intel-scan",
         files,
         status: "draft",
         spec: { scores: next.scores, stack: next.stack, totalFiles: next.totalFiles },
