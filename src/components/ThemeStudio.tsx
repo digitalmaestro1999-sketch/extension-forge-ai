@@ -165,6 +165,14 @@ export function ThemeStudio({ name, themeId, logoStyleId, onChange }: Props) {
         {customs.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">{customs.length} custom</Badge>
         )}
+        <Badge
+          variant="secondary"
+          className={`text-[10px] gap-1 ${currentA11y.failing === 0 ? "bg-emerald-500/15 text-emerald-500" : currentA11y.failing <= 2 ? "bg-amber-500/15 text-amber-500" : "bg-destructive/15 text-destructive"}`}
+          title={`${currentA11y.passing}/${currentA11y.checks.length} WCAG checks pass`}
+        >
+          {currentA11y.failing === 0 ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+          A11y {currentA11y.score}
+        </Badge>
       </div>
 
       {customs.length > 0 && (
