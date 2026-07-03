@@ -208,6 +208,23 @@ export default function ExtensionWizard() {
       a.click();
       URL.revokeObjectURL(url);
 
+      // Persist to extension_projects so Wizard output shows up in history.
+      if (user) {
+        try {
+          await persistProject({
+            userId: user.id,
+            name: spec.name || "Wizard Extension",
+            description: spec.description,
+            source: "wizard",
+            files,
+            status: "draft",
+            spec: spec as unknown as Record<string, unknown>,
+          });
+        } catch (err) {
+          console.warn("persist wizard project failed", err);
+        }
+      }
+
       toast.success("Ready to Download!", { id: toastId });
     } catch (err) {
       console.error(err);
