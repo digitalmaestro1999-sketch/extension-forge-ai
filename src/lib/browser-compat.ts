@@ -399,6 +399,7 @@ export function analyzeBrowserCompatibility(
       detail: m.detail ?? deriveDetail(rule),
       support: rule.support,
       suggestion: rule.suggestion,
+      autoFix: rule.autoFix,
     });
   }
 
