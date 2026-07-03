@@ -12,6 +12,20 @@ export interface BrowserSupport {
   note?: string;
 }
 
+export type CompatFixId =
+  | "remove-webrequest-blocking"
+  | "add-webkit-backdrop-filter"
+  | "add-gecko-id"
+  | "add-sidebar-action-mirror"
+  | "inject-browser-polyfill";
+
+export interface CompatAutoFix {
+  id: CompatFixId;
+  label: string;
+  description: string;
+  writes: Array<"manifest" | "css" | "source">;
+}
+
 export interface CompatFinding {
   id: string;
   title: string;
@@ -21,6 +35,7 @@ export interface CompatFinding {
   detail: string;
   support: BrowserSupport[];
   suggestion?: string;
+  autoFix?: CompatAutoFix;
 }
 
 export interface BrowserScore {
@@ -35,6 +50,8 @@ export interface BrowserScore {
 export interface CompatReport {
   findings: CompatFinding[];
   browsers: BrowserScore[];
+  overallScore: number; // 0-100, average across browsers
+  overallVerdict: "ready" | "review" | "blocked";
   summary: {
     errors: number;
     warnings: number;
@@ -64,6 +81,7 @@ interface Rule {
   support: BrowserSupport[];
   severity?: CompatSeverity;
   suggestion?: string;
+  autoFix?: CompatAutoFix;
 }
 
 interface MatchCtx {
@@ -171,6 +189,12 @@ const RULES: Rule[] = [
     ],
     severity: "error",
     suggestion: "Migrate to `declarativeNetRequest` for MV3 Chromium browsers.",
+    autoFix: {
+      id: "remove-webrequest-blocking",
+      label: "Remove webRequestBlocking permission",
+      description: "Deletes `webRequestBlocking` from manifest permissions (Chrome MV3 rejects it).",
+      writes: ["manifest"],
+    },
   },
   {
     id: "browser-namespace",
@@ -187,6 +211,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Bundle Mozilla's `webextension-polyfill` or feature-detect: `const api = globalThis.browser ?? globalThis.chrome`.",
+    autoFix: {
+      id: "inject-browser-polyfill",
+      label: "Inject browser polyfill shim",
+      description: "Adds `lib/browser-polyfill.js` shim that aliases `browser` to `chrome` when missing.",
+      writes: ["source"],
+    },
   },
   {
     id: "promise-callbacks",
@@ -242,6 +272,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Use `side_panel` for Chromium and keep `sidebar_action` for Firefox.",
+    autoFix: {
+      id: "add-sidebar-action-mirror",
+      label: "Mirror sidebar_action as side_panel",
+      description: "Adds a Chromium-compatible `side_panel` key derived from your `sidebar_action` panel.",
+      writes: ["manifest"],
+    },
   },
   {
     id: "applications-key",
@@ -276,6 +312,12 @@ const RULES: Rule[] = [
     ],
     severity: "info",
     suggestion: 'Add `browser_specific_settings.gecko.id` (e.g. "your-ext@yourdomain.com") for Firefox publishing.',
+    autoFix: {
+      id: "add-gecko-id",
+      label: "Add Firefox extension ID",
+      description: "Inserts a placeholder `browser_specific_settings.gecko.id` derived from the extension name.",
+      writes: ["manifest"],
+    },
   },
   {
     id: "css-backdrop-filter",
@@ -295,6 +337,12 @@ const RULES: Rule[] = [
     ],
     severity: "warning",
     suggestion: "Add `-webkit-backdrop-filter` alongside `backdrop-filter` for Safari.",
+    autoFix: {
+      id: "add-webkit-backdrop-filter",
+      label: "Add -webkit-backdrop-filter prefix",
+      description: "Duplicates every `backdrop-filter` declaration with a `-webkit-` prefixed version for Safari.",
+      writes: ["css"],
+    },
   },
   {
     id: "css-has",
@@ -351,6 +399,7 @@ export function analyzeBrowserCompatibility(
       detail: m.detail ?? deriveDetail(rule),
       support: rule.support,
       suggestion: rule.suggestion,
+      autoFix: rule.autoFix,
     });
   }
 
@@ -383,7 +432,110 @@ export function analyzeBrowserCompatibility(
     checkedFiles: count,
   };
 
-  return { findings, browsers, summary };
+  const overallScore = browsers.length
+    ? Math.round(browsers.reduce((s, b) => s + b.score, 0) / browsers.length)
+    : 100;
+  const overallVerdict: CompatReport["overallVerdict"] =
+    browsers.some((b) => b.verdict === "blocked") ? "blocked"
+    : browsers.some((b) => b.verdict === "review") ? "review"
+    : "ready";
+
+  return { findings, browsers, overallScore, overallVerdict, summary };
+}
+
+// ---------------------------------------------------------------------------
+// Auto-fix executor. Returns the mutated file map plus a log of changed paths.
+// ---------------------------------------------------------------------------
+export interface CompatFixResult {
+  files: Record<string, string>;
+  changed: string[];
+  message: string;
+}
+
+function slugify(v: string): string {
+  return String(v || "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "extension";
+}
+
+export function applyCompatFix(
+  fixId: CompatFixId,
+  files: Record<string, string>
+): CompatFixResult {
+  const next = { ...files };
+  const changed: string[] = [];
+  let manifest: Record<string, unknown> | null = null;
+  try { manifest = next["manifest.json"] ? JSON.parse(next["manifest.json"]) : null; } catch { manifest = null; }
+  const saveManifest = () => {
+    if (!manifest) return;
+    next["manifest.json"] = JSON.stringify(manifest, null, 2);
+    changed.push("manifest.json");
+  };
+
+  switch (fixId) {
+    case "remove-webrequest-blocking": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      const perms = (manifest.permissions as unknown[]) ?? [];
+      const filtered = perms.filter((p) => p !== "webRequestBlocking");
+      if (filtered.length === perms.length) return { files: next, changed, message: "No blocking webRequest permission found." };
+      manifest.permissions = filtered;
+      saveManifest();
+      return { files: next, changed, message: "Removed webRequestBlocking from permissions." };
+    }
+    case "add-webkit-backdrop-filter": {
+      let touched = 0;
+      for (const [path, content] of Object.entries(next)) {
+        if (!/\.css$/i.test(path) || typeof content !== "string") continue;
+        if (!/backdrop-filter\s*:/.test(content)) continue;
+        // Insert -webkit-backdrop-filter: <value>; before any unprefixed backdrop-filter that lacks a sibling prefix
+        const patched = content.replace(
+          /([^\-\w])(backdrop-filter\s*:\s*[^;]+;)/g,
+          (_m, lead, decl) => `${lead}-webkit-${decl.trim()}\n  ${decl}`
+        );
+        if (patched !== content) {
+          next[path] = patched;
+          changed.push(path);
+          touched++;
+        }
+      }
+      return { files: next, changed, message: touched ? `Prefixed backdrop-filter in ${touched} file(s).` : "No unprefixed backdrop-filter found." };
+    }
+    case "add-gecko-id": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      const bss = (manifest.browser_specific_settings as Record<string, unknown>) ?? {};
+      const gecko = (bss.gecko as Record<string, unknown>) ?? {};
+      if (gecko.id) return { files: next, changed, message: "Firefox ID already present." };
+      gecko.id = `${slugify(manifest.name as string)}@extension.local`;
+      gecko.strict_min_version = gecko.strict_min_version ?? "109.0";
+      bss.gecko = gecko;
+      manifest.browser_specific_settings = bss;
+      saveManifest();
+      return { files: next, changed, message: `Added Firefox ID: ${String(gecko.id)}` };
+    }
+    case "add-sidebar-action-mirror": {
+      if (!manifest) return { files: next, changed, message: "manifest.json missing or invalid." };
+      if (manifest.side_panel) return { files: next, changed, message: "side_panel already defined." };
+      const sa = manifest.sidebar_action as { default_panel?: string } | undefined;
+      const panel = sa?.default_panel ?? "sidebar.html";
+      manifest.side_panel = { default_path: panel };
+      saveManifest();
+      return { files: next, changed, message: `Mirrored sidebar_action → side_panel (${panel}).` };
+    }
+    case "inject-browser-polyfill": {
+      const path = "lib/browser-polyfill.js";
+      if (next[path]) return { files: next, changed, message: "Polyfill shim already exists." };
+      next[path] =
+        `// Minimal WebExtension polyfill shim.\n` +
+        `// Aliases the promise-based \`browser\` namespace to \`chrome\` on Chromium.\n` +
+        `(function () {\n` +
+        `  if (typeof globalThis.browser === "undefined" && typeof globalThis.chrome !== "undefined") {\n` +
+        `    globalThis.browser = globalThis.chrome;\n` +
+        `  }\n` +
+        `})();\n`;
+      changed.push(path);
+      return { files: next, changed, message: "Added lib/browser-polyfill.js — load it before other scripts." };
+    }
+    default:
+      return { files: next, changed, message: `Unknown fix: ${fixId}` };
+  }
 }
 
 function deriveDetail(rule: Rule): string {
