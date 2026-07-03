@@ -9,6 +9,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { isPlaceholderRoute } from "@/lib/nav-registry";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -61,6 +62,7 @@ export function AppSidebar() {
   const renderItems = (items: NavItem[]) =>
     items
       .filter((item) => !item.adminOnly || isAdmin)
+      .filter((item) => !isPlaceholderRoute(item.url))
       .map((item) => (
       <SidebarMenuItem key={item.title}>
         <SidebarMenuButton asChild>

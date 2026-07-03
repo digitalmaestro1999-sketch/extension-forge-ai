@@ -1,10 +1,11 @@
 import { type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PendingAccess from "@/pages/PendingAccess";
+import { isPlaceholderRoute, getPlaceholderNote } from "@/lib/nav-registry";
 
 interface RouteGuardProps {
   children: ReactNode;
@@ -51,7 +52,32 @@ export function RouteGuard({
     }
   }
 
+  // Placeholder gate: even superadmins land on a "coming soon" screen so we
+  // don't ship half-built pages. Bypassing requires removing the entry from
+  // `nav-registry.ts`.
+  if (isPlaceholderRoute(location.pathname)) {
+    return <ComingSoon path={location.pathname} />;
+  }
+
   return <>{children}</>;
+}
+
+function ComingSoon({ path }: { path: string }) {
+  const note = getPlaceholderNote(path);
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
+      <Construction className="h-12 w-12 text-primary" />
+      <div>
+        <h2 className="text-2xl font-semibold">Coming Soon</h2>
+        <p className="mt-2 text-sm text-muted-foreground max-w-md">
+          {note ?? "This module is still being built. It will appear in the sidebar once it ships."}
+        </p>
+      </div>
+      <Button asChild variant="outline">
+        <Link to="/dashboard">Back to Dashboard</Link>
+      </Button>
+    </div>
+  );
 }
 
 function Forbidden({ required }: { required: string }) {
