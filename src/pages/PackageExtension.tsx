@@ -211,6 +211,14 @@ export default function PackageExtension() {
       }
     }
 
+    // Bundle browser compatibility report inside the ZIP for QA archives
+    try {
+      const manifest = files["manifest.json"] ? JSON.parse(files["manifest.json"]) : null;
+      const compat = analyzeBrowserCompatibility(manifest, files);
+      zip.file("BROWSER_COMPAT_REPORT.md", compatReportMarkdown(compat));
+      zip.file("BROWSER_COMPAT_REPORT.json", JSON.stringify(compat, null, 2));
+    } catch { /* non-fatal */ }
+
     return zip.generateAsync({ type: "blob" });
   };
 
