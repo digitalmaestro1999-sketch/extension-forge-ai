@@ -22,6 +22,7 @@ const apiServices = [
   { name: "OpenAI", description: "GPT models for AI features", docsUrl: "https://platform.openai.com/api-keys" },
   { name: "Google", description: "YouTube, Maps, and other Google APIs", docsUrl: "https://console.cloud.google.com/" },
   { name: "NVIDIA NIM", description: "NVIDIA inference microservices", docsUrl: "https://build.nvidia.com/" },
+  { name: "Deepgram", description: "Voice STT + TTS for the support agent", docsUrl: "https://console.deepgram.com/" },
   { name: "Twitter/X", description: "Twitter API for social features", docsUrl: "https://developer.twitter.com/" },
   { name: "Custom REST API", description: "Any REST API endpoint", docsUrl: "" },
 ];
