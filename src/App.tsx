@@ -3,8 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { Navigate } from "react-router-dom";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import CreateExtension from "./pages/CreateExtension";
@@ -38,6 +40,14 @@ const queryClient = new QueryClient();
 const adminOnly = ["admin"] as const;
 const superadminOnly = ["superadmin"] as const;
 
+// Public landing at `/` for signed-out visitors; redirect to /dashboard when signed-in.
+const HomeGate = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Landing />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -47,13 +57,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<HomeGate />} />
             <Route
               path="*"
               element={
                 <RouteGuard>
                   <DashboardLayout>
                     <Routes>
-                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/create" element={<CreateExtension />} />
                       <Route path="/wizard" element={<ExtensionWizard />} />
                       <Route path="/ai-builder" element={<AIBuilder />} />

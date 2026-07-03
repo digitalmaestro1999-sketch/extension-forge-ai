@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
 export type AppRole = "superadmin" | "admin" | "user";
+export type UserStatus = "pending" | "active" | "declined";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   roles: AppRole[];
+  status: UserStatus | null;
   isSuperadmin: boolean;
   isAdmin: boolean;
   hasRole: (role: AppRole) => boolean;
@@ -21,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   roles: [],
+  status: null,
   isSuperadmin: false,
   isAdmin: false,
   hasRole: () => false,
@@ -33,20 +36,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [status, setStatus] = useState<UserStatus | null>(null);
 
-  const loadRoles = async (uid: string | undefined) => {
+  const loadProfile = async (uid: string | undefined) => {
     if (!uid) {
       setRoles([]);
+      setStatus(null);
       return;
     }
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-    if (!error && data) {
-      setRoles(data.map((r) => r.role as AppRole));
+    const [rolesRes, profileRes] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", uid),
+      supabase.from("profiles").select("status").eq("user_id", uid).maybeSingle(),
+    ]);
+    if (!rolesRes.error && rolesRes.data) {
+      setRoles(rolesRes.data.map((r) => r.role as AppRole));
     } else {
       setRoles([]);
+    }
+    if (!profileRes.error && profileRes.data) {
+      setStatus((profileRes.data as { status: UserStatus }).status);
+    } else {
+      setStatus("pending");
     }
   };
 
@@ -55,15 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
-      // Defer to avoid recursive deadlock with Supabase client
-      setTimeout(() => { void loadRoles(s?.user?.id); }, 0);
+      setTimeout(() => { void loadProfile(s?.user?.id); }, 0);
     });
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
-      void loadRoles(s?.user?.id);
+      void loadProfile(s?.user?.id);
     });
 
     return () => subscription.unsubscribe();
@@ -72,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRoles([]);
+    setStatus(null);
   };
 
   const hasRole = (r: AppRole) => roles.includes(r);
@@ -83,10 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         roles,
+        status,
         isSuperadmin: roles.includes("superadmin"),
         isAdmin: roles.includes("admin") || roles.includes("superadmin"),
         hasRole,
-        refreshRoles: () => loadRoles(user?.id),
+        refreshRoles: () => loadProfile(user?.id),
         signOut,
       }}
     >

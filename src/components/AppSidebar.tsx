@@ -18,7 +18,7 @@ import {
 type NavItem = { title: string; url: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
 const mainItems: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trend Discovery", url: "/trends", icon: TrendingUp, adminOnly: true },
   { title: "Create Extension", url: "/create", icon: Wand2 },
   { title: "Wizard Workspace", url: "/wizard", icon: Blocks },
@@ -66,7 +66,7 @@ export function AppSidebar() {
         <SidebarMenuButton asChild>
           <NavLink
             to={item.url}
-            end={item.url === "/"}
+            end={item.url === "/dashboard"}
             className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-sidebar-accent"
             activeClassName="bg-sidebar-accent text-primary font-medium"
           >

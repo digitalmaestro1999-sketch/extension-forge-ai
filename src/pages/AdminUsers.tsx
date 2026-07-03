@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, Crown, User as UserIcon, Loader2, Search, RefreshCw,
-  ShieldAlert, Mail, Calendar, Check, X,
+  ShieldAlert, Mail, Calendar, Check, X, Clock, UserCheck, UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, type AppRole } from "@/hooks/use-auth";
+import { useAuth, type AppRole, type UserStatus } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 
 interface AdminUserRow {
   user_id: string;
   email: string;
   display_name: string;
+  status: UserStatus;
   created_at: string;
   last_sign_in_at: string | null;
   roles: AppRole[];
@@ -27,6 +28,12 @@ const ALL_ROLES: { value: AppRole; label: string; icon: typeof Crown; tone: stri
   { value: "admin",      label: "Admin",      icon: ShieldCheck, tone: "text-primary border-primary/30 bg-primary/5" },
   { value: "user",       label: "User",       icon: UserIcon, tone: "text-muted-foreground border-border bg-muted/20" },
 ];
+
+const STATUS_STYLE: Record<UserStatus, string> = {
+  pending: "border-amber-400/40 text-amber-400 bg-amber-400/5",
+  active: "border-emerald-400/40 text-emerald-400 bg-emerald-400/5",
+  declined: "border-destructive/40 text-destructive bg-destructive/5",
+};
 
 export default function AdminUsers() {
   const { user, isSuperadmin, loading: authLoading } = useAuth();
@@ -89,6 +96,23 @@ export default function AdminUsers() {
     }
   };
 
+  const setStatus = async (target: AdminUserRow, status: UserStatus) => {
+    setBusy(target.user_id + "status");
+    try {
+      const { error } = await supabase.rpc("admin_set_user_status", {
+        _user_id: target.user_id,
+        _status: status,
+      });
+      if (error) throw error;
+      toast.success(`${target.display_name} → ${status}`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Could not update status");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (authLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -146,6 +170,57 @@ export default function AdminUsers() {
       </div>
 
       <div className="p-6 max-w-[1400px] mx-auto space-y-4">
+        {/* Pending approval queue */}
+        {(() => {
+          const pending = rows.filter((r) => r.status === "pending");
+          if (loading || pending.length === 0) return null;
+          return (
+            <Card className="border-amber-400/30 bg-amber-400/[0.03]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-400">
+                  <Clock className="h-4 w-4" /> Pending approvals
+                  <Badge variant="outline" className="border-amber-400/40 text-amber-400 text-[10px] ml-1">
+                    {pending.length}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>New sign-ups waiting for you to approve or decline.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 divide-y divide-border">
+                {pending.map((row) => {
+                  const isBusy = busy === row.user_id + "status";
+                  return (
+                    <div key={row.user_id} className="px-5 py-3 flex flex-wrap items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center font-semibold text-sm shrink-0">
+                        {row.display_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{row.display_name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{row.email}</p>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        Joined {new Date(row.created_at).toLocaleDateString()}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={isBusy}
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                          onClick={() => setStatus(row, "declined")}>
+                          <UserX className="h-3.5 w-3.5 mr-1" /> Decline
+                        </Button>
+                        <Button size="sm" disabled={isBusy}
+                          className="bg-emerald-500 text-white hover:bg-emerald-600"
+                          onClick={() => setStatus(row, "active")}>
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5 mr-1" />}
+                          Approve
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -198,6 +273,28 @@ export default function AdminUsers() {
                         </p>
                       </div>
                     </div>
+
+                    <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[row.status]}`}>
+                      {row.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                      {row.status === "active" && <Check className="h-3 w-3 mr-1" />}
+                      {row.status === "declined" && <X className="h-3 w-3 mr-1" />}
+                      {row.status}
+                    </Badge>
+
+                    {row.status !== "active" && row.user_id !== user.id && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs"
+                        disabled={busy === row.user_id + "status"}
+                        onClick={() => setStatus(row, "active")}>
+                        <UserCheck className="h-3 w-3 mr-1" /> Activate
+                      </Button>
+                    )}
+                    {row.status === "active" && row.user_id !== user.id && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                        disabled={busy === row.user_id + "status"}
+                        onClick={() => setStatus(row, "declined")}>
+                        <UserX className="h-3 w-3 mr-1" /> Revoke access
+                      </Button>
+                    )}
 
                     <div className="hidden xl:flex flex-col text-[11px] text-muted-foreground min-w-[160px]">
                       <span className="flex items-center gap-1">
