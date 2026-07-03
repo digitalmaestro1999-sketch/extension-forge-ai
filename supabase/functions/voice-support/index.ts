@@ -83,7 +83,7 @@ async function getDeepgramKey(sb: ReturnType<typeof createClient>): Promise<stri
   const { data } = await sb
     .from("user_api_keys")
     .select("ciphertext, iv")
-    .eq("service", "deepgram")
+    .ilike("service", "deepgram")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
