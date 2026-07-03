@@ -83,7 +83,6 @@ interface Rule {
   suggestion?: string;
   autoFix?: CompatAutoFix;
 }
-}
 
 interface MatchCtx {
   manifest: Record<string, unknown> | null;
