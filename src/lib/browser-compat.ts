@@ -81,6 +81,8 @@ interface Rule {
   support: BrowserSupport[];
   severity?: CompatSeverity;
   suggestion?: string;
+  autoFix?: CompatAutoFix;
+}
 }
 
 interface MatchCtx {
