@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   Zap, Sparkles, ShieldCheck, Rocket, Cpu, Boxes, Wand2, Bot, Code2, Layers,
   Palette, LineChart, Lock, Globe, Github, Twitter, ArrowRight, Check, Play,
-  Star, ChevronDown, Menu, X, Mail, Terminal, Package, Users,
+  Star, ChevronDown, Menu, X, Mail, Terminal, Package, Users, Chrome, Puzzle,
+  FileCheck, Award, Gauge, KeyRound, Eye, Type, Minus, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
