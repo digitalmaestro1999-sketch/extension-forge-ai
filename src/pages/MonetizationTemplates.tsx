@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, Copy, Check, CreditCard, Megaphone, Link2, Crown } from "lucide-react";
+import { DollarSign, Copy, Check, CreditCard, Megaphone, Link2, Crown, Rocket, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "react-router-dom";
+import { persistProject } from "@/lib/project-persist";
 
 const TEMPLATES = [
   {
