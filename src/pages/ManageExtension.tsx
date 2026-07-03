@@ -298,7 +298,37 @@ export default function ManageExtension() {
     setImported(null);
     setFileContents(DEFAULT_FILE_CONTENTS);
     setLastInstall(null);
+    setProjectId(null);
     toast.info("Reverted to demo extension");
+  };
+
+  const saveProject = async () => {
+    if (!user) { toast.error("Sign in required to save"); return; }
+    setSaving(true);
+    try {
+      const name = imported?.name ?? DEFAULT_EXT.name;
+      const description = imported?.description ?? DEFAULT_MANIFEST.description;
+      const { id } = await persistProject({
+        id: projectId,
+        userId: user.id,
+        name,
+        description,
+        source: imported ? "imported" : "editor",
+        files: fileContents,
+        status: "draft",
+        spec: {
+          version: imported?.version ?? DEFAULT_EXT.version,
+          permissions: imported?.permissions ?? [],
+          hostPermissions: imported?.hostPermissions ?? [],
+        },
+      });
+      setProjectId(id);
+      toast.success("Saved", { description: `${Object.keys(fileContents).length} files persisted.` });
+    } catch (e) {
+      toast.error("Save failed", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const active: ActiveExt = useMemo(() => {
