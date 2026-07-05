@@ -3078,6 +3078,35 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-orange-400/40 bg-orange-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><GitBranch className="h-4 w-4 text-orange-400" />CI/CD & Auto-Publish Pipeline</CardTitle>
+                        <CardDescription className="text-[10px]">GitHub Actions: CI, release, publish, nightly, PR preview, dependency review. Real scripts for build/package/upload/publish to Chrome Web Store API, version bump, changelog + release notes, screenshot regen, preflight, manifest validator, size budget. Dependabot, ESLint, Prettier, changesets, release-please, commitlint, husky. Docs, PR/issue templates, CODEOWNERS, rollback, matrix testing, monitoring.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateCicdPipeline} disabled={analyzing === "cicd" || !selected}>
+                        {analyzing === "cicd" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Pipeline
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("cicd") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("cicd").workflows ?? {}).length} workflows</Badge>
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("cicd").scripts ?? {}).length} scripts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("cicd").smokeTests ?? []).length} smoke tests</Badge>
+                        <Badge variant="outline" className="text-[9px]">{a("cicd").versioningStrategy?.scheme}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("cicd").prerequisites?.githubSecrets ?? []).length} GH secrets</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Branch strategy: {a("cicd").overview?.branchStrategy?.slice(0, 80)}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
