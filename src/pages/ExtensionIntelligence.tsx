@@ -3559,6 +3559,42 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-lime-400/40 bg-lime-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><TestTube2 className="h-4 w-4 text-lime-400" />QA & Test Harness</CardTitle>
+                        <CardDescription className="text-[10px]">Vitest unit + chrome API mocks, Playwright & Puppeteer E2E with real extension loading, MV3 permission/CSP/messaging fuzzers, axe-core a11y audits per surface, cross-browser matrix (Chrome/Edge/Brave), visual regression, Lighthouse + TTI + memory-leak checks, storage/messaging/tabs stress, manifest + CWS policy + privacy-leak validators, HTML/JUnit/Slack reporting, and full GitHub Actions QA workflow.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateQaHarness} disabled={analyzing === "qaHarness" || !selected}>
+                        {analyzing === "qaHarness" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate QA Harness
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("qaHarness") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").unit?.sampleTests ?? []).length} unit</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").e2ePlaywright?.sampleSpecs ?? []).length} playwright</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").e2ePuppeteer?.sampleSpecs ?? []).length} puppeteer</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").permissionFuzzer?.sampleScenarios ?? []).length} fuzz scenarios</Badge>
+                        <Badge variant="outline" className="text-[9px]">a11y {a("qaHarness").accessibility?.wcagLevel ?? "AA"}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").crossBrowserMatrix?.targets ?? []).length} browsers</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").smokeSuite ?? []).length} smoke</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").regressionSuite ?? []).length} regression</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Coverage target: {a("qaHarness").overview?.coverageTargets?.statements ?? "?"}% stmt · {a("qaHarness").overview?.coverageTargets?.branches ?? "?"}% br · runs {a("qaHarness").overview?.runFrequency ?? ""}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
+
+
 
 
 
