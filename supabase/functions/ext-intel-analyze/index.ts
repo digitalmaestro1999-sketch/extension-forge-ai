@@ -121,6 +121,32 @@ Return JSON: {
   "communityKit": { "discordAnnouncement": string, "slackAnnouncement": string, "changelogPost": string },
   "kpis": [{ "name": string, "target": string, "instrumentation": string }]
 }`,
+  legal: `Generate a complete LEGAL & COMPLIANCE VAULT for a NEW, ORIGINAL Chrome extension. Base it on the provided product/manifest/permissions context. All documents must be production-ready markdown, plain-English, and specific to a Chrome MV3 extension. Do NOT provide legal advice disclaimers as the primary content — write real, usable documents the operator can customize with company details. ${GUARDRAIL}
+Return JSON: {
+  "companyPlaceholders": { "companyName": string, "contactEmail": string, "jurisdiction": string, "effectiveDate": string },
+  "privacyPolicy": { "title": string, "markdown": string, "wordCount": number },
+  "termsOfService": { "title": string, "markdown": string },
+  "cookiePolicy": { "title": string, "markdown": string, "usesCookies": boolean },
+  "dataProcessingAgreement": { "title": string, "markdown": string },
+  "gdprNotice": { "title": string, "markdown": string, "lawfulBasis": string[], "dataSubjectRights": string[] },
+  "ccpaNotice": { "title": string, "markdown": string, "consumerRights": string[] },
+  "dataHandlingDoc": { "title": string, "markdown": string, "dataCategories": [{ "category": string, "purpose": string, "retention": string, "sharedWith": string[] }] },
+  "securityWhitepaper": { "title": string, "markdown": string, "controls": string[] },
+  "soc2Checklist": [{ "control": string, "category": "security"|"availability"|"confidentiality"|"privacy"|"processing_integrity", "status": "ready"|"partial"|"todo", "action": string }],
+  "cwsSinglePurpose": { "statement": string, "justification": string },
+  "cwsPermissionJustifications": [{ "permission": string, "justification": string, "userBenefit": string, "minimalAlternative": string }],
+  "cwsHostPermissionJustifications": [{ "host": string, "justification": string }],
+  "cwsRemoteCodeStatement": string,
+  "cwsDataUsageDisclosure": { "collectsPii": boolean, "categories": string[], "usageDeclarations": string[], "shareDeclarations": string[], "sellsData": boolean },
+  "dmcaPolicy": { "title": string, "markdown": string },
+  "acceptableUsePolicy": { "title": string, "markdown": string },
+  "cookieBannerHtml": string,
+  "consentModalHtml": string,
+  "subprocessorList": [{ "name": string, "purpose": string, "location": string, "dataAccess": string }],
+  "incidentResponsePlan": { "title": string, "markdown": string, "severityLevels": [{ "level": string, "definition": string, "sla": string }] },
+  "dataBreachTemplate": { "userEmailSubject": string, "userEmailBody": string, "regulatorNotice": string }
+}
+Every markdown document MUST use {{companyName}}, {{contactEmail}}, {{jurisdiction}}, {{effectiveDate}} placeholders so the operator can search-and-replace.`,
 };
 
 serve(async (req) => {
