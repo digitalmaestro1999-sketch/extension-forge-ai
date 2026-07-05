@@ -489,6 +489,157 @@ ${(l.keywords ?? []).join(", ")}`);
     } finally { setAnalyzing(null); }
   }
 
+  async function oneClickShip() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const blueprint = a("blueprint");
+    const buildBetter = a("buildBetter");
+    const architecture = a("architecture");
+    if (!blueprint && !buildBetter && !architecture) {
+      toast.error("Generate Blueprint, Build Better, or Architecture first (Build tab)");
+      return;
+    }
+    setAnalyzing("ship");
+    try {
+      toast.info("Step 1/3 · Building extension…");
+      const genRes = await supabase.functions.invoke("ext-intel-generate", {
+        body: { blueprint, buildBetter, architecture, competitor_name: selected.name, category: selected.raw?.category ?? null },
+      });
+      if (genRes.error) throw genRes.error;
+      if (genRes.data?.error) throw new Error(genRes.data.error);
+      const ext = genRes.data.result;
+      const extFiles: Record<string, string> = ext.files ?? {};
+      if (!extFiles["manifest.json"]) throw new Error("Generator did not return manifest.json");
+
+      toast.info("Step 2/3 · Generating Publish Kit…");
+      const kitRes = await supabase.functions.invoke("ext-intel-store-kit", {
+        body: { blueprint, buildBetter, listing: a("listing"), competitor_name: selected.name, category: selected.raw?.category ?? null },
+      });
+      if (kitRes.error) throw kitRes.error;
+      if (kitRes.data?.error) throw new Error(kitRes.data.error);
+      const kit = kitRes.data.result;
+
+      toast.info("Step 3/3 · Generating icons…");
+      const iconRes = await supabase.functions.invoke("ext-intel-icon", {
+        body: { prompt: kit?.iconPrompt, extension_name: kit?.listing?.title ?? ext.name ?? selected.name },
+      });
+      if (iconRes.error) throw iconRes.error;
+      if (iconRes.data?.error) throw new Error(iconRes.data.error);
+      const b64 = iconRes.data.image_base64 as string;
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to decode icon"));
+        img.src = `data:image/png;base64,${b64}`;
+      });
+      const resize = async (size: number): Promise<ArrayBuffer> => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, size, size);
+        const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b!), "image/png"));
+        return await blob.arrayBuffer();
+      };
+      const [i16, i48, i128, i512] = await Promise.all([resize(16), resize(48), resize(128), resize(512)]);
+
+      // Merge real icons into the manifest and repoint paths to icons/*
+      try {
+        const manifest = JSON.parse(extFiles["manifest.json"]);
+        manifest.icons = { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" };
+        if (manifest.action) manifest.action.default_icon = { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" };
+        extFiles["manifest.json"] = JSON.stringify(manifest, null, 2);
+      } catch { /* leave as-is */ }
+
+      const zip = new JSZip();
+      const extFolder = zip.folder("extension")!;
+      Object.entries(extFiles).forEach(([p, c]) => extFolder.file(p, c));
+      const iconFolder = extFolder.folder("icons")!;
+      iconFolder.file("icon16.png", i16);
+      iconFolder.file("icon48.png", i48);
+      iconFolder.file("icon128.png", i128);
+
+      const kitFolder = zip.folder("store-kit")!;
+      const l = kit.listing ?? {};
+      kitFolder.file("listing.md",
+`# ${l.title ?? ""}
+
+**Category:** ${l.category ?? ""}
+**Language:** ${l.language ?? "en"}
+
+## Short description
+${l.shortDescription ?? ""}
+
+## Detailed description
+${l.detailedDescription ?? ""}
+
+## Keywords
+${(l.keywords ?? []).join(", ")}`);
+      kitFolder.file("privacy-policy.md", kit.privacyPolicy ?? "");
+      kitFolder.file("single-purpose.txt", kit.singlePurpose ?? "");
+      const perms = (kit.permissionsJustification ?? []).map((p: any) =>
+        `## ${p.permission}\n**Why:** ${p.why}\n**Minimal alternative:** ${p.minimalAlternative}\n`).join("\n");
+      kitFolder.file("permissions.md", `# Permissions Justification\n\n${perms}`);
+      kitFolder.file("data-usage.json", JSON.stringify(kit.dataUsageDisclosure ?? {}, null, 2));
+      const tiles = (kit.promoTileConcepts ?? []).map((t: any) => `## ${t.size}\n${t.concept}\n`).join("\n");
+      kitFolder.file("promo-tiles.md", `# Promotional Tile Concepts\n\n${tiles}`);
+      const shots = (kit.screenshots ?? []).map((s: any, i: number) =>
+        `## ${i + 1}. ${s.filename}\n**Size:** ${s.size}\n**Caption:** ${s.caption}\n**Content:** ${s.content}\n`).join("\n");
+      kitFolder.file("screenshots.md", `# Screenshot Brief\n\n${shots}`);
+      kitFolder.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const assets = zip.folder("assets")!;
+      assets.file("icon512.png", i512);
+
+      zip.file("SHIP.md",
+`# Ship-Ready Bundle — ${l.title ?? ext.name ?? selected.name}
+Generated ${new Date().toISOString()}
+
+## Contents
+- \`extension/\` — Load-unpacked-ready MV3 extension with real 16/48/128 icons merged in
+- \`store-kit/\` — CWS listing, privacy policy, permissions justification, data-usage form, promo tile & screenshot briefs
+- \`assets/icon512.png\` — Source-quality icon for store artwork
+
+## Local test
+1. Unzip this file.
+2. Open \`chrome://extensions\`.
+3. Toggle **Developer mode**.
+4. Click **Load unpacked** → select the \`extension/\` folder.
+
+## Chrome Web Store submission checklist
+- [ ] Host \`store-kit/privacy-policy.md\` at a public URL, paste URL in CWS listing.
+- [ ] Paste listing.md content into store listing fields.
+- [ ] Paste \`single-purpose.txt\` into single-purpose description.
+- [ ] Paste per-permission justifications from \`permissions.md\` into review notes.
+- [ ] Answer data disclosure form using \`data-usage.json\`.
+- [ ] Produce screenshots per \`screenshots.md\` (1280×800 or 640×400).
+- [ ] Produce at least the 440×280 promo tile per \`promo-tiles.md\`.
+- [ ] Upload \`assets/icon512.png\` as store icon.
+
+All copy is original and IP-safe.`);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (l.title ?? ext.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-ship-ready.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({
+        ...prev,
+        [`generated:${selected.id}`]: ext,
+        [`storekit:${selected.id}`]: kit,
+        [`icons:${selected.id}`]: { preview: `data:image/png;base64,${b64}` },
+        [`ship:${selected.id}`]: { name: l.title ?? ext.name, at: new Date().toISOString() },
+      }));
+      toast.success(`Ship-ready bundle downloaded: ${safe}-ship-ready.zip`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Ship bundle failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
