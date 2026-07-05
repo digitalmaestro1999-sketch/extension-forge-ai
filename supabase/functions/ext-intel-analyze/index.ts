@@ -998,6 +998,161 @@ IMPORTANT:
 - The content calendar must span at least 4 weeks with concrete titles, hooks, and CTAs — no "TBD" or "Content idea 1".
 - Reference the Chrome extension product context (name, category, positioning) throughout — copy must not read as generic SaaS marketing.
 - Amplification programs (referral/affiliate) must comply with Chrome Web Store policies (no incentivized fake reviews).`,
+  crossBrowserPort: `Generate a complete CROSS-BROWSER PORT KIT that converts a Chrome MV3 extension into fully working, store-ready builds for Firefox (MV3 with MV2 hybrid fallback), Microsoft Edge (MV3, Edge Add-ons store), and Safari Web Extension (Xcode project + macOS/iOS conversion via safari-web-extension-converter). Produce REAL, runnable code, real diffs (unified diff format), real config files — no summaries or placeholders. ${GUARDRAIL}
+Return JSON: {
+  "overview": {
+    "summaryMd": string,
+    "supportedTargets": [{ "target": "chrome"|"firefox"|"edge"|"safari-macos"|"safari-ios", "minVersion": string, "storeName": string, "packageFormat": "zip"|"xpi"|"appex", "notes": string }],
+    "compatibilityMatrixMd": string,
+    "apiParityMatrixMd": string,
+    "knownLimitationsMd": string,
+    "riskRegisterMd": string
+  },
+  "sharedCore": {
+    "browserPolyfillStrategyMd": string,
+    "browserShimTs": string,
+    "featureDetectionTs": string,
+    "storageAdapterTs": string,
+    "messagingAdapterTs": string,
+    "scriptingAdapterTs": string,
+    "contextMenusAdapterTs": string,
+    "notificationsAdapterTs": string,
+    "alarmsAdapterTs": string,
+    "tabsAdapterTs": string,
+    "declarativeNetRequestAdapterTs": string,
+    "polyfillLoaderMd": string
+  },
+  "firefox": {
+    "manifestMv3Json": string,
+    "manifestMv2FallbackJson": string,
+    "manifestDiffMd": string,
+    "backgroundStrategyMd": string,
+    "eventPageBackgroundJs": string,
+    "browserSpecificSettingsMd": string,
+    "geckoIdGuidanceMd": string,
+    "contentScriptDiffMd": string,
+    "csrfCorsGotchasMd": string,
+    "webExtensionsPolyfillSetupMd": string,
+    "aboutDebuggingRunbookMd": string,
+    "webExtSubmitMd": string,
+    "amoReviewChecklistMd": string,
+    "signingWorkflowMd": string,
+    "diffs": [{ "file": string, "unifiedDiff": string, "reason": string }],
+    "knownRejectionReasonsMd": string
+  },
+  "edge": {
+    "manifestJson": string,
+    "manifestDiffMd": string,
+    "storeMetadataMd": string,
+    "partnerCenterOnboardingMd": string,
+    "edgeSpecificApisMd": string,
+    "sidebarPanelDiffMd": string,
+    "identityRedirectUrlsMd": string,
+    "diffs": [{ "file": string, "unifiedDiff": string, "reason": string }],
+    "certificationChecklistMd": string
+  },
+  "safari": {
+    "converterCommand": string,
+    "converterFlagsExplainedMd": string,
+    "xcodeProjectStructureMd": string,
+    "swiftShimSample": string,
+    "infoPlistPatchXml": string,
+    "entitlementsPlistXml": string,
+    "swiftPackageDependenciesMd": string,
+    "macCatalystNotesMd": string,
+    "iosContainerAppMd": string,
+    "safariWebExtensionHandlerSwift": string,
+    "nativeMessagingBridgeSwift": string,
+    "manifestJson": string,
+    "manifestDiffMd": string,
+    "contentScriptWorldNotesMd": string,
+    "storageQuirksMd": string,
+    "backgroundLifecycleMd": string,
+    "declarativeNetRequestNotesMd": string,
+    "diffs": [{ "file": string, "unifiedDiff": string, "reason": string }],
+    "appStoreReviewChecklistMd": string,
+    "signingAndProvisioningMd": string,
+    "testflightRunbookMd": string,
+    "knownRejectionReasonsMd": string
+  },
+  "buildSystem": {
+    "monorepoLayoutMd": string,
+    "packageJson": string,
+    "viteConfigTs": string,
+    "webExtConfigMjs": string,
+    "buildAllTargetsScriptTs": string,
+    "targetSpecificPostbuildTs": string,
+    "manifestTransformerTs": string,
+    "cliUsageMd": string,
+    "makefile": string
+  },
+  "ciCd": {
+    "githubActionsYml": string,
+    "matrixStrategyMd": string,
+    "cachingStrategyMd": string,
+    "releasePipelineMd": string,
+    "changesetsFlowMd": string,
+    "artifactSigningMd": string,
+    "autoSubmitJobsMd": string
+  },
+  "testing": {
+    "playwrightConfigTs": string,
+    "playwrightExtensionFixtureTs": string,
+    "puppeteerFirefoxNoteMd": string,
+    "safariWebkitDriverNotesMd": string,
+    "e2eTestsTs": string,
+    "manualQaMatrixMd": string,
+    "smokeChecklistPerTargetMd": string,
+    "visualRegressionSetupMd": string
+  },
+  "migration": {
+    "prerequisitesMd": string,
+    "stepByStepGuideMd": string,
+    "codemodPatchesMd": string,
+    "apiReplacementTableMd": string,
+    "manifestFieldMigrationTableMd": string,
+    "commonPitfallsMd": string,
+    "rollbackPlanMd": string
+  },
+  "storeSubmissions": {
+    "chromeWebStoreMd": string,
+    "firefoxAmoMd": string,
+    "edgeAddOnsMd": string,
+    "safariAppStoreConnectMd": string,
+    "reviewerNotesTemplatePerStoreMd": string,
+    "screenshotsAndAssetsSpecMd": string,
+    "privacyPolicyDeltasMd": string
+  },
+  "userScriptsAndPermissions": {
+    "permissionsMatrixMd": string,
+    "optionalHostPermissionsStrategyMd": string,
+    "declarativeNetRequestPortingMd": string,
+    "webRequestBlockingFallbackMd": string,
+    "safariContentBlockerNotesMd": string
+  },
+  "telemetryAndErrors": {
+    "crossBrowserErrorReporterTs": string,
+    "featureFlagFallbacksMd": string,
+    "sentrySetupPerTargetMd": string
+  },
+  "rollout": {
+    "phases": [{ "phase": string, "duration": string, "goals": string[], "guardrails": string[] }],
+    "canaryStrategyMd": string,
+    "supportRoutingMd": string
+  },
+  "checklist": [{ "item": string, "target": "shared"|"firefox"|"edge"|"safari"|"ci", "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- All manifest JSONs must be VALID JSON, parseable, and satisfy each store's real requirements (Firefox requires browser_specific_settings.gecko.id when using storage.sync or updates; Safari requires bundle-friendly icons and its own action shape; Edge is MV3 Chromium-compatible but with distinct store metadata).
+- Every "unifiedDiff" must be a REAL unified diff (--- a/… +++ b/… @@ hunks @@) that could be applied with \`git apply\` or \`patch -p1\` — no natural-language pseudo-diffs.
+- Use \`webextension-polyfill\` for the Firefox promise-based API shim and show how the shared adapter falls back to \`chrome.*\` on Chromium.
+- Safari section must include the real \`xcrun safari-web-extension-converter --project-location ./safari --app-name … --bundle-identifier …\` invocation, the Xcode project layout it produces, and the Info.plist / entitlements patches needed for containers, native messaging, and iOS.
+- Never introduce remote code loading, eval, remote CSS/JS bundled from CDNs, or MV2-only APIs (like blocking webRequest) in the MV3 builds. Firefox MV2 fallback is only for legacy Firefox ESR support and must be flagged as deprecated.
+- Every diff and code file must reference realistic filenames from a typical MV3 extension (\`manifest.json\`, \`src/background.ts\`, \`src/content.ts\`, \`src/popup/index.tsx\`, \`src/lib/browser.ts\`, etc.).
+- Store submission runbooks must include reviewer notes explicitly stating MV3 compliance, no remote code, data handling summary, and per-store screenshot specs.
+- Build system output must produce distinct artifacts per target (\`dist/chrome\`, \`dist/firefox\`, \`dist/edge\`, \`dist/safari\`) via a single \`bun run build:all\` command.
+- Testing section must include Playwright fixtures that launch persistent contexts against each Chromium build and instructions for Firefox web-ext + Safari WebDriver limitations.
+- CI/CD must show a matrix job that builds, lints, tests, packages, and (optionally) auto-submits per target with proper secret handling.`,
 };
 
 serve(async (req) => {
