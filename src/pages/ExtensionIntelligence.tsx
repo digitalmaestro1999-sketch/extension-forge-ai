@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1729,6 +1729,204 @@ ${(kit.instrumentationChecklist ?? []).map((c: any) => `- [${c.status === "ready
     } finally { setAnalyzing(null); }
   }
 
+  async function generateCicdPipeline() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("cicd");
+    try {
+      const architecture = a("architecture") ?? null;
+      const manifest = a("storekit")?.manifest ?? architecture?.manifest ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+        manifest,
+        hasTests: true,
+        packageManager: "npm",
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "cicd", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# CI/CD & Auto-Publish Pipeline
+Generated ${new Date().toISOString()}
+
+## Philosophy
+${kit.overview?.philosophy ?? ""}
+
+- **Branches:** ${kit.overview?.branchStrategy ?? ""}
+- **Environments:** ${(kit.overview?.environments ?? []).join(", ")}
+- **Release cadence:** ${kit.overview?.releaseCadence ?? ""}
+
+## Layout (drop into your repo root)
+- .github/workflows/ — CI, release, publish, nightly, PR preview, dep review
+- .github/ — dependabot.yml, PR + issue templates, CODEOWNERS
+- scripts/ — build/package/upload/publish/version/changelog/screenshots/preflight
+- config files — eslint, prettier, gitignore, changesets, release-please, commitlint, husky, size-budget
+- docs/ — CONTRIBUTING, RELEASING, TROUBLESHOOTING, SECURITY
+- CHANGELOG.md seed + release notes template
+- rollback/, monitoring/, matrix-testing.md, smoke-tests/
+
+## Prereqs
+1. Set the GitHub secrets listed in prerequisites/
+2. Set up Chrome Web Store API credentials (see prerequisites/cws-api.md)
+3. Run \`npm install\` after merging package.json scripts
+4. Tag \`v1.0.0\` and push to trigger the first publish`);
+
+      // Prereqs
+      const pre = zip.folder("prerequisites") ?? zip;
+      pre.file("cws-api.md",
+`# Chrome Web Store API Setup
+
+## Steps
+${(kit.prerequisites?.chromeWebStoreApi?.steps ?? []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}
+
+## Required secrets
+${(kit.prerequisites?.chromeWebStoreApi?.requiredSecrets ?? []).map((s: any) => `### \`${s.name}\`\n**Purpose:** ${s.purpose}\n**How to obtain:** ${s.howToObtain}\n`).join("\n")}`);
+      pre.file("github-secrets.md",
+`# GitHub Secrets
+${(kit.prerequisites?.githubSecrets ?? []).map((s: any) => `- \`${s.name}\` — ${s.purpose}`).join("\n")}`);
+
+      // Workflows
+      const wf = zip.folder(".github/workflows") ?? zip;
+      const w = kit.workflows ?? {};
+      wf.file("ci.yml", w.ciYaml ?? "# not generated");
+      wf.file("release.yml", w.releaseYaml ?? "# not generated");
+      wf.file("publish.yml", w.publishYaml ?? "# not generated");
+      wf.file("nightly.yml", w.nightlyYaml ?? "# not generated");
+      wf.file("pr-preview.yml", w.prPreviewYaml ?? "# not generated");
+      wf.file("dependency-review.yml", w.dependencyReviewYaml ?? "# not generated");
+
+      // Scripts
+      const scripts = zip.folder("scripts") ?? zip;
+      const s = kit.scripts ?? {};
+      scripts.file("build.ts", s.buildTs ?? "// not generated");
+      scripts.file("package.ts", s.packageTs ?? "// not generated");
+      scripts.file("upload-to-cws.ts", s.uploadToCwsTs ?? "// not generated");
+      scripts.file("publish-on-cws.ts", s.publishOnCwsTs ?? "// not generated");
+      scripts.file("bump-version.ts", s.bumpVersionTs ?? "// not generated");
+      scripts.file("generate-changelog.ts", s.generateChangelogTs ?? "// not generated");
+      scripts.file("generate-release-notes.ts", s.generateReleaseNotesTs ?? "// not generated");
+      scripts.file("regenerate-screenshots.ts", s.regenerateScreenshotsTs ?? "// not generated");
+      scripts.file("preflight-checks.ts", s.preflightChecksTs ?? "// not generated");
+      scripts.file("manifest-validator.ts", s.manifestValidatorTs ?? "// not generated");
+      scripts.file("size-budget-check.ts", s.sizeBudgetCheckTs ?? "// not generated");
+
+      // Configs
+      const c = kit.configs ?? {};
+      zip.file("package.json.scripts.json",
+`# Merge these into your package.json "scripts" block
+${JSON.stringify(c.packageJsonScripts ?? {}, null, 2)}`);
+      zip.file(".github/dependabot.yml", c.dependabotYml ?? "# not generated");
+      zip.file("eslint.config.mjs", c.eslintConfig ?? "// not generated");
+      zip.file(".prettierrc.json", c.prettierConfig ?? "{}");
+      zip.file(".gitignore", c.gitignore ?? "node_modules\ndist\n*.zip\n");
+      zip.file(".changeset/config.json", c.changesetsConfig ?? "{}");
+      zip.file("release-please-config.json", c.releasePleaseConfig ?? "{}");
+      zip.file(".commitlintrc.json", c.commitlintConfig ?? "{}");
+      zip.file(".husky/pre-commit", c.huskyPreCommit ?? "#!/usr/bin/env sh\nnpm run lint\n");
+      zip.file("size-budget.json", c.sizeBudgetJson ?? "{}");
+
+      // Docs
+      const d = kit.docs ?? {};
+      const docs = zip.folder("docs") ?? zip;
+      docs.file("CONTRIBUTING.md", d.contributingMd ?? "");
+      docs.file("RELEASING.md", d.releasingMd ?? "");
+      docs.file("TROUBLESHOOTING.md", d.troubleshootingMd ?? "");
+      docs.file("SECURITY.md", d.securityMd ?? "");
+      zip.file(".github/PULL_REQUEST_TEMPLATE.md", d.prTemplateMd ?? "");
+      zip.file(".github/ISSUE_TEMPLATE/bug_report.md", d.issueTemplateBug ?? "");
+      zip.file(".github/ISSUE_TEMPLATE/feature_request.md", d.issueTemplateFeature ?? "");
+      zip.file(".github/CODEOWNERS", d.codeownersFile ?? "");
+
+      // Release notes + changelog
+      zip.file("RELEASE_NOTES_TEMPLATE.md", kit.releaseNotesTemplate ?? "");
+      zip.file("CHANGELOG.md", kit.changelogSeed ?? "# Changelog\n\nAll notable changes to this project will be documented in this file.\n");
+
+      // Versioning
+      zip.file("versioning.md",
+`# Versioning Strategy
+
+- **Scheme:** ${kit.versioningStrategy?.scheme ?? ""}
+- **Prerelease channels:** ${(kit.versioningStrategy?.prereleaseChannels ?? []).join(", ")}
+
+## Rules
+${kit.versioningStrategy?.rules ?? ""}`);
+
+      // Smoke tests
+      const smoke = zip.folder("smoke-tests") ?? zip;
+      (kit.smokeTests ?? []).forEach((t: any) => {
+        const slug = String(t.name ?? "test").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        smoke.file(`${slug}.spec.ts`, `// ${t.name}\n// ${t.description}\n\n${t.code ?? ""}`);
+      });
+
+      // Puppeteer preflight
+      const pf = zip.folder("preflight") ?? zip;
+      pf.file("README.md", kit.puppeteerPreflight?.description ?? "");
+      pf.file("puppeteer-preflight.ts", kit.puppeteerPreflight?.code ?? "// not generated");
+
+      // CWS API notes
+      zip.file("cws-api-notes.md",
+`# Chrome Web Store API Notes
+
+## Endpoints
+${(kit.cwsApiNotes?.endpoints ?? []).map((e: any) => `- **${e.method}** \`${e.url}\` — ${e.purpose}`).join("\n")}
+
+## Quota
+${kit.cwsApiNotes?.quotaGuidance ?? ""}
+
+## Common errors
+| Code | Cause | Fix |
+|---|---|---|
+${(kit.cwsApiNotes?.commonErrors ?? []).map((e: any) => `| ${e.code} | ${e.cause} | ${e.fix} |`).join("\n")}`);
+
+      // Rollback
+      const rb = zip.folder("rollback") ?? zip;
+      rb.file("README.md", kit.rollbackPlan?.markdown ?? "");
+      rb.file("rollback.ts", kit.rollbackPlan?.scriptTs ?? "// not generated");
+
+      // Matrix testing
+      zip.file("matrix-testing.md",
+`# Matrix Testing
+
+- **Browsers:** ${(kit.matrixTesting?.browsers ?? []).join(", ")}
+- **Chrome channels:** ${(kit.matrixTesting?.chromeChannels ?? []).join(", ")}
+
+${kit.matrixTesting?.notes ?? ""}`);
+
+      // Monitoring
+      const mon = zip.folder("monitoring") ?? zip;
+      mon.file("badges.md", kit.monitoring?.buildStatusBadgesMd ?? "");
+      mon.file("slack-notifier.ts", kit.monitoring?.slackNotifierCode ?? "// not generated");
+
+      // Checklist
+      zip.file("checklist.md",
+`# CI/CD Setup Checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-pipeline.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-cicd-pipeline.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`cicd:${selected.id}`]: kit }));
+      toast.success("CI/CD pipeline ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "CI/CD pipeline failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
@@ -2875,6 +3073,35 @@ All copy is original and IP-safe.`);
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Consent-gated · anon-id: {a("analytics").identity?.anonIdStrategy?.slice(0, 60)}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card className="border-orange-400/40 bg-orange-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><GitBranch className="h-4 w-4 text-orange-400" />CI/CD & Auto-Publish Pipeline</CardTitle>
+                        <CardDescription className="text-[10px]">GitHub Actions: CI, release, publish, nightly, PR preview, dependency review. Real scripts for build/package/upload/publish to Chrome Web Store API, version bump, changelog + release notes, screenshot regen, preflight, manifest validator, size budget. Dependabot, ESLint, Prettier, changesets, release-please, commitlint, husky. Docs, PR/issue templates, CODEOWNERS, rollback, matrix testing, monitoring.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateCicdPipeline} disabled={analyzing === "cicd" || !selected}>
+                        {analyzing === "cicd" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Pipeline
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("cicd") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("cicd").workflows ?? {}).length} workflows</Badge>
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("cicd").scripts ?? {}).length} scripts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("cicd").smokeTests ?? []).length} smoke tests</Badge>
+                        <Badge variant="outline" className="text-[9px]">{a("cicd").versioningStrategy?.scheme}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("cicd").prerequisites?.githubSecrets ?? []).length} GH secrets</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Branch strategy: {a("cicd").overview?.branchStrategy?.slice(0, 80)}
                       </div>
                     </CardContent>
                   )}
