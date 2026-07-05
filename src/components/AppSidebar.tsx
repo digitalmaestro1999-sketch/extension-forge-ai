@@ -130,6 +130,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {renderItems([
                   { title: "User Management", url: "/admin/users", icon: Crown },
+                  { title: "Ops Console", url: "/admin/ops", icon: Server },
                 ])}
               </SidebarMenu>
             </SidebarGroupContent>
