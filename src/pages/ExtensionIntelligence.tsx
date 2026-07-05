@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1347,6 +1347,161 @@ ${(kit.billingFaq ?? []).map((f: any) => `## ${f.q}\n${f.a}`).join("\n\n")}`);
     } finally { setAnalyzing(null); }
   }
 
+  async function generateMarketingSite() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("marketingSite");
+    try {
+      const listing = a("storekit")?.listing ?? a("listing") ?? null;
+      const launch = a("launch") ?? null;
+      const revenue = a("revenue") ?? null;
+      const buildBetter = a("buildBetter") ?? null;
+      const otherCompetitors = competitors.filter((c) => c.id !== selected.id).slice(0, 4).map((c) => c.name);
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          tagline: launch?.positioning?.tagline,
+          oneLiner: launch?.positioning?.oneLiner,
+          uniqueValueProps: launch?.positioning?.uniqueValueProps,
+          targetPersonas: launch?.positioning?.targetPersonas,
+        },
+        listingContext: listing ? { title: listing.title, keywords: listing.keywords, shortDescription: listing.shortDescription } : null,
+        pricingTiers: revenue?.pricingTiers?.map((t: any) => ({ name: t.name, monthlyPrice: t.monthlyPrice, yearlyPrice: t.yearlyPrice, features: t.features })) ?? null,
+        featureAdvantages: buildBetter?.missingFeatures ?? null,
+        competitorsToCompareAgainst: otherCompetitors,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "marketingSite", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      const meta = kit.siteMeta ?? {};
+      zip.file("00-README.md",
+`# Marketing Site & SEO Pack
+Generated ${new Date().toISOString()}
+
+**Brand:** ${meta.brandName ?? ""}
+**Domain:** ${meta.domain ?? "yourdomain.com"}
+**Tagline:** ${meta.tagline ?? ""}
+**Primary keyword:** ${meta.primaryKeyword ?? ""}
+**Secondary keywords:** ${(meta.secondaryKeywords ?? []).join(", ")}
+
+## Contents
+- site/ — static site (index, features, pricing, about, contact, blog, changelog, install, 404)
+- site/blog/ — 10 SEO-seeded blog posts as ready-to-publish HTML
+- site/compare/ — head-to-head comparison pages
+- site/sitemap.xml, site/robots.txt
+- schema/ — JSON-LD structured data (Organization, SoftwareApplication, FAQ, Breadcrumb)
+- outreach/ — backlink outreach emails + directory submission list
+- seo/ — keyword clusters, internal link plan, checklist
+- opengraph.md — OG image + card spec
+- favicon.md — favicon brief
+- raw-pack.json
+
+## Deploy
+Drop \`site/\` into any static host (Vercel, Netlify, Cloudflare Pages, GitHub Pages).
+Search-and-replace \`yourdomain.com\` if the placeholder is present.`);
+
+      const site = zip.folder("site") ?? zip;
+      const pages = kit.pages ?? {};
+      const write = (name: string, html: string | undefined) => site.file(name, html ?? `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${name}</title></head><body>Not generated.</body></html>`);
+      write("index.html", pages.indexHtml);
+      write("features.html", pages.featuresHtml);
+      write("pricing.html", pages.pricingHtml);
+      write("about.html", pages.aboutHtml);
+      write("contact.html", pages.contactHtml);
+      write("blog.html", pages.blogIndexHtml);
+      write("changelog.html", pages.changelogHtml);
+      write("install.html", pages.installHtml);
+      write("404.html", pages.notFoundHtml);
+      site.file("sitemap.xml", kit.sitemapXml ?? "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>");
+      site.file("robots.txt", kit.robotsTxt ?? "User-agent: *\nAllow: /\n");
+
+      const blog = site.folder("blog") ?? site;
+      (kit.blogPosts ?? []).forEach((post: any) => {
+        blog.file(`${post.slug ?? "post"}.html`, post.html ?? "<!-- not generated -->");
+      });
+      blog.file("_index.md",
+`# Blog Posts (${(kit.blogPosts ?? []).length})
+${(kit.blogPosts ?? []).map((p: any) =>
+`- **${p.title}** — ${p.slug}.html · ${p.wordCount} words · ${p.readingTimeMinutes} min · keyword: \`${p.keyword}\` · publish ${p.publishAt}
+  ${p.metaDescription ?? ""}`).join("\n")}`);
+
+      const compare = site.folder("compare") ?? site;
+      (kit.comparisonPages ?? []).forEach((c: any) => {
+        compare.file(`${c.slug ?? "vs"}.html`, c.html ?? "<!-- not generated -->");
+      });
+      compare.file("_index.md",
+`# Comparison Pages
+${(kit.comparisonPages ?? []).map((c: any) => `- **vs ${c.vsName}** — ${c.slug}.html\n  ${c.metaDescription ?? ""}`).join("\n")}`);
+
+      const schema = zip.folder("schema") ?? zip;
+      schema.file("organization.jsonld", JSON.stringify(kit.jsonLd?.organization ?? {}, null, 2));
+      schema.file("software-application.jsonld", JSON.stringify(kit.jsonLd?.softwareApplication ?? {}, null, 2));
+      schema.file("faq.jsonld", JSON.stringify(kit.jsonLd?.faqPage ?? {}, null, 2));
+      schema.file("breadcrumb.jsonld", JSON.stringify(kit.jsonLd?.breadcrumb ?? {}, null, 2));
+
+      const outreach = zip.folder("outreach") ?? zip;
+      outreach.file("backlink-emails.md",
+`# Backlink Outreach
+${(kit.backlinkOutreach ?? []).map((o: any) =>
+`## ${o.targetType} · ${o.targetName} (DA ${o.domainAuthorityBucket})
+**Subject:** ${o.subject}
+
+${o.body}
+`).join("\n")}`);
+      outreach.file("directories.md",
+`# Directories to Submit
+| Priority | Name | Category | URL |
+|---|---|---|---|
+${(kit.directoriesToSubmit ?? []).map((d: any) => `| ${d.priority} | ${d.name} | ${d.category} | ${d.url} |`).join("\n")}`);
+
+      const seo = zip.folder("seo") ?? zip;
+      seo.file("keyword-clusters.md",
+`# Keyword Clusters
+${(kit.keywordClusters ?? []).map((c: any) =>
+`## ${c.cluster} (${c.intent})
+- **Primary:** \`${c.primary}\`
+- **Supporting:** ${(c.supporting ?? []).map((s: string) => `\`${s}\``).join(", ")}
+`).join("\n")}`);
+      seo.file("internal-links.md",
+`# Internal Link Plan
+${(kit.internalLinkPlan ?? []).map((l: any) => `- \`${l.fromPage}\` → \`${l.toPage}\` (anchor: "${l.anchor}")`).join("\n")}`);
+      seo.file("checklist.md",
+`# SEO Checklist
+${(kit.seoChecklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("opengraph.md",
+`# Open Graph / Twitter Card
+- **Title:** ${kit.opengraphSpec?.title ?? ""}
+- **Description:** ${kit.opengraphSpec?.description ?? ""}
+- **Twitter card:** ${kit.opengraphSpec?.twitterCard ?? ""}
+
+## Image brief
+${kit.opengraphSpec?.imageBrief ?? ""}`);
+      zip.file("favicon.md", `# Favicon Brief\n\n${kit.faviconBrief ?? ""}`);
+
+      zip.file("raw-pack.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-marketing-site.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`marketingSite:${selected.id}`]: kit }));
+      toast.success("Marketing site ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Marketing site failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
@@ -2430,6 +2585,35 @@ All copy is original and IP-safe.`);
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         {(a("revenue").paywallCopy ?? []).length} paywalls · {(a("revenue").upsellFlows ?? []).length} upsells · {(a("revenue").dunningEmails ?? []).length} dunning · Stripe + Paddle blueprints
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card className="border-cyan-400/40 bg-cyan-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Globe className="h-4 w-4 text-cyan-400" />Marketing Site & SEO Pack</CardTitle>
+                        <CardDescription className="text-[10px]">Full static marketing site (home, features, pricing, about, contact, blog, changelog, install, 404), 10 SEO-seeded blog posts, 3+ head-to-head comparison pages, sitemap.xml, robots.txt, JSON-LD (Organization/App/FAQ/Breadcrumb), backlink outreach emails, directory submission list, keyword clusters, internal link plan, OG spec, favicon brief.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateMarketingSite} disabled={analyzing === "marketingSite" || !selected}>
+                        {analyzing === "marketingSite" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Site
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("marketingSite") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("marketingSite").pages ?? {}).length} pages</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").blogPosts ?? []).length} blog posts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").comparisonPages ?? []).length} vs pages</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").backlinkOutreach ?? []).length} outreach emails</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").directoriesToSubmit ?? []).length} directories</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Primary keyword: <span className="font-mono">{a("marketingSite").siteMeta?.primaryKeyword}</span>
                       </div>
                     </CardContent>
                   )}

@@ -172,6 +172,39 @@ Return JSON: {
   "kpis": [{ "name": string, "target": string, "formula": string }]
 }
 pricingPageHtml, referralPageHtml, and roiCalculator.html MUST each be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no external scripts).`,
+  marketingSite: `Generate a complete MARKETING SITE + SEO PACK for a NEW, ORIGINAL Chrome extension. Use the provided product context. All pages must be complete, self-contained, mobile-responsive HTML with inline CSS (no external assets, no external scripts). All copy must be original, benefit-led, and SEO-optimized (real keywords used naturally). ${GUARDRAIL}
+Return JSON: {
+  "siteMeta": { "domain": string, "brandName": string, "tagline": string, "primaryKeyword": string, "secondaryKeywords": string[] },
+  "pages": {
+    "indexHtml": string,
+    "featuresHtml": string,
+    "pricingHtml": string,
+    "aboutHtml": string,
+    "contactHtml": string,
+    "blogIndexHtml": string,
+    "changelogHtml": string,
+    "installHtml": string,
+    "notFoundHtml": string
+  },
+  "blogPosts": [{ "slug": string, "title": string, "metaDescription": string, "keyword": string, "wordCount": number, "html": string, "readingTimeMinutes": number, "publishAt": string }],
+  "comparisonPages": [{ "slug": string, "vsName": string, "title": string, "metaDescription": string, "html": string }],
+  "jsonLd": { "organization": object, "softwareApplication": object, "faqPage": object, "breadcrumb": object },
+  "sitemapXml": string,
+  "robotsTxt": string,
+  "opengraphSpec": { "title": string, "description": string, "imageBrief": string, "twitterCard": "summary_large_image" },
+  "faviconBrief": string,
+  "backlinkOutreach": [{ "targetType": "blog"|"newsletter"|"directory"|"podcast"|"reviewer"|"toolAggregator", "targetName": string, "subject": string, "body": string, "domainAuthorityBucket": "low"|"mid"|"high" }],
+  "directoriesToSubmit": [{ "name": string, "url": string, "category": string, "priority": "high"|"medium"|"low" }],
+  "keywordClusters": [{ "cluster": string, "primary": string, "supporting": string[], "intent": "informational"|"commercial"|"transactional"|"navigational" }],
+  "internalLinkPlan": [{ "fromPage": string, "toPage": string, "anchor": string }],
+  "seoChecklist": [{ "item": string, "status": "ready"|"todo", "priority": "high"|"medium"|"low" }]
+}
+IMPORTANT constraints:
+- Every page in "pages" must be fully-formed HTML with <!doctype html>, <html lang="en">, <head> containing title, meta description, canonical, viewport, og:*, twitter:*, and JSON-LD script.
+- Every blog post html must be a fully-formed HTML page with the same head requirements, an <article> body, and internal links to related posts / features / pricing.
+- Every comparison page must be a fully-formed HTML page comparing the new product to the named competitor without disparagement or copying — objective feature-benefit framing only.
+- Generate exactly 10 blogPosts and at least 3 comparisonPages.
+- sitemapXml must reference every page (root pages + blog posts + comparison pages).`,
 };
 
 serve(async (req) => {
