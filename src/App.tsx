@@ -124,6 +124,15 @@ const App = () => (
                           </RouteGuard>
                         }
                       />
+                      <Route
+                        path="/admin/ops"
+                        element={
+                          <RouteGuard anyRole={[...superadminOnly]}>
+                            <AdminOpsConsole />
+                          </RouteGuard>
+                        }
+                      />
+
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>
