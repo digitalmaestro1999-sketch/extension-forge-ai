@@ -2590,6 +2590,35 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-cyan-400/40 bg-cyan-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Globe className="h-4 w-4 text-cyan-400" />Marketing Site & SEO Pack</CardTitle>
+                        <CardDescription className="text-[10px]">Full static marketing site (home, features, pricing, about, contact, blog, changelog, install, 404), 10 SEO-seeded blog posts, 3+ head-to-head comparison pages, sitemap.xml, robots.txt, JSON-LD (Organization/App/FAQ/Breadcrumb), backlink outreach emails, directory submission list, keyword clusters, internal link plan, OG spec, favicon brief.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateMarketingSite} disabled={analyzing === "marketingSite" || !selected}>
+                        {analyzing === "marketingSite" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Site
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("marketingSite") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{Object.keys(a("marketingSite").pages ?? {}).length} pages</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").blogPosts ?? []).length} blog posts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").comparisonPages ?? []).length} vs pages</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").backlinkOutreach ?? []).length} outreach emails</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("marketingSite").directoriesToSubmit ?? []).length} directories</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Primary keyword: <span className="font-mono">{a("marketingSite").siteMeta?.primaryKeyword}</span>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
