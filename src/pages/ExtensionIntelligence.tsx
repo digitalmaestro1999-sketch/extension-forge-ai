@@ -3221,6 +3221,393 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
     } finally { setAnalyzing(null); }
   }
 
+  async function generateCommunityEngine() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("communityEngine");
+    try {
+      const blueprint = a("blueprint") ?? null;
+      const launch = a("launch") ?? null;
+      const listing = a("listing") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        blueprint,
+        launch,
+        listing,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "communityEngine", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Community & Content Engine
+Generated ${new Date().toISOString()}
+
+## Positioning
+${kit.overview?.productPositioning ?? ""}
+
+## Target audiences
+${(kit.overview?.targetAudiences ?? []).map((a: string) => `- ${a}`).join("\n")}
+
+## KPIs
+${(kit.overview?.kpis ?? []).map((k: any) => `- **${k.metric}** → ${k.target}`).join("\n")}
+
+## Layout
+- 01-brand-voice.md · 02-anti-patterns.md
+- launch-scheduler/ — phased launch, per-channel posts, PH/HN/IH/Reddit/seeding, runbook
+- content-calendar/ — pillars, N-week calendar, workflow, style guide, brief template, iCal
+- outreach-crm/ — schema+RLS, sequences by persona, tiers, admin inbox React, webhooks
+- pr-toolkit/ — press release, media kit, journalist outreach, podcast pitches
+- community-building/ — Discord/Slack/Circle blueprint, moderation, ambassador program
+- amplification/ — referral, affiliate, UGC, customer stories, review generation
+- analytics/ — events, UTM scheme, attribution, dashboard, SQL
+- safety-ethics/ — community rules, disclosure, anti-spam, brand safety
+- integration-guide.md · rollout-plan.md · ops-runbook.md · checklist.md`);
+
+      zip.file("01-brand-voice.md",
+`# Voice & tone
+${kit.overview?.voiceAndTone ?? ""}
+
+## Brand pillars
+${(kit.overview?.brandPillars ?? []).map((p: string) => `- ${p}`).join("\n")}
+
+## Goals
+${(kit.overview?.goals ?? []).map((g: string) => `- ${g}`).join("\n")}`);
+      zip.file("02-anti-patterns.md", kit.overview?.antiPatternsMd ?? "");
+
+      // Launch scheduler
+      const ls = kit.launchScheduler ?? {};
+      const lsF = zip.folder("launch-scheduler") ?? zip;
+      lsF.file("01-narrative.md", ls.narrativeMd ?? "");
+      lsF.file("02-launch-day.md",
+`# Recommended launch day
+- **Weekday:** ${ls.recommendedLaunchDay?.weekday ?? ""}
+- **Why:** ${ls.recommendedLaunchDay?.reasoning ?? ""}
+- **Total timeline:** ${ls.timelineWeeks ?? "?"} weeks`);
+      lsF.file("03-phases.md",
+`# Phases
+${(ls.phases ?? []).map((p: any) => `## ${p.phase} (day +${p.startOffsetDays}, ${p.durationDays}d)
+**Channels:** ${(p.channels ?? []).join(", ")}
+**Goals**
+${(p.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+`).join("\n")}`);
+
+      const csF = lsF.folder("channel-schedule") ?? lsF;
+      (ls.channelSchedule ?? []).forEach((c: any, i: number) => {
+        const slug = `${String(i + 1).padStart(2, "0")}-${String(c.channel ?? "channel").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+        csF.file(`${slug}.md`,
+`# ${c.channel} → ${c.targetHandleOrCommunity}
+- **Scheduled:** T+${c.scheduledOffsetHours}h
+- **Post type:** ${c.postType}
+- **CTA:** ${c.cta}
+- **Success:** ${c.successCriteria}
+
+## Hook
+${c.hookHeadline}
+
+## Body
+${c.postBody}
+
+## First comment
+${c.firstComment}
+
+## Assets needed
+${(c.assetsNeeded ?? []).map((a: string) => `- ${a}`).join("\n")}
+
+## Rules checklist
+${(c.rulesChecklist ?? []).map((r: string) => `- [ ] ${r}`).join("\n")}`);
+      });
+
+      const ph = ls.producthunt ?? {};
+      const phF = lsF.folder("producthunt") ?? lsF;
+      phF.file("01-listing.md",
+`# ${ph.productName}
+**Tagline:** ${ph.tagline}
+
+${ph.description}
+
+## Topics
+${(ph.topics ?? []).map((t: string) => `- ${t}`).join("\n")}`);
+      phF.file("02-maker-comment.md", ph.makerComment ?? "");
+      phF.file("03-first-comment.md", ph.firstComment ?? "");
+      phF.file("04-hunter-outreach.md", ph.hunterOutreachTemplate ?? "");
+      phF.file("05-gallery-spec.md", (ph.gallerySpec ?? []).map((g: string) => `- ${g}`).join("\n"));
+      phF.file("06-faq.md", (ph.faqAnswers ?? []).map((f: any) => `## ${f.q}\n${f.a}\n`).join("\n"));
+      phF.file("07-launch-day-schedule.md", ph.launchDayScheduleMd ?? "");
+      phF.file("08-upvote-ethics.md", ph.upvoteEthicsMd ?? "");
+
+      const hn = ls.hackerNews ?? {};
+      const hnF = lsF.folder("hacker-news") ?? lsF;
+      hnF.file("01-show-hn.md", `# ${hn.showHnTitle ?? ""}\n\n${hn.showHnBody ?? ""}`);
+      hnF.file("02-reply-templates.md",
+`# Comment replies
+${(hn.commentReplyTemplates ?? []).map((r: any) => `## ${r.situation}\n${r.reply}\n`).join("\n")}`);
+      hnF.file("03-posting-window.md", `Posting window (UTC): ${hn.postingWindowUtc ?? ""}`);
+      hnF.file("04-moderation-dos-and-donts.md", hn.moderationDosAndDontsMd ?? "");
+
+      const ih = ls.indieHackers ?? {};
+      const ihF = lsF.folder("indie-hackers") ?? lsF;
+      ihF.file("01-milestone.md", `# ${ih.milestoneTitle ?? ""}\n\n${ih.milestoneBody ?? ""}`);
+      ihF.file("02-product-page.md", ih.productPageMd ?? "");
+      ihF.file("03-groups.md", (ih.groupsToPostIn ?? []).map((g: string) => `- ${g}`).join("\n"));
+      ihF.file("04-founder-story.md", ih.founderStoryPost ?? "");
+
+      const rd = ls.reddit ?? {};
+      const rdF = lsF.folder("reddit") ?? lsF;
+      (rd.subredditPlan ?? []).forEach((s: any, i: number) => {
+        const slug = `${String(i + 1).padStart(2, "0")}-r-${String(s.subreddit ?? "sub").replace(/[^a-zA-Z0-9]+/g, "-")}`;
+        rdF.file(`${slug}.md`,
+`# r/${s.subreddit}
+- **Audience fit:** ${s.audienceFit}
+- **Rules:** ${s.rulesSummary}
+- **Self-promo:** ${s.selfPromoRatioNotes}
+- **Best day/time:** ${s.bestDay} · ${s.bestTimeUtc} UTC
+- **Flair:** ${s.flair}
+
+## Title
+${s.postTitle}
+
+## Body
+${s.postBody}
+
+## First reply
+${s.commentFirstReply}
+
+## Mod outreach
+${s.modOutreachTemplate}`);
+      });
+      rdF.file("00-ama-plan.md", rd.amaPlanMd ?? "");
+      rdF.file("00-anti-spam-playbook.md", rd.antiSpamPlaybookMd ?? "");
+
+      lsF.file("seeding-communities.md",
+`# Seeding communities
+${(ls.seedingCommunities ?? []).map((c: any) => `## ${c.name} (${c.type})
+- **URL:** ${c.url}
+- **Fit:** ${c.audienceFit}
+- **Rules:** ${c.rulesNotes}
+
+### Intro message
+${c.introMessage}
+`).join("\n")}`);
+      lsF.file("launch-day-runbook.md", ls.launchDayRunbookMd ?? "");
+      lsF.file("post-launch-followups.md", ls.postLaunchFollowupsMd ?? "");
+
+      // Content calendar
+      const cc = kit.contentCalendar ?? {};
+      const ccF = zip.folder("content-calendar") ?? zip;
+      ccF.file("01-strategy.md", cc.strategyMd ?? "");
+      ccF.file("02-cadence.md",
+`# Cadence
+- Posts / week: ${cc.cadence?.postsPerWeek ?? "?"}
+- Cornerstone / month: ${cc.cadence?.cornerstonePerMonth ?? "?"}
+- Social / day: ${cc.cadence?.socialPerDay ?? "?"}`);
+      ccF.file("03-pillars.md",
+`# Content pillars
+${(cc.pillarsBreakdown ?? []).map((p: any) => `## ${p.pillar} — ${p.percent}%
+${(p.sampleTopics ?? []).map((t: string) => `- ${t}`).join("\n")}
+`).join("\n")}`);
+      const wkF = ccF.folder("weeks") ?? ccF;
+      (cc.weeks ?? []).forEach((w: any) => {
+        wkF.file(`week-${String(w.weekNumber).padStart(2, "0")}.md`,
+`# Week ${w.weekNumber} — ${w.theme}
+
+${(w.days ?? []).map((d: any) => `## ${d.dayOfWeek}
+${(d.items ?? []).map((it: any) => `### ${it.channel} · ${it.format} · ${it.workingTitle}
+- **Hook:** ${it.hook}
+- **CTA:** ${it.cta}
+- **Keywords:** ${(it.keywords ?? []).join(", ")}
+- **Effort:** ${it.estimatedEffortHours}h
+- **Assets:** ${(it.assetsNeeded ?? []).join(", ")}
+
+**Outline**
+${it.outline}
+`).join("\n")}`).join("\n")}`);
+      });
+      ccF.file("04-seo-targets.md", cc.seoTargetsMd ?? "");
+      ccF.file("05-repurposing.md", cc.repurposingRulesMd ?? "");
+      ccF.file("06-editorial-workflow.md", cc.editorialWorkflowMd ?? "");
+      ccF.file("07-kanban-states.md",
+`# Kanban states
+${(cc.kanbanStates ?? []).map((s: any) => `- **${s.id}** — ${s.label} → next: ${(s.next ?? []).join(", ")}`).join("\n")}`);
+      ccF.file("08-style-guide.md", cc.styleGuideMd ?? "");
+      ccF.file("09-brief-template.md", cc.briefTemplateMd ?? "");
+      ccF.file("10-distribution-checklist.md", cc.distributionChecklistMd ?? "");
+      ccF.file("11-ical-export.md", cc.icalExportSampleMd ?? "");
+
+      // Outreach CRM
+      const oc = kit.outreachCrm ?? {};
+      const ocF = zip.folder("outreach-crm") ?? zip;
+      ocF.file("01-product-spec.md", oc.productSpecMd ?? "");
+      ocF.file("schema.sql", oc.databaseSchemaSql ?? "");
+      ocF.file("rls-policies.sql", oc.rlsPoliciesSql ?? "");
+      ocF.file("tracking-schema.sql", oc.trackingSchemaSql ?? "");
+      ocF.file("reporting-views.sql", oc.reportingViewsSql ?? "");
+      const ocEf = ocF.folder("edge-functions") ?? ocF;
+      (oc.supabaseEdgeFunctionsTs ?? []).forEach((f: any) => {
+        ocEf.file(`${f.name}.ts`, f.code ?? "");
+        ocEf.file(`${f.name}.md`, `# ${f.name}\n${f.purpose ?? ""}`);
+      });
+      ocF.file("02-contact-schema.md",
+`# Contact schema
+${(oc.contactSchema ?? []).map((c: any) => `- **${c.field}** (${c.type})${c.sensitive ? " · sensitive" : ""} — ${c.purpose}`).join("\n")}`);
+      ocF.file("03-segments.md",
+`# Segments
+${(oc.segments ?? []).map((s: any) => `- **${s.id}** — ${s.label}: ${s.criteria}`).join("\n")}`);
+      const psF = ocF.folder("personas") ?? ocF;
+      (oc.personas ?? []).forEach((p: any) => {
+        const slug = String(p.id ?? p.name ?? "persona").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        psF.file(`${slug}.md`,
+`# ${p.name} — ${p.role}
+**Watering holes:** ${(p["watering-holes"] ?? []).join(", ")}
+
+## Pain points
+${(p.painPoints ?? []).map((x: string) => `- ${x}`).join("\n")}
+
+## Objections
+${(p.objections ?? []).map((x: string) => `- ${x}`).join("\n")}
+
+## Hooks
+${(p.hooks ?? []).map((x: string) => `- ${x}`).join("\n")}`);
+      });
+      const sqF = ocF.folder("sequences") ?? ocF;
+      (oc.sequences ?? []).forEach((s: any) => {
+        const slug = String(s.id ?? s.purpose ?? "seq").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        sqF.file(`${slug}.md`,
+`# ${s.id} — ${s.purpose} · ${s.channel}
+${(s.steps ?? []).map((st: any, i: number) => `## Step ${i + 1} (day +${st.dayOffset})
+**Subject:** ${st.subject}
+
+${st.body}
+
+**Personalization hints**
+${(st.personalizationHints ?? []).map((h: string) => `- ${h}`).join("\n")}
+`).join("\n")}`);
+      });
+      ocF.file("04-influencer-tiers.md",
+`# Influencer tiers
+
+| Tier | Followers | Strategy | Compensation | KPI |
+|---|---|---|---|---|
+${(oc.influencerTiers ?? []).map((t: any) => `| ${t.tier} | ${t.followerRange} | ${t.outreachStrategy} | ${t.compensationNorms} | ${t.kpi} |`).join("\n")}`);
+      ocF.file("05-sourcing-lists.md", oc.sourcingListsMd ?? "");
+      ocF.file("prospecting.ts", oc.prospectingScriptTs ?? "");
+      ocF.file("06-reply-classifier-prompt.md", oc.replyClassifierPrompt ?? "");
+      ocF.file("07-followup-cadence.md", oc.followupCadenceMd ?? "");
+      ocF.file("compliance-can-spam.md", oc.compliance?.canSpamMd ?? "");
+      ocF.file("compliance-gdpr.md", oc.compliance?.gdprMd ?? "");
+      ocF.file("compliance-unsubscribe.md", oc.compliance?.unsubscribeCopyMd ?? "");
+      ocF.file("AdminInbox.tsx", oc.adminInboxReactTsx ?? "");
+      ocF.file("SequenceEditor.tsx", oc.sequenceEditorReactTsx ?? "");
+      ocF.file("KpiDashboard.tsx", oc.kpiDashboardReactTsx ?? "");
+      const whF = ocF.folder("webhooks") ?? ocF;
+      (oc.webhookIntegrations ?? []).forEach((w: any) => {
+        whF.file(`${w.target}.payload.json`, w.payloadTemplate ?? "");
+        whF.file(`${w.target}.setup.md`, w.setupMd ?? "");
+      });
+
+      // PR toolkit
+      const pr = kit.prToolkit ?? {};
+      const prF = zip.folder("pr-toolkit") ?? zip;
+      prF.file("01-press-release.md", pr.pressReleaseMd ?? "");
+      prF.file("02-boilerplate.md", pr.boilerplate ?? "");
+      prF.file("03-media-kit.md", pr.mediaKitMd ?? "");
+      prF.file("04-journalist-outreach.md", pr.journalistOutreachTemplate ?? "");
+      prF.file("05-target-publications.md",
+`# Target publications
+${(pr.targetPublications ?? []).map((p: any) => `## ${p.outlet} — ${p.beat}
+- **Why:** ${p.reason}
+- **Angle:** ${p.pitchAngle}
+`).join("\n")}`);
+      prF.file("06-haro-replies.md", pr.helpAReporterOutRepliesMd ?? "");
+      prF.file("07-podcast-pitches.md",
+`# Podcast pitches
+${(pr.podcastPitches ?? []).map((p: any) => `## ${p.podcast} · ${p.host}
+**Angle:** ${p.angle}
+
+${p.email}
+`).join("\n")}`);
+
+      // Community building
+      const cb = kit.communityBuilding ?? {};
+      const cbF = zip.folder("community-building") ?? zip;
+      cbF.file("01-philosophy.md", cb.philosophyMd ?? "");
+      cbF.file("02-platform.md", `Recommended platform: **${cb.recommendedPlatform ?? "?"}**`);
+      cbF.file("03-channels-and-roles.md", cb.channelsAndRolesMd ?? "");
+      cbF.file("04-welcome-sequence.md", cb.welcomeSequenceMd ?? "");
+      cbF.file("05-code-of-conduct.md", cb.codeOfConductMd ?? "");
+      cbF.file("06-moderation-playbook.md", cb.moderationPlaybookMd ?? "");
+      cbF.file("07-engagement-rituals.md", cb.engagementRitualsMd ?? "");
+      cbF.file("08-ambassador-program.md", cb.ambassadorProgramMd ?? "");
+      cbF.file("09-event-calendar.md", cb.eventCalendarMd ?? "");
+
+      // Amplification
+      const am = kit.amplification ?? {};
+      const amF = zip.folder("amplification") ?? zip;
+      amF.file("01-referral-program.md", am.referralProgramMd ?? "");
+      amF.file("02-affiliate-program.md", am.affiliateProgramMd ?? "");
+      amF.file("03-ugc-prompts.md", am.userGeneratedContentPromptsMd ?? "");
+      amF.file("04-customer-story-template.md", am.customerStoryTemplateMd ?? "");
+      amF.file("05-review-generation.md", am.reviewGenerationPlaybookMd ?? "");
+
+      // Analytics
+      const an = kit.analytics ?? {};
+      const anF = zip.folder("analytics") ?? zip;
+      anF.file("01-event-taxonomy.md",
+`# Event taxonomy
+${(an.eventTaxonomy ?? []).map((e: any) => `## \`${e.event}\` — ${e.purpose}\n${(e.props ?? []).map((p: any) => `- \`${p.name}\`: ${p.type}`).join("\n")}\n`).join("\n")}`);
+      anF.file("02-utm-scheme.md", an.utmSchemeMd ?? "");
+      anF.file("03-attribution.md", an.attributionModelMd ?? "");
+      anF.file("04-dashboard.md", an.dashboardSpecMd ?? "");
+      (an.sampleQueriesSql ?? []).forEach((q: string, i: number) => anF.file(`queries/${String(i + 1).padStart(2, "0")}.sql`, q));
+
+      // Safety
+      const sf = kit.safetyAndEthics ?? {};
+      const sfF = zip.folder("safety-ethics") ?? zip;
+      sfF.file("01-community-rules.md", sf.communityRulesRespectMd ?? "");
+      sfF.file("02-disclosure.md", sf.disclosureRequirementsMd ?? "");
+      sfF.file("03-anti-spam.md", sf.antiSpamRulesMd ?? "");
+      sfF.file("04-brand-safety.md", sf.brandSafetyMd ?? "");
+      sfF.file("05-rate-limits.md", sf.rateLimitsMd ?? "");
+
+      zip.file("manifest-additions.json", JSON.stringify(kit.manifestAdditions ?? {}, null, 2));
+      zip.file("manifest-additions.md", kit.manifestAdditions?.rationaleMd ?? "");
+      zip.file("integration-guide.md", kit.integrationGuideMd ?? "");
+      zip.file("rollout-plan.md",
+`# Rollout plan
+${(kit.rolloutPlan ?? []).map((p: any) => `## ${p.phase} (${p.duration})
+**Goals**
+${(p.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+**Guardrails**
+${(p.guardrails ?? []).map((g: string) => `- ${g}`).join("\n")}
+`).join("\n")}`);
+      zip.file("ops-runbook.md", kit.opsRunbookMd ?? "");
+      zip.file("checklist.md",
+`# Community & content checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-community-engine.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-community-engine.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`communityEngine:${selected.id}`]: kit }));
+      toast.success("Community & content engine ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Community engine generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
 
 
