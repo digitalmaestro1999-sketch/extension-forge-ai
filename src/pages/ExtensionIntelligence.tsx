@@ -1144,6 +1144,37 @@ ${(l.keywords ?? []).join(", ")}`);
                   )}
                 </Card>
 
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Trophy className="h-4 w-4" />Chrome Web Store Publish Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Store listing, privacy policy, permissions justification, promo tile briefs, screenshot briefs — everything needed to pass CWS review.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateStoreKit} disabled={analyzing === "storekit" || !selected}>
+                        {analyzing === "storekit" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("storekit") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("storekit").listing?.title}</strong> — {a("storekit").listing?.category}</div>
+                      <div className="text-muted-foreground">{a("storekit").listing?.shortDescription}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {(a("storekit").listing?.keywords ?? []).slice(0, 12).map((k: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("storekit").permissionsJustification ?? []).length} permissions justified · privacy policy generated · {(a("storekit").screenshots ?? []).length} screenshots briefed
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-sm flex items-center gap-2"><Terminal className="h-4 w-4" />Dev Prompts</CardTitle>
