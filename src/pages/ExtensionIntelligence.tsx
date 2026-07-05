@@ -427,11 +427,26 @@ export default function ExtensionIntelligence() {
                         {selected.developer ?? "Unknown developer"} · {selected.chrome_id ?? "no id"}
                       </CardDescription>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => scrapeCompetitor(selected)} disabled={analyzing === `scrape:${selected.id}`}>
-                      {analyzing === `scrape:${selected.id}` ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                      Scrape metadata
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => scrapeCompetitor(selected)} disabled={analyzing === `scrape:${selected.id}`}>
+                        {analyzing === `scrape:${selected.id}` ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                        Scrape metadata
+                      </Button>
+                      <Button size="sm" onClick={runFullReport} disabled={!!fullRun}>
+                        {fullRun ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Rocket className="h-3 w-3 mr-1" />}
+                        Run Full Report
+                      </Button>
+                    </div>
                   </div>
+                  {fullRun && (
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>{fullRun.stage}</span>
+                        <span>{fullRun.done}/{fullRun.total}</span>
+                      </div>
+                      <Progress value={(fullRun.done / fullRun.total) * 100} className="h-1.5" />
+                    </div>
+                  )}
                 </CardHeader>
               </Card>
             )}
