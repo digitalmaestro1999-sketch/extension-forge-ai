@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
   Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck, SlidersHorizontal,
-  Radio, Brain,
+  Radio, Brain, Server,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -130,6 +130,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {renderItems([
                   { title: "User Management", url: "/admin/users", icon: Crown },
+                  { title: "Ops Console", url: "/admin/ops", icon: Server },
                 ])}
               </SidebarMenu>
             </SidebarGroupContent>
