@@ -3915,6 +3915,41 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-red-400/40 bg-red-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-400" />Security & Privacy Audit Pack</CardTitle>
+                        <CardDescription className="text-[10px]">Executive summary, CSP hardening report + validator, permission minimizer with activeTab migration + optional-perm plan, data-flow narrative + Mermaid diagram + PII inventory, full DPIA & PIA, STRIDE threat model with attack trees & abuse cases, extension-specific pen-test checklist with report template, SBOM + Dependabot + pinned-actions, storage secret scanner, content-script isolation audit, incident-response playbook + security.txt (RFC 9116) + VDP, CWS policy compliance mapping, browser-extension OWASP top-10, findings register with severity, and phased remediation roadmap.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateSecurityAudit} disabled={analyzing === "securityAudit" || !selected}>
+                        {analyzing === "securityAudit" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Audit Pack
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("securityAudit") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">risk: {a("securityAudit").overview?.overallRiskRating ?? "?"}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").permissionMinimizer?.analysis ?? []).length} perms analyzed</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").dataFlow?.dataInventory ?? []).length} data fields</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").threatModel?.stride ?? []).length} STRIDE entries</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").penTestChecklist?.checklist ?? []).length} pen-test checks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").auditFindings ?? []).length} findings</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").dpia?.riskRegister ?? []).length} DPIA risks</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Recommended CSP: <span className="font-mono">{(a("securityAudit").cspHardening?.recommendedManifestCsp?.extension_pages ?? "").slice(0, 90)}…</span>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
+
+
 
 
 
