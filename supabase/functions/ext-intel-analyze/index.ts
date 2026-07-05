@@ -80,6 +80,36 @@ Return JSON: {
   "influencerOutreach": [{ "channel": string, "pitch": string }]
 }
 The landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts), including hero, features, CTA, footer.`,
+  localize: `Localize a Chrome Web Store listing and landing copy into the requested target locales. Do NOT do word-for-word translation — adapt tone, idioms, cultural references, CTAs, and SEO keywords for each locale's Chrome Web Store market. Keep the same product meaning. ${GUARDRAIL}
+Return JSON: {
+  "locales": [{
+    "locale": string,
+    "languageName": string,
+    "title": string,
+    "shortDescription": string,
+    "detailedDescription": string,
+    "keywords": string[],
+    "cta": string,
+    "culturalNotes": string,
+    "landingPageHtml": string
+  }]
+}
+Each landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts) with lang attribute set correctly, including hero, features, CTA, footer. Title ≤45 chars, shortDescription ≤132 chars.`,
+Return JSON: {
+  "positioning": { "tagline": string, "oneLiner": string, "elevatorPitch": string, "targetPersonas": string[], "uniqueValueProps": string[] },
+  "productHunt": { "name": string, "tagline": string, "description": string, "firstComment": string, "makerComment": string, "gallery": string[], "topics": string[] },
+  "tweets": { "launchThread": string[], "singleTweets": string[], "replyHooks": string[] },
+  "reddit": [{ "subreddit": string, "title": string, "body": string, "flair": string }],
+  "hackerNews": { "title": string, "showHnBody": string },
+  "linkedin": { "founderPost": string, "companyPost": string, "articleTitle": string, "articleBody": string },
+  "coldEmails": [{ "persona": string, "subject": string, "body": string }],
+  "blogPost": { "title": string, "metaDescription": string, "slug": string, "markdown": string },
+  "pressRelease": { "headline": string, "subheadline": string, "body": string, "boilerplate": string },
+  "landingPageHtml": string,
+  "launchChecklist": string[],
+  "influencerOutreach": [{ "channel": string, "pitch": string }]
+}
+The landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts), including hero, features, CTA, footer.`,
 };
 
 serve(async (req) => {
