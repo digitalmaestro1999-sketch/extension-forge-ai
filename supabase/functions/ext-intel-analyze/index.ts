@@ -473,6 +473,120 @@ IMPORTANT:
 - Accessibility audits must use @axe-core/playwright and produce a JSON+HTML report; wcagLevel default is "AA".
 - Cross-browser matrix must include Chrome stable + beta, Edge stable, Brave (via chromium binary), and note Firefox/Safari require separate MV2/MV3-hybrid ports.
 - Every YAML must pin action versions (actions/checkout@v4, actions/setup-node@v4) and include job-level permissions blocks.`,
+  securityAudit: `Generate a complete SECURITY & PRIVACY AUDIT PACK for a Chrome MV3 extension. Produce REAL, directly-usable deliverables (markdown reports, JSON matrices, Mermaid diagrams, runnable scripts) — never summaries. Everything must be MV3-safe and reflect real Chrome extension threat surfaces. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "scope": string, "assumptions": string[], "outOfScope": string[], "auditorPersona": string, "executiveSummaryMd": string, "overallRiskRating": "low"|"medium"|"high"|"critical" },
+  "cspHardening": {
+    "currentCspAnalysisMd": string,
+    "recommendedManifestCsp": { "extension_pages": string, "sandbox": string },
+    "rationaleMd": string,
+    "commonMistakes": [{ "mistake": string, "why": string, "fix": string }],
+    "cspValidatorScript": string,
+    "hardeningChecklist": [{ "item": string, "status": "todo"|"done", "priority": "high"|"medium"|"low" }]
+  },
+  "permissionMinimizer": {
+    "currentPermissions": string[],
+    "currentHostPermissions": string[],
+    "analysis": [{ "permission": string, "purposeInferred": string, "risk": "low"|"medium"|"high", "canRemove": boolean, "canReplaceWith": string, "justification": string }],
+    "recommendedManifestPatch": string,
+    "activeTabMigrationGuideMd": string,
+    "optionalPermissionsPlan": [{ "permission": string, "requestTrigger": string, "userFacingCopy": string }],
+    "minimizerScript": string
+  },
+  "dataFlow": {
+    "narrativeMd": string,
+    "mermaidDiagram": string,
+    "dataInventory": [{ "field": string, "source": string, "storedIn": string, "transmittedTo": string, "encryptionAtRest": string, "encryptionInTransit": string, "retention": string, "classification": "public"|"internal"|"pii"|"sensitive-pii" }],
+    "thirdPartyEndpoints": [{ "url": string, "purpose": string, "dataSent": string, "necessity": "required"|"optional", "vendor": string }],
+    "crossContextMessagingMap": [{ "from": string, "to": string, "channel": string, "payload": string, "trustBoundary": boolean }]
+  },
+  "dpia": {
+    "documentMd": string,
+    "processingActivities": [{ "activity": string, "lawfulBasis": string, "dataCategories": string[], "recipients": string[], "retention": string, "riskLevel": "low"|"medium"|"high" }],
+    "dataSubjectRights": [{ "right": string, "howHandled": string, "responseSlaHours": number }],
+    "riskRegister": [{ "risk": string, "likelihood": "low"|"medium"|"high", "impact": "low"|"medium"|"high", "mitigation": string, "residualRisk": "low"|"medium"|"high" }],
+    "gdprAssessment": { "applies": boolean, "notesMd": string },
+    "ccpaAssessment": { "applies": boolean, "notesMd": string }
+  },
+  "pia": {
+    "documentMd": string,
+    "purposeSpecification": string,
+    "dataMinimizationEvidence": string[],
+    "userConsentModelMd": string,
+    "internationalTransfersMd": string
+  },
+  "threatModel": {
+    "methodology": "STRIDE",
+    "systemDescriptionMd": string,
+    "trustBoundariesDiagram": string,
+    "assets": [{ "name": string, "location": string, "sensitivity": "low"|"medium"|"high" }],
+    "entryPoints": [{ "surface": string, "description": string, "authRequired": boolean }],
+    "stride": [{ "component": string, "category": "S"|"T"|"R"|"I"|"D"|"E", "threat": string, "attackScenario": string, "impact": string, "likelihood": "low"|"medium"|"high", "existingMitigations": string[], "recommendedMitigations": string[], "residualRisk": "low"|"medium"|"high" }],
+    "attackTreesMd": string,
+    "abuseCases": [{ "actor": string, "goal": string, "steps": string[], "detection": string }]
+  },
+  "penTestChecklist": {
+    "methodology": string,
+    "environmentSetupMd": string,
+    "tools": [{ "name": string, "purpose": string, "installCmd": string }],
+    "checklist": [{ "id": string, "category": string, "item": string, "procedureMd": string, "expectedResult": string, "severityIfFails": "low"|"medium"|"high"|"critical", "reference": string }],
+    "reportTemplateMd": string
+  },
+  "supplyChain": {
+    "npmAuditNotesMd": string,
+    "lockfileHygieneMd": string,
+    "recommendedTools": [{ "name": string, "purpose": string }],
+    "sbomGenerationScript": string,
+    "dependabotYml": string,
+    "pinnedActionsPolicyMd": string
+  },
+  "secretsAndStorage": {
+    "storageInventory": [{ "key": string, "surface": string, "kind": "chrome.storage.local"|"chrome.storage.sync"|"chrome.storage.session"|"indexedDB"|"other", "sensitivity": string, "encryption": string }],
+    "secretHandlingMd": string,
+    "keyRotationMd": string,
+    "secretScannerScript": string
+  },
+  "contentScriptIsolation": {
+    "isolatedWorldNotesMd": string,
+    "domXssAuditMd": string,
+    "postMessageAuditMd": string,
+    "sanitizerRecommendationsMd": string
+  },
+  "networkSecurity": {
+    "allowedOrigins": string[],
+    "corsExpectationsMd": string,
+    "tlsRequirementsMd": string,
+    "certPinningStanceMd": string
+  },
+  "incidentResponse": {
+    "playbookMd": string,
+    "severityMatrix": [{ "severity": "sev1"|"sev2"|"sev3"|"sev4", "definition": string, "responseTime": string, "commsChannel": string, "owner": string }],
+    "vulnerabilityDisclosurePolicyMd": string,
+    "securityTxt": string,
+    "postmortemTemplateMd": string
+  },
+  "cwsPolicyMapping": {
+    "policyChecklist": [{ "policyId": string, "policyName": string, "requirement": string, "howWeComply": string, "evidence": string, "status": "compliant"|"gap"|"na" }],
+    "singlePurposeStatement": string,
+    "permissionsJustificationMd": string,
+    "remoteCodeAttestationMd": string,
+    "userDataDisclosureForm": [{ "field": string, "answer": string }]
+  },
+  "browserExtensionOwaspTop10": [{ "id": string, "risk": string, "applicability": string, "mitigation": string, "status": "mitigated"|"partial"|"gap" }],
+  "auditFindings": [{ "id": string, "title": string, "severity": "info"|"low"|"medium"|"high"|"critical", "cwe": string, "location": string, "descriptionMd": string, "reproductionSteps": string[], "impact": string, "remediation": string, "effort": "S"|"M"|"L", "status": "open"|"in-progress"|"fixed"|"accepted" }],
+  "remediationRoadmap": [{ "phase": string, "duration": string, "items": string[] }],
+  "signOffMd": string,
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- Mermaid diagrams must be valid \`graph TD\` / \`flowchart LR\` syntax with no emojis and no unescaped parentheses in node labels.
+- The recommended CSP must forbid \`unsafe-eval\`, \`unsafe-inline\`, and any remote script/style origin — MV3 rejects them anyway; the report must explain why.
+- Permission minimizer must prefer \`activeTab\` + \`optional_permissions\` + \`optional_host_permissions\` over broad \`<all_urls>\` or persistent host grants; every kept permission must have a real product-visible justification.
+- STRIDE entries must be concrete to this extension's surfaces (popup, options, background service worker, content scripts, offscreen documents, side panel) — never generic web-app examples.
+- Pen-test checklist must include extension-specific tests: manifest tampering, storage exfiltration via content script bridge, message spoofing from web pages, malicious update via CWS takeover, prototype pollution in bundled deps, DOM XSS in options page, activeTab abuse, and CSP bypass attempts.
+- DPIA/PIA must be written in plain language a non-lawyer product owner can adopt, and must call out exactly which fields are PII, sensitive PII, or pseudonymous.
+- Every script in the pack (validators, minimizer, secret scanner, SBOM generator) must be complete, standalone Node/TS files runnable with \`npx tsx <file>\` — no placeholders.
+- security.txt must follow RFC 9116 and include Contact, Expires, Preferred-Languages, and Policy fields.`,
 };
 
 serve(async (req) => {
