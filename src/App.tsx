@@ -28,6 +28,7 @@ import StoreSEO from "./pages/StoreSEO";
 import RevenueTracker from "./pages/RevenueTracker";
 import UserManual from "./pages/UserManual";
 import AdminUsers from "./pages/AdminUsers";
+import AdminOpsConsole from "./pages/AdminOpsConsole";
 import ManageExtension from "./pages/ManageExtension";
 import LiveControl from "./pages/LiveControl";
 import SoftwareIntelligence from "./pages/SoftwareIntelligence";
