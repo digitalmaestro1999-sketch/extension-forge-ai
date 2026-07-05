@@ -727,6 +727,138 @@ IMPORTANT:
 - Privacy: never send raw feedback text to a third party without explicit consent, always allow user data deletion, and redact obvious PII (emails, tokens, URLs with query strings) before AI clustering.
 - The AI feedback agent prompts must be usable as-is with an LLM and reference the actual event taxonomy and inbox schema you define elsewhere in this payload.
 - Anti-brigading rules for roadmap voting must include per-account, per-IP, per-day caps and account-age minimums, described concretely.`,
+  abExperiments: `Generate a complete A/B EXPERIMENTATION CONSOLE for a Chrome MV3 extension. Produce REAL, runnable code (TS/HTML/CSS/SQL/JSON) and operational playbooks — no summaries. Absolute constraints: MV3-SAFE (no remote JS, no eval, no external CDN JS/CSS bundled into the extension, no dynamic \`Function\` construction, no \`chrome.scripting.executeScript({ code: ... })\`). All "remote config" must be JSON-only feature flags/variant metadata fetched from a controlled server, cached in \`chrome.storage.local\`, cryptographically integrity-checked, and used purely as DATA that toggles code paths already shipped in the extension. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "philosophyMd": string, "principles": string[], "nonGoals": string[], "kpis": [{ "metric": string, "target": string }], "cwsPolicyPositionMd": string, "mv3SafetyNotesMd": string },
+  "experimentSpec": {
+    "schemaJson": string,
+    "schemaExplainedMd": string,
+    "sampleExperimentsJson": string,
+    "typesTs": string,
+    "validationTs": string,
+    "lintRulesMd": string
+  },
+  "remoteConfig": {
+    "designMd": string,
+    "endpointContractMd": string,
+    "signedManifestFormatMd": string,
+    "integrityVerifierTs": string,
+    "clientFetcherTs": string,
+    "cacheStrategyMd": string,
+    "killSwitchMd": string,
+    "staleWhileRevalidateTs": string,
+    "sampleSignedManifestJson": string,
+    "rotationPolicyMd": string
+  },
+  "assignment": {
+    "algorithmMd": string,
+    "hashingTs": string,
+    "stickyBucketingMd": string,
+    "trafficAllocationMd": string,
+    "mutualExclusionMd": string,
+    "holdoutsMd": string,
+    "forcedAssignmentTs": string,
+    "queryStringOverridesMd": string,
+    "assignmentEngineTs": string,
+    "unitTestsTs": string
+  },
+  "sdk": {
+    "publicApiMd": string,
+    "sdkTs": string,
+    "reactHooksTs": string,
+    "vanillaBindingsTs": string,
+    "usageExamplesMd": string,
+    "contentScriptSafetyMd": string,
+    "serviceWorkerSafetyMd": string,
+    "offlineBehaviorMd": string
+  },
+  "telemetry": {
+    "eventTaxonomy": [{ "event": string, "props": [{ "name": string, "type": string }], "purpose": string }],
+    "exposureLoggingTs": string,
+    "metricEmissionTs": string,
+    "deduplicationMd": string,
+    "batchingAndFlushTs": string,
+    "privacyMd": string,
+    "consentIntegrationMd": string,
+    "sampleClickstreamJson": string
+  },
+  "backend": {
+    "architectureMd": string,
+    "databaseSchemaSql": string,
+    "rlsPoliciesSql": string,
+    "supabaseEdgeFunctionsTs": [{ "name": string, "purpose": string, "code": string }],
+    "ingestionPipelineMd": string,
+    "materializedViewsSql": string,
+    "retentionPolicyMd": string
+  },
+  "statistics": {
+    "methodologyMd": string,
+    "sampleSizeCalculatorTs": string,
+    "sequentialTestingMd": string,
+    "bayesianVsFrequentistMd": string,
+    "cupedMd": string,
+    "srmCheckTs": string,
+    "guardrailMetricsMd": string,
+    "significanceCalculatorTs": string,
+    "confidenceIntervalTs": string,
+    "multipleComparisonsMd": string
+  },
+  "dashboard": {
+    "productSpecMd": string,
+    "listViewTsx": string,
+    "detailViewTsx": string,
+    "resultsChartTsx": string,
+    "exposureFunnelTsx": string,
+    "assignmentDiagnosticsTsx": string,
+    "createExperimentFormTsx": string,
+    "statusStates": [{ "id": "draft"|"scheduled"|"running"|"paused"|"stopped"|"completed"|"archived", "label": string, "allowedTransitions": string[] }],
+    "roleAndPermissionsMd": string,
+    "decisionRecordTemplateMd": string
+  },
+  "experimentTypes": [
+    { "id": string, "name": string, "whenToUseMd": string, "sampleConfigJson": string, "implementationNotesMd": string }
+  ],
+  "surfacesSupported": [{ "surface": "popup"|"options"|"onboarding"|"contentScript"|"sidepanel"|"background"|"newTab"|"offscreen", "notesMd": string }],
+  "governance": {
+    "reviewProcessMd": string,
+    "prePreLaunchChecklistMd": string,
+    "experimentRegistryMd": string,
+    "namingConventionMd": string,
+    "flagLifecycleMd": string,
+    "cleanupPolicyMd": string,
+    "auditLogSchemaSql": string
+  },
+  "safety": {
+    "abuseAndAbortMd": string,
+    "circuitBreakerTs": string,
+    "userOptOutMd": string,
+    "healthMonitorsMd": string,
+    "rollbackPlaybookMd": string
+  },
+  "cwsCompliance": {
+    "singlePurposeAlignmentMd": string,
+    "remoteCodePolicyMd": string,
+    "userDataDisclosureMd": string,
+    "storeReviewerNoteMd": string
+  },
+  "manifestAdditions": { "permissions": string[], "hostPermissions": string[], "optionalPermissions": string[], "rationaleMd": string },
+  "integrationGuideMd": string,
+  "rolloutPlan": [{ "phase": string, "duration": string, "goals": string[], "guardrails": string[] }],
+  "sampleExperimentPlaybooks": [{ "name": string, "hypothesis": string, "primaryMetric": string, "guardrailMetrics": string[], "variants": [{ "id": string, "description": string }], "readoutTemplateMd": string }],
+  "opsRunbookMd": string,
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- Reiterate MV3 safety in code comments: variants MUST be metadata (booleans, numbers, strings, enum ids). Any code path a variant activates MUST already exist inside the shipped extension bundle.
+- The remote-config fetcher MUST verify an Ed25519 (or equivalent) signature on the config payload before applying, cache the last-good version, and fall back to bundled defaults on failure.
+- Assignment must be deterministic: \`bucket = hash(experimentId + saltedUnitId) % 10000\`; document the exact hash (e.g. FNV-1a or SHA-256 truncated) and show the TS implementation.
+- Sticky bucketing must persist assignments in \`chrome.storage.local\` keyed by experimentId and honor them even after variant weights change, unless the experiment is reset.
+- Exposure logging must fire exactly once per (unit, experiment, variant) per session boundary you define, and must be dedup-safe on the backend.
+- SRM (sample ratio mismatch) check must actually implement a chi-squared test in TS, not describe it.
+- SQL must target Supabase Postgres, include RLS so raw event rows are never readable by end-users, and expose only aggregated views to the dashboard role.
+- Dashboard status transitions must be enforced in code, not just described.
+- CWS reviewer note must explicitly state: no remote code is executed, remote config is data-only JSON with signed integrity, and all variant behavior ships in the reviewed bundle.
+- Every script (verifier, assignment engine, SRM check, sample-size calc, significance calc) must be complete, standalone TS runnable with \`npx tsx <file>\` — no placeholders.`,
 };
 
 serve(async (req) => {

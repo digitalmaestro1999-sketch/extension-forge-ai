@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2, ShieldCheck, MessageCircle,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2, ShieldCheck, MessageCircle, FlaskConical,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2967,6 +2967,260 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
     } finally { setAnalyzing(null); }
   }
 
+  async function generateAbExperiments() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("abExperiments");
+    try {
+      const architecture = a("architecture") ?? null;
+      const listing = a("listing") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        architecture,
+        listing,
+        surfaces: ["popup", "options", "onboarding", "contentScript", "sidepanel", "background", "newTab", "offscreen"],
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "abExperiments", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# A/B Experimentation Console (MV3-safe)
+Generated ${new Date().toISOString()}
+
+## Principles
+${(kit.overview?.principles ?? []).map((p: string) => `- ${p}`).join("\n")}
+
+## KPIs
+${(kit.overview?.kpis ?? []).map((k: any) => `- **${k.metric}** → ${k.target}`).join("\n")}
+
+## Layout
+- 01-philosophy.md · 02-mv3-safety.md · 03-cws-policy.md
+- experiment-spec/ — JSON schema, TS types, sample experiments, validator, lint rules
+- remote-config/ — signed-manifest fetcher, integrity verifier, cache/kill-switch, rotation
+- assignment/ — deterministic hashing, sticky bucketing, mutual exclusion, holdouts, engine + unit tests
+- sdk/ — SDK, React hooks, vanilla bindings, service-worker/content-script safety
+- telemetry/ — event taxonomy, exposure logging, batching, dedup, privacy
+- backend/ — Supabase schema, RLS, edge functions, ingestion, materialized views, retention
+- statistics/ — sample-size calc, sequential testing, CUPED, SRM check, significance calc, CI
+- dashboard/ — list/detail views, results charts, create form, statuses, roles, decision records
+- experiment-types/ — feature-flag, multivariate, holdout, ramp, MAB (metadata-only)
+- governance/ — review, registry, naming, flag lifecycle, cleanup, audit log
+- safety/ — circuit breaker, opt-out, health monitors, rollback playbook
+- cws-compliance/ — remote-code policy, single-purpose, reviewer note
+- manifest-additions.json · integration-guide.md · rollout-plan.md · ops-runbook.md · playbooks/`);
+
+      zip.file("01-philosophy.md", kit.overview?.philosophyMd ?? "");
+      zip.file("02-mv3-safety.md", kit.overview?.mv3SafetyNotesMd ?? "");
+      zip.file("03-cws-policy.md", kit.overview?.cwsPolicyPositionMd ?? "");
+
+      // Experiment spec
+      const es = kit.experimentSpec ?? {};
+      const esF = zip.folder("experiment-spec") ?? zip;
+      esF.file("schema.json", es.schemaJson ?? "{}");
+      esF.file("schema-explained.md", es.schemaExplainedMd ?? "");
+      esF.file("sample-experiments.json", es.sampleExperimentsJson ?? "[]");
+      esF.file("types.ts", es.typesTs ?? "");
+      esF.file("validation.ts", es.validationTs ?? "");
+      esF.file("lint-rules.md", es.lintRulesMd ?? "");
+
+      // Remote config
+      const rc = kit.remoteConfig ?? {};
+      const rcF = zip.folder("remote-config") ?? zip;
+      rcF.file("01-design.md", rc.designMd ?? "");
+      rcF.file("02-endpoint-contract.md", rc.endpointContractMd ?? "");
+      rcF.file("03-signed-manifest-format.md", rc.signedManifestFormatMd ?? "");
+      rcF.file("integrity-verifier.ts", rc.integrityVerifierTs ?? "");
+      rcF.file("client-fetcher.ts", rc.clientFetcherTs ?? "");
+      rcF.file("stale-while-revalidate.ts", rc.staleWhileRevalidateTs ?? "");
+      rcF.file("04-cache-strategy.md", rc.cacheStrategyMd ?? "");
+      rcF.file("05-kill-switch.md", rc.killSwitchMd ?? "");
+      rcF.file("sample-signed-manifest.json", rc.sampleSignedManifestJson ?? "{}");
+      rcF.file("06-rotation-policy.md", rc.rotationPolicyMd ?? "");
+
+      // Assignment
+      const as_ = kit.assignment ?? {};
+      const asF = zip.folder("assignment") ?? zip;
+      asF.file("01-algorithm.md", as_.algorithmMd ?? "");
+      asF.file("hashing.ts", as_.hashingTs ?? "");
+      asF.file("02-sticky-bucketing.md", as_.stickyBucketingMd ?? "");
+      asF.file("03-traffic-allocation.md", as_.trafficAllocationMd ?? "");
+      asF.file("04-mutual-exclusion.md", as_.mutualExclusionMd ?? "");
+      asF.file("05-holdouts.md", as_.holdoutsMd ?? "");
+      asF.file("forced-assignment.ts", as_.forcedAssignmentTs ?? "");
+      asF.file("06-query-string-overrides.md", as_.queryStringOverridesMd ?? "");
+      asF.file("assignment-engine.ts", as_.assignmentEngineTs ?? "");
+      asF.file("assignment-engine.test.ts", as_.unitTestsTs ?? "");
+
+      // SDK
+      const sdk = kit.sdk ?? {};
+      const sdkF = zip.folder("sdk") ?? zip;
+      sdkF.file("01-public-api.md", sdk.publicApiMd ?? "");
+      sdkF.file("sdk.ts", sdk.sdkTs ?? "");
+      sdkF.file("react-hooks.ts", sdk.reactHooksTs ?? "");
+      sdkF.file("vanilla-bindings.ts", sdk.vanillaBindingsTs ?? "");
+      sdkF.file("02-usage-examples.md", sdk.usageExamplesMd ?? "");
+      sdkF.file("03-content-script-safety.md", sdk.contentScriptSafetyMd ?? "");
+      sdkF.file("04-service-worker-safety.md", sdk.serviceWorkerSafetyMd ?? "");
+      sdkF.file("05-offline-behavior.md", sdk.offlineBehaviorMd ?? "");
+
+      // Telemetry
+      const tel = kit.telemetry ?? {};
+      const telF = zip.folder("telemetry") ?? zip;
+      telF.file("01-event-taxonomy.md",
+`# Event taxonomy
+${(tel.eventTaxonomy ?? []).map((e: any) => `## \`${e.event}\` — ${e.purpose}\n${(e.props ?? []).map((p: any) => `- \`${p.name}\`: ${p.type}`).join("\n")}\n`).join("\n")}`);
+      telF.file("exposure-logging.ts", tel.exposureLoggingTs ?? "");
+      telF.file("metric-emission.ts", tel.metricEmissionTs ?? "");
+      telF.file("02-deduplication.md", tel.deduplicationMd ?? "");
+      telF.file("batching-and-flush.ts", tel.batchingAndFlushTs ?? "");
+      telF.file("03-privacy.md", tel.privacyMd ?? "");
+      telF.file("04-consent-integration.md", tel.consentIntegrationMd ?? "");
+      telF.file("sample-clickstream.json", tel.sampleClickstreamJson ?? "[]");
+
+      // Backend
+      const be = kit.backend ?? {};
+      const beF = zip.folder("backend") ?? zip;
+      beF.file("01-architecture.md", be.architectureMd ?? "");
+      beF.file("schema.sql", be.databaseSchemaSql ?? "");
+      beF.file("rls-policies.sql", be.rlsPoliciesSql ?? "");
+      beF.file("materialized-views.sql", be.materializedViewsSql ?? "");
+      beF.file("02-ingestion-pipeline.md", be.ingestionPipelineMd ?? "");
+      beF.file("03-retention.md", be.retentionPolicyMd ?? "");
+      const efF = beF.folder("edge-functions") ?? beF;
+      (be.supabaseEdgeFunctionsTs ?? []).forEach((f: any) => {
+        efF.file(`${f.name}.ts`, f.code ?? "");
+        efF.file(`${f.name}.md`, `# ${f.name}\n${f.purpose ?? ""}`);
+      });
+
+      // Statistics
+      const st = kit.statistics ?? {};
+      const stF = zip.folder("statistics") ?? zip;
+      stF.file("01-methodology.md", st.methodologyMd ?? "");
+      stF.file("sample-size-calculator.ts", st.sampleSizeCalculatorTs ?? "");
+      stF.file("02-sequential-testing.md", st.sequentialTestingMd ?? "");
+      stF.file("03-bayesian-vs-frequentist.md", st.bayesianVsFrequentistMd ?? "");
+      stF.file("04-cuped.md", st.cupedMd ?? "");
+      stF.file("srm-check.ts", st.srmCheckTs ?? "");
+      stF.file("05-guardrail-metrics.md", st.guardrailMetricsMd ?? "");
+      stF.file("significance-calculator.ts", st.significanceCalculatorTs ?? "");
+      stF.file("confidence-interval.ts", st.confidenceIntervalTs ?? "");
+      stF.file("06-multiple-comparisons.md", st.multipleComparisonsMd ?? "");
+
+      // Dashboard
+      const db = kit.dashboard ?? {};
+      const dbF = zip.folder("dashboard") ?? zip;
+      dbF.file("01-product-spec.md", db.productSpecMd ?? "");
+      dbF.file("ExperimentList.tsx", db.listViewTsx ?? "");
+      dbF.file("ExperimentDetail.tsx", db.detailViewTsx ?? "");
+      dbF.file("ResultsChart.tsx", db.resultsChartTsx ?? "");
+      dbF.file("ExposureFunnel.tsx", db.exposureFunnelTsx ?? "");
+      dbF.file("AssignmentDiagnostics.tsx", db.assignmentDiagnosticsTsx ?? "");
+      dbF.file("CreateExperimentForm.tsx", db.createExperimentFormTsx ?? "");
+      dbF.file("02-statuses.md",
+`# Experiment statuses
+${(db.statusStates ?? []).map((s: any) => `- **${s.id}** — ${s.label} → next: ${(s.allowedTransitions ?? []).join(", ")}`).join("\n")}`);
+      dbF.file("03-roles-permissions.md", db.roleAndPermissionsMd ?? "");
+      dbF.file("04-decision-record-template.md", db.decisionRecordTemplateMd ?? "");
+
+      // Experiment types
+      const etF = zip.folder("experiment-types") ?? zip;
+      (kit.experimentTypes ?? []).forEach((t: any) => {
+        const slug = String(t.id ?? t.name ?? "type").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const f = etF.folder(slug) ?? etF;
+        f.file("when-to-use.md", `# ${t.name}\n${t.whenToUseMd ?? ""}`);
+        f.file("sample-config.json", t.sampleConfigJson ?? "{}");
+        f.file("implementation-notes.md", t.implementationNotesMd ?? "");
+      });
+
+      zip.file("surfaces-supported.md",
+`# Supported surfaces
+${(kit.surfacesSupported ?? []).map((s: any) => `## ${s.surface}\n${s.notesMd ?? ""}\n`).join("\n")}`);
+
+      // Governance
+      const gv = kit.governance ?? {};
+      const gvF = zip.folder("governance") ?? zip;
+      gvF.file("01-review-process.md", gv.reviewProcessMd ?? "");
+      gvF.file("02-pre-launch-checklist.md", gv.prePreLaunchChecklistMd ?? "");
+      gvF.file("03-experiment-registry.md", gv.experimentRegistryMd ?? "");
+      gvF.file("04-naming-convention.md", gv.namingConventionMd ?? "");
+      gvF.file("05-flag-lifecycle.md", gv.flagLifecycleMd ?? "");
+      gvF.file("06-cleanup-policy.md", gv.cleanupPolicyMd ?? "");
+      gvF.file("audit-log-schema.sql", gv.auditLogSchemaSql ?? "");
+
+      // Safety
+      const sf = kit.safety ?? {};
+      const sfF = zip.folder("safety") ?? zip;
+      sfF.file("01-abuse-and-abort.md", sf.abuseAndAbortMd ?? "");
+      sfF.file("circuit-breaker.ts", sf.circuitBreakerTs ?? "");
+      sfF.file("02-user-opt-out.md", sf.userOptOutMd ?? "");
+      sfF.file("03-health-monitors.md", sf.healthMonitorsMd ?? "");
+      sfF.file("04-rollback-playbook.md", sf.rollbackPlaybookMd ?? "");
+
+      // CWS Compliance
+      const cw = kit.cwsCompliance ?? {};
+      const cwF = zip.folder("cws-compliance") ?? zip;
+      cwF.file("01-single-purpose-alignment.md", cw.singlePurposeAlignmentMd ?? "");
+      cwF.file("02-remote-code-policy.md", cw.remoteCodePolicyMd ?? "");
+      cwF.file("03-user-data-disclosure.md", cw.userDataDisclosureMd ?? "");
+      cwF.file("04-store-reviewer-note.md", cw.storeReviewerNoteMd ?? "");
+
+      zip.file("manifest-additions.json", JSON.stringify(kit.manifestAdditions ?? {}, null, 2));
+      zip.file("manifest-additions.md", kit.manifestAdditions?.rationaleMd ?? "");
+      zip.file("integration-guide.md", kit.integrationGuideMd ?? "");
+      zip.file("rollout-plan.md",
+`# Rollout plan
+${(kit.rolloutPlan ?? []).map((p: any) => `## ${p.phase} (${p.duration})
+**Goals**
+${(p.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+**Guardrails**
+${(p.guardrails ?? []).map((g: string) => `- ${g}`).join("\n")}
+`).join("\n")}`);
+      zip.file("ops-runbook.md", kit.opsRunbookMd ?? "");
+
+      const pbF = zip.folder("playbooks") ?? zip;
+      (kit.sampleExperimentPlaybooks ?? []).forEach((p: any) => {
+        const slug = String(p.name ?? "playbook").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        pbF.file(`${slug}.md`,
+`# ${p.name}
+- **Hypothesis:** ${p.hypothesis}
+- **Primary metric:** ${p.primaryMetric}
+- **Guardrails:** ${(p.guardrailMetrics ?? []).join(", ")}
+
+## Variants
+${(p.variants ?? []).map((v: any) => `- **${v.id}** — ${v.description}`).join("\n")}
+
+## Readout template
+${p.readoutTemplateMd ?? ""}`);
+      });
+
+      zip.file("checklist.md",
+`# A/B experimentation checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-ab-experiments.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-ab-experiments.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`abExperiments:${selected.id}`]: kit }));
+      toast.success("A/B experimentation console ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "A/B experimentation generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
 
 
@@ -4267,6 +4521,38 @@ All copy is original and IP-safe.`);
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Rollout: {(a("feedbackLoop").rolloutPlan ?? []).map((p: any) => p.phase).join(" → ")}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+                <Card className="border-cyan-400/40 bg-cyan-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><FlaskConical className="h-4 w-4 text-cyan-400" />A/B Experimentation Console</CardTitle>
+                        <CardDescription className="text-[10px]">MV3-safe experiment platform: JSON-only signed remote config (Ed25519 verified, no remote code), deterministic hash-bucketing SDK with sticky assignment, mutual exclusion, holdouts and forced overrides, React hooks + vanilla bindings safe for popup/options/onboarding/content/service-worker/sidepanel/newTab/offscreen, exposure logging + batched telemetry with consent gating, Supabase backend (schema + RLS + edge functions + materialized views), stats pack (sample-size, SRM chi-squared, sequential testing, CUPED, significance + CI), full dashboard (list/detail/results/exposure funnel/create form) with governance, audit log, circuit breaker + rollback playbook, and CWS reviewer note.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateAbExperiments} disabled={analyzing === "abExperiments" || !selected}>
+                        {analyzing === "abExperiments" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Experiments Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("abExperiments") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").experimentTypes ?? []).length} exp types</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").surfacesSupported ?? []).length} surfaces</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").telemetry?.eventTaxonomy ?? []).length} events</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").backend?.supabaseEdgeFunctionsTs ?? []).length} edge fns</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").dashboard?.statusStates ?? []).length} statuses</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").sampleExperimentPlaybooks ?? []).length} playbooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">MV3-safe · no remote code</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Rollout: {(a("abExperiments").rolloutPlan ?? []).map((p: any) => p.phase).join(" → ")}
                       </div>
                     </CardContent>
                   )}
