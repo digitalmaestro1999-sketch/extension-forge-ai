@@ -1706,6 +1706,35 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-violet-400/40 bg-violet-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-violet-400" />Global Localization Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Culturally-adapted CWS listing + landing page in 10 locales (ES, PT-BR, DE, FR, JA, KO, ZH-CN, HI, RU, IT). Locale-native keywords, not raw translation. Uses Publish Kit + Launch Kit as source when present.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateLocalizationKit} disabled={analyzing === "localize" || !selected}>
+                        {analyzing === "localize" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Localize
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("localize") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        {(a("localize").locales ?? []).map((l: any, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{l.locale} · {l.title?.slice(0, 24)}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("localize").locales ?? []).length} locales · listing + landing page per locale
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
 
