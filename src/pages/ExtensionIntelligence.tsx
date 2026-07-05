@@ -1044,6 +1044,12 @@ export default function ExtensionIntelligence() {
                       }} disabled={!reportId}>
                         <Download className="h-3 w-3 mr-1" /> Export CSV
                       </Button>
+                      <Button size="sm" variant="outline" onClick={exportMarkdown} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export Markdown
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={exportPDF} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export PDF
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
