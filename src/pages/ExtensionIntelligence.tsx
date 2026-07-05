@@ -4527,6 +4527,38 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-cyan-400/40 bg-cyan-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><FlaskConical className="h-4 w-4 text-cyan-400" />A/B Experimentation Console</CardTitle>
+                        <CardDescription className="text-[10px]">MV3-safe experiment platform: JSON-only signed remote config (Ed25519 verified, no remote code), deterministic hash-bucketing SDK with sticky assignment, mutual exclusion, holdouts and forced overrides, React hooks + vanilla bindings safe for popup/options/onboarding/content/service-worker/sidepanel/newTab/offscreen, exposure logging + batched telemetry with consent gating, Supabase backend (schema + RLS + edge functions + materialized views), stats pack (sample-size, SRM chi-squared, sequential testing, CUPED, significance + CI), full dashboard (list/detail/results/exposure funnel/create form) with governance, audit log, circuit breaker + rollback playbook, and CWS reviewer note.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateAbExperiments} disabled={analyzing === "abExperiments" || !selected}>
+                        {analyzing === "abExperiments" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Experiments Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("abExperiments") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").experimentTypes ?? []).length} exp types</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").surfacesSupported ?? []).length} surfaces</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").telemetry?.eventTaxonomy ?? []).length} events</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").backend?.supabaseEdgeFunctionsTs ?? []).length} edge fns</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").dashboard?.statusStates ?? []).length} statuses</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("abExperiments").sampleExperimentPlaybooks ?? []).length} playbooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">MV3-safe · no remote code</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Rollout: {(a("abExperiments").rolloutPlan ?? []).map((p: any) => p.phase).join(" → ")}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
 
 
