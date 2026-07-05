@@ -300,6 +300,58 @@ export default function ExtensionIntelligence() {
     toast.success("PDF exported");
   }
 
+  // Tiny 1x1 transparent PNG (base64) — placeholder icons users can replace
+  const PLACEHOLDER_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+  async function generateExtension() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const blueprint = a("blueprint");
+    const buildBetter = a("buildBetter");
+    const architecture = a("architecture");
+    if (!blueprint && !buildBetter && !architecture) {
+      toast.error("Generate Blueprint, Build Better, or Architecture first (Build tab)");
+      return;
+    }
+    setAnalyzing("generate");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-generate", {
+        body: {
+          blueprint, buildBetter, architecture,
+          competitor_name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const result = data.result;
+      const files: Record<string, string> = result.files ?? {};
+      if (!files["manifest.json"]) throw new Error("Generator did not return manifest.json");
+
+      const zip = new JSZip();
+      Object.entries(files).forEach(([path, content]) => zip.file(path, content));
+      // Add placeholder icons (binary)
+      const iconBinary = Uint8Array.from(atob(PLACEHOLDER_PNG), c => c.charCodeAt(0));
+      zip.file("icon16.png", iconBinary);
+      zip.file("icon48.png", iconBinary);
+      zip.file("icon128.png", iconBinary);
+      zip.file("INSTALL.txt",
+        `Install unpacked:\n1. Unzip this folder.\n2. Open chrome://extensions\n3. Toggle Developer mode (top-right).\n4. Click "Load unpacked" and select the unzipped folder.\n\nReplace icon16/48/128.png with real icons before publishing.`);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safeName = (result.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safeName}.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`generated:${selected.id}`]: result }));
+      toast.success(`Generated "${result.name}" — ready to load unpacked`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
   const a = (stage: string, forReport = false) => analyses[key(stage, forReport)];
