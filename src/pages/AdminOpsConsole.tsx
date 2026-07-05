@@ -55,7 +55,7 @@ export default function AdminOpsConsole() {
       if (u.error) throw u.error;
       setQueue((q.data ?? []) as QueueRow[]);
       setCosts(c.data ?? null);
-      setRoutes((r.data ?? []) as Route[]);
+      setRoutes(((r.data ?? []) as any[]).map((x) => ({ ...x, fallback_chain: Array.isArray(x.fallback_chain) ? x.fallback_chain : [] })) as Route[]);
       setQuotas((u.data ?? []) as QuotaRow[]);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to load ops data");
