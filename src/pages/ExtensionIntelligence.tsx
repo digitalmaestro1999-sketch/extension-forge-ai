@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import SoftwareIntelligence from "./SoftwareIntelligence";
+import jsPDF from "jspdf";
 
 type InputType = "keyword" | "category" | "url" | "chrome_id";
 interface Competitor {
@@ -63,6 +64,7 @@ export default function ExtensionIntelligence() {
   const [analyses, setAnalyses] = useState<Record<string, any>>({});
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [fullRun, setFullRun] = useState<{ stage: string; done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -177,6 +179,125 @@ export default function ExtensionIntelligence() {
     } finally { setAnalyzing(null); }
   }
 
+
+
+  async function runFullReport() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const compStages = ["features","listing","reviews","sentiment","security","swot","scorecard","innovation","architecture","monetization","ux","prioritizer","blueprint","buildBetter","prompts"];
+    const reportStages: Array<[string, "report"]> = [["gaps","report"], ["heatmap","report"]];
+    const total = 1 /*scrape*/ + 1 /*vision*/ + compStages.length + reportStages.length;
+    let done = 0;
+    setFullRun({ stage: "starting", done, total });
+    try {
+      // 1. scrape if needed
+      if (!selected.raw?.description) {
+        setFullRun({ stage: "scrape metadata", done, total });
+        await scrapeCompetitor(selected);
+      }
+      done++;
+      // reload to get freshly scraped raw
+      const { data: comps } = await supabase.from("intel_competitors").select("*").eq("id", selected.id).single();
+      const fresh = comps as any;
+      // 2. vision if screenshot present
+      if (fresh?.raw?.screenshot_url) {
+        setFullRun({ stage: "screenshot vision", done, total });
+        try {
+          const { data } = await supabase.functions.invoke("ext-intel-vision", {
+            body: { screenshot_url: fresh.raw.screenshot_url, competitor_name: fresh.name, report_id: reportId, competitor_id: fresh.id },
+          });
+          if (data?.result) setAnalyses((p) => ({ ...p, [`screenshots:${fresh.id}`]: data.result }));
+        } catch { /* keep going */ }
+      }
+      done++; setFullRun({ stage: "screenshot vision", done, total });
+
+      const input = {
+        name: fresh.name, description: fresh.raw?.description, url: fresh.url,
+        developer: fresh.developer, rating: fresh.rating, users: fresh.users_count,
+        reviews_raw: fresh.raw?.reviews_raw ?? [],
+      };
+      for (const stage of compStages) {
+        setFullRun({ stage, done, total });
+        try {
+          const { data } = await supabase.functions.invoke("ext-intel-analyze", {
+            body: { stage, input, report_id: reportId, competitor_id: fresh.id },
+          });
+          if (data?.result) setAnalyses((p) => ({ ...p, [`${stage}:${fresh.id}`]: data.result }));
+        } catch { /* continue */ }
+        done++;
+      }
+      const reportInput = { competitors: competitors.map(c => ({ name: c.name, description: c.raw?.description, rating: c.rating, users: c.users_count })) };
+      for (const [stage] of reportStages) {
+        setFullRun({ stage, done, total });
+        try {
+          const { data } = await supabase.functions.invoke("ext-intel-analyze", {
+            body: { stage, input: reportInput, report_id: reportId, competitor_id: null },
+          });
+          if (data?.result) setAnalyses((p) => ({ ...p, [stage]: data.result }));
+        } catch { /* continue */ }
+        done++;
+      }
+      setFullRun({ stage: "complete", done: total, total });
+      toast.success("Full report complete");
+    } catch (e: any) {
+      toast.error(e.message ?? "Full report failed");
+    } finally {
+      setTimeout(() => setFullRun(null), 2000);
+    }
+  }
+
+  function exportMarkdown() {
+    if (!reportId) return;
+    const lines: string[] = [];
+    lines.push(`# Extension Intelligence Report`);
+    lines.push(`\nGenerated: ${new Date().toISOString()}\n`);
+    lines.push(`## Competitors (${competitors.length})\n`);
+    competitors.forEach((c, i) => {
+      lines.push(`${i + 1}. **${c.name}** — ${c.developer ?? "?"} · ★${c.rating ?? "?"} · ${c.users_count ?? "?"} users\n   ${c.url}`);
+    });
+    Object.entries(analyses).forEach(([k, v]) => {
+      const [mod, cid] = k.split(":");
+      const label = cid ? competitors.find(c => c.id === cid)?.name ?? cid : "Report";
+      lines.push(`\n## ${mod} — ${label}\n`);
+      lines.push("```json\n" + JSON.stringify(v, null, 2) + "\n```");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("a");
+    el.href = url; el.download = `intel-report-${reportId}.md`; el.click();
+    URL.revokeObjectURL(url);
+    toast.success("Markdown exported");
+  }
+
+  function exportPDF() {
+    if (!reportId) return;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    let y = 48;
+    const write = (text: string, size = 10, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      const lines = doc.splitTextToSize(text, pageW - 96);
+      for (const ln of lines) {
+        if (y > pageH - 48) { doc.addPage(); y = 48; }
+        doc.text(ln, 48, y); y += size + 4;
+      }
+    };
+    write("Extension Intelligence Report", 18, true);
+    write(new Date().toLocaleString(), 9);
+    y += 6;
+    write(`Competitors (${competitors.length})`, 13, true);
+    competitors.forEach((c, i) => write(`${i + 1}. ${c.name} — ${c.developer ?? "?"} · ★${c.rating ?? "?"} · ${c.users_count ?? "?"} users`, 10));
+    Object.entries(analyses).forEach(([k, v]) => {
+      const [mod, cid] = k.split(":");
+      const label = cid ? competitors.find(c => c.id === cid)?.name ?? cid : "Report";
+      y += 10;
+      write(`${mod} — ${label}`, 13, true);
+      write(JSON.stringify(v, null, 2).slice(0, 4000), 8);
+    });
+    doc.save(`intel-report-${reportId}.pdf`);
+    toast.success("PDF exported");
+  }
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
@@ -306,11 +427,26 @@ export default function ExtensionIntelligence() {
                         {selected.developer ?? "Unknown developer"} · {selected.chrome_id ?? "no id"}
                       </CardDescription>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => scrapeCompetitor(selected)} disabled={analyzing === `scrape:${selected.id}`}>
-                      {analyzing === `scrape:${selected.id}` ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                      Scrape metadata
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => scrapeCompetitor(selected)} disabled={analyzing === `scrape:${selected.id}`}>
+                        {analyzing === `scrape:${selected.id}` ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                        Scrape metadata
+                      </Button>
+                      <Button size="sm" onClick={runFullReport} disabled={!!fullRun}>
+                        {fullRun ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Rocket className="h-3 w-3 mr-1" />}
+                        Run Full Report
+                      </Button>
+                    </div>
                   </div>
+                  {fullRun && (
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>{fullRun.stage}</span>
+                        <span>{fullRun.done}/{fullRun.total}</span>
+                      </div>
+                      <Progress value={(fullRun.done / fullRun.total) * 100} className="h-1.5" />
+                    </div>
+                  )}
                 </CardHeader>
               </Card>
             )}
@@ -907,6 +1043,12 @@ export default function ExtensionIntelligence() {
                         toast.success("CSV exported");
                       }} disabled={!reportId}>
                         <Download className="h-3 w-3 mr-1" /> Export CSV
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={exportMarkdown} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export Markdown
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={exportPDF} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export PDF
                       </Button>
                     </div>
                   </CardContent>
