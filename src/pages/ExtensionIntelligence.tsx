@@ -351,6 +351,60 @@ export default function ExtensionIntelligence() {
     } finally { setAnalyzing(null); }
   }
 
+  async function generateIcons() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const kit = a("storekit");
+    const iconPrompt = kit?.iconPrompt;
+    const extName = kit?.listing?.title ?? selected.name;
+    setAnalyzing("icons");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-icon", {
+        body: { prompt: iconPrompt, extension_name: extName },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const b64 = data.image_base64 as string;
+      const src = `data:image/png;base64,${b64}`;
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to decode icon"));
+        img.src = src;
+      });
+
+      async function resize(size: number): Promise<Blob> {
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, size, size);
+        return await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      }
+
+      const zip = new JSZip();
+      const [i16, i48, i128, i512] = await Promise.all([resize(16), resize(48), resize(128), resize(512)]);
+      zip.file("icon16.png", await i16.arrayBuffer());
+      zip.file("icon48.png", await i48.arrayBuffer());
+      zip.file("icon128.png", await i128.arrayBuffer());
+      zip.file("icon512.png", await i512.arrayBuffer());
+      zip.file("README.txt", `AI-generated icons for "${extName}".\nReplace the placeholder icon*.png files in your extension folder with these before publishing.\nAlso use icon512.png as a source for CWS store artwork.`);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (extName ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-icons.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`icons:${selected.id}`]: { preview: src } }));
+      toast.success("Icons generated (16/48/128/512)");
+    } catch (e: any) {
+      toast.error(e.message ?? "Icon generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
   async function generateStoreKit() {
     if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
     setAnalyzing("storekit");
