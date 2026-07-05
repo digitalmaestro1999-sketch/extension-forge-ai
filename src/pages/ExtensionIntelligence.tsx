@@ -1036,6 +1036,28 @@ export default function ExtensionIntelligence() {
               </TabsContent>
 
               <TabsContent value="ship" className="mt-4 space-y-3">
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Package className="h-4 w-4" />Auto-Build Extension (MV3 ZIP)</CardTitle>
+                        <CardDescription className="text-[10px]">Compiles Blueprint + Build Better + Architecture into a working, IP-safe Chrome extension you can Load Unpacked.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateExtension} disabled={analyzing === "generate" || !selected}>
+                        {analyzing === "generate" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Rocket className="h-3 w-3 mr-1" />}
+                        Generate & Download ZIP
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("generated") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("generated").name}</strong> — {a("generated").description}</div>
+                      <div className="text-[10px] text-muted-foreground">Files: {Object.keys(a("generated").files ?? {}).join(", ")}</div>
+                      <div className="text-[10px] text-muted-foreground">Install: unzip → chrome://extensions → Developer mode → Load unpacked → select folder.</div>
+                    </CardContent>
+                  )}
+                </Card>
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-sm flex items-center gap-2"><Terminal className="h-4 w-4" />Dev Prompts</CardTitle>
