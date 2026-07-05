@@ -357,6 +357,122 @@ IMPORTANT:
 - Canned responses must be warm, non-templated-feeling, and include a specific placeholder like {{firstName}} or {{issueSummary}} where useful.
 - Escalation playbooks must include concrete steps, not vague advice.
 - chatbotKnowledgeBase.systemPrompt must be MV3-safe and never invent product capabilities.`,
+  qaHarness: `Generate a complete QA & TEST HARNESS for a Chrome MV3 extension repo. Produce REAL, runnable files — actual test code, config, and CI wiring, not summaries. Assume the extension source is under \`extension/\` and the repo uses npm. Everything must be MV3-safe (no remote scripts, no eval, no external CDNs in the extension itself). ${GUARDRAIL}
+Return JSON: {
+  "overview": { "philosophy": string, "testPyramid": { "unit": string, "integration": string, "e2e": string }, "coverageTargets": { "statements": number, "branches": number, "functions": number, "lines": number }, "runFrequency": string },
+  "toolingChoices": [{ "layer": string, "tool": string, "why": string }],
+  "unit": {
+    "framework": "vitest"|"jest",
+    "configFile": string,
+    "configContent": string,
+    "setupFile": string,
+    "setupContent": string,
+    "chromeApiMockCode": string,
+    "sampleTests": [{ "path": string, "description": string, "code": string }],
+    "coverageConfigNotes": string
+  },
+  "integration": {
+    "framework": string,
+    "harnessCode": string,
+    "sampleTests": [{ "path": string, "description": string, "code": string }],
+    "notes": string
+  },
+  "e2ePlaywright": {
+    "configFile": string,
+    "configContent": string,
+    "globalSetupCode": string,
+    "extensionLoaderCode": string,
+    "sampleSpecs": [{ "path": string, "description": string, "code": string }],
+    "fixturesCode": string,
+    "notes": string
+  },
+  "e2ePuppeteer": {
+    "configNotes": string,
+    "extensionLauncherCode": string,
+    "sampleSpecs": [{ "path": string, "description": string, "code": string }]
+  },
+  "permissionFuzzer": {
+    "philosophy": string,
+    "fuzzerCode": string,
+    "permissionMatrixJson": string,
+    "sampleScenarios": [{ "name": string, "manifestPatch": string, "expectedOutcome": string }],
+    "cspFuzzerCode": string,
+    "messagingFuzzerCode": string
+  },
+  "accessibility": {
+    "axeConfigCode": string,
+    "popupAuditCode": string,
+    "optionsAuditCode": string,
+    "onboardingAuditCode": string,
+    "reportRendererCode": string,
+    "wcagLevel": "A"|"AA"|"AAA",
+    "surfacesToAudit": string[]
+  },
+  "crossBrowserMatrix": {
+    "targets": [{ "browser": string, "channel": string, "version": string, "notes": string }],
+    "runnerCode": string,
+    "githubMatrixYaml": string,
+    "resultsAggregatorCode": string
+  },
+  "visualRegression": {
+    "tool": string,
+    "configCode": string,
+    "sampleSpecs": [{ "path": string, "description": string, "code": string }],
+    "baselineStrategy": string
+  },
+  "performance": {
+    "budgetsJson": string,
+    "lighthouseCiConfig": string,
+    "popupTtiTestCode": string,
+    "backgroundServiceWorkerBenchCode": string,
+    "memoryLeakDetectorCode": string
+  },
+  "loadAndStress": {
+    "storageStressTestCode": string,
+    "messagingStormTestCode": string,
+    "tabsBurstTestCode": string,
+    "notes": string
+  },
+  "manifestAndCwsValidators": {
+    "manifestValidatorCode": string,
+    "cwsPolicyCheckerCode": string,
+    "permissionMinimizerCode": string,
+    "privacyLeakScannerCode": string
+  },
+  "mockFactories": {
+    "chromeStorageMockCode": string,
+    "chromeTabsMockCode": string,
+    "chromeRuntimeMockCode": string,
+    "chromeActionMockCode": string,
+    "fetchMockCode": string
+  },
+  "smokeSuite": [{ "name": string, "surface": string, "description": string, "code": string }],
+  "regressionSuite": [{ "name": string, "description": string, "code": string }],
+  "flakyTestPolicy": { "markdown": string, "retryStrategy": string, "quarantineWorkflow": string },
+  "reportGeneration": {
+    "htmlReporterCode": string,
+    "junitReporterNotes": string,
+    "dashboardHtml": string,
+    "slackDigestCode": string
+  },
+  "ciIntegration": {
+    "githubWorkflowYaml": string,
+    "requiredSecrets": [{ "name": string, "purpose": string }],
+    "prCommentBotCode": string,
+    "artifactRetentionNotes": string
+  },
+  "packageJsonScripts": { [k: string]: string },
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- All test/config code must be complete and directly writable to disk — no ellipses, no "// TODO" placeholders.
+- Playwright specs must launch Chromium with the extension via \`--load-extension\` + \`--disable-extensions-except\`, in a persistent context (not headless-shell), because MV3 service workers need a real browser context.
+- Puppeteer specs must use the same pattern and access the extension id via \`chrome://extensions\` scraping or the target's \`serviceWorker()\`.
+- Chrome API mocks must cover \`chrome.storage.local\`, \`chrome.runtime.sendMessage\`, \`chrome.tabs.query\`, \`chrome.action.setBadgeText\` at minimum, and be usable in vitest via \`vi.stubGlobal("chrome", ...)\`.
+- Permission fuzzer must actually mutate manifest.json permissions, rebuild, load, and assert extension still works or fails gracefully.
+- Accessibility audits must use @axe-core/playwright and produce a JSON+HTML report; wcagLevel default is "AA".
+- Cross-browser matrix must include Chrome stable + beta, Edge stable, Brave (via chromium binary), and note Firefox/Safari require separate MV2/MV3-hybrid ports.
+- Every YAML must pin action versions (actions/checkout@v4, actions/setup-node@v4) and include job-level permissions blocks.`,
 };
 
 serve(async (req) => {

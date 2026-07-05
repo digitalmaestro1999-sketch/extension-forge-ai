@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2102,6 +2102,261 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
   }
 
 
+  async function generateQaHarness() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("qaHarness");
+    try {
+      const architecture = a("architecture") ?? null;
+      const manifest = a("storekit")?.manifest ?? architecture?.manifest ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+        manifest,
+        surfaces: ["popup", "options", "background", "content", "onboarding"],
+        packageManager: "npm",
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "qaHarness", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# QA & Test Harness
+Generated ${new Date().toISOString()}
+
+## Philosophy
+${kit.overview?.philosophy ?? ""}
+
+## Test pyramid
+- **Unit:** ${kit.overview?.testPyramid?.unit ?? ""}
+- **Integration:** ${kit.overview?.testPyramid?.integration ?? ""}
+- **E2E:** ${kit.overview?.testPyramid?.e2e ?? ""}
+
+## Coverage targets
+- Statements: ${kit.overview?.coverageTargets?.statements ?? "?"}%
+- Branches: ${kit.overview?.coverageTargets?.branches ?? "?"}%
+- Functions: ${kit.overview?.coverageTargets?.functions ?? "?"}%
+- Lines: ${kit.overview?.coverageTargets?.lines ?? "?"}%
+
+## Layout
+- unit/ — vitest config, setup, chrome mocks, sample specs
+- integration/ — cross-surface harness
+- e2e/playwright/ — extension loader + specs + fixtures
+- e2e/puppeteer/ — alternative launcher + specs
+- permission-fuzzer/ — manifest / CSP / messaging fuzzers
+- a11y/ — axe audits per surface
+- cross-browser/ — matrix runner + aggregator
+- visual-regression/ — screenshot diffing
+- performance/ — budgets, lighthouse, TTI, memory leak detector
+- load-stress/ — storage/messaging/tabs stress
+- validators/ — manifest, CWS policy, privacy leak, permission minimizer
+- mocks/ — reusable chrome API factories
+- smoke/ + regression/ — curated suites
+- reports/ — HTML + dashboard + Slack digest
+- ci/ — GitHub workflow + PR comment bot`);
+
+      // Tooling
+      zip.file("tooling.md",
+`# Tooling choices
+${(kit.toolingChoices ?? []).map((t: any) => `- **${t.layer}** → ${t.tool} — ${t.why}`).join("\n")}`);
+
+      // Unit
+      const u = kit.unit ?? {};
+      const unit = zip.folder("unit") ?? zip;
+      unit.file(u.configFile ?? "vitest.config.ts", u.configContent ?? "");
+      unit.file(u.setupFile ?? "test-setup.ts", u.setupContent ?? "");
+      unit.file("chrome-api-mock.ts", u.chromeApiMockCode ?? "");
+      unit.file("coverage-notes.md", u.coverageConfigNotes ?? "");
+      const unitSamples = unit.folder("samples") ?? unit;
+      (u.sampleTests ?? []).forEach((t: any) => {
+        unitSamples.file(t.path ?? `${(t.description ?? "test").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.test.ts`, `// ${t.description}\n\n${t.code ?? ""}`);
+      });
+
+      // Integration
+      const integ = kit.integration ?? {};
+      const integration = zip.folder("integration") ?? zip;
+      integration.file("README.md", `# Integration (${integ.framework ?? ""})\n\n${integ.notes ?? ""}`);
+      integration.file("harness.ts", integ.harnessCode ?? "");
+      const integSamples = integration.folder("samples") ?? integration;
+      (integ.sampleTests ?? []).forEach((t: any) => {
+        integSamples.file(t.path ?? `${(t.description ?? "test").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.test.ts`, `// ${t.description}\n\n${t.code ?? ""}`);
+      });
+
+      // Playwright
+      const pw = kit.e2ePlaywright ?? {};
+      const playwright = zip.folder("e2e/playwright") ?? zip;
+      playwright.file(pw.configFile ?? "playwright.config.ts", pw.configContent ?? "");
+      playwright.file("global-setup.ts", pw.globalSetupCode ?? "");
+      playwright.file("extension-loader.ts", pw.extensionLoaderCode ?? "");
+      playwright.file("fixtures.ts", pw.fixturesCode ?? "");
+      playwright.file("NOTES.md", pw.notes ?? "");
+      const pwSpecs = playwright.folder("specs") ?? playwright;
+      (pw.sampleSpecs ?? []).forEach((s: any) => {
+        pwSpecs.file(s.path ?? `${(s.description ?? "spec").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.spec.ts`, `// ${s.description}\n\n${s.code ?? ""}`);
+      });
+
+      // Puppeteer
+      const pp = kit.e2ePuppeteer ?? {};
+      const puppeteer = zip.folder("e2e/puppeteer") ?? zip;
+      puppeteer.file("NOTES.md", pp.configNotes ?? "");
+      puppeteer.file("extension-launcher.ts", pp.extensionLauncherCode ?? "");
+      const ppSpecs = puppeteer.folder("specs") ?? puppeteer;
+      (pp.sampleSpecs ?? []).forEach((s: any) => {
+        ppSpecs.file(s.path ?? `${(s.description ?? "spec").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.spec.ts`, `// ${s.description}\n\n${s.code ?? ""}`);
+      });
+
+      // Permission fuzzer
+      const pf = kit.permissionFuzzer ?? {};
+      const fuzz = zip.folder("permission-fuzzer") ?? zip;
+      fuzz.file("README.md", pf.philosophy ?? "");
+      fuzz.file("permission-fuzzer.ts", pf.fuzzerCode ?? "");
+      fuzz.file("permission-matrix.json", pf.permissionMatrixJson ?? "{}");
+      fuzz.file("csp-fuzzer.ts", pf.cspFuzzerCode ?? "");
+      fuzz.file("messaging-fuzzer.ts", pf.messagingFuzzerCode ?? "");
+      fuzz.file("scenarios.md",
+`# Scenarios
+${(pf.sampleScenarios ?? []).map((s: any) => `## ${s.name}\n\n**Manifest patch:**\n\`\`\`json\n${s.manifestPatch}\n\`\`\`\n\n**Expected:** ${s.expectedOutcome}\n`).join("\n")}`);
+
+      // Accessibility
+      const ax = kit.accessibility ?? {};
+      const a11yF = zip.folder("a11y") ?? zip;
+      a11yF.file("axe-config.ts", ax.axeConfigCode ?? "");
+      a11yF.file("popup.audit.ts", ax.popupAuditCode ?? "");
+      a11yF.file("options.audit.ts", ax.optionsAuditCode ?? "");
+      a11yF.file("onboarding.audit.ts", ax.onboardingAuditCode ?? "");
+      a11yF.file("report-renderer.ts", ax.reportRendererCode ?? "");
+      a11yF.file("README.md",
+`# Accessibility (${ax.wcagLevel ?? "AA"})
+Surfaces audited: ${(ax.surfacesToAudit ?? []).join(", ")}`);
+
+      // Cross-browser
+      const cb = kit.crossBrowserMatrix ?? {};
+      const cross = zip.folder("cross-browser") ?? zip;
+      cross.file("targets.json", JSON.stringify(cb.targets ?? [], null, 2));
+      cross.file("runner.ts", cb.runnerCode ?? "");
+      cross.file("matrix.yml", cb.githubMatrixYaml ?? "");
+      cross.file("aggregator.ts", cb.resultsAggregatorCode ?? "");
+
+      // Visual regression
+      const vr = kit.visualRegression ?? {};
+      const visual = zip.folder("visual-regression") ?? zip;
+      visual.file("README.md", `# Visual regression (${vr.tool ?? ""})\n\n**Baseline strategy:** ${vr.baselineStrategy ?? ""}`);
+      visual.file("config.ts", vr.configCode ?? "");
+      const vrSpecs = visual.folder("specs") ?? visual;
+      (vr.sampleSpecs ?? []).forEach((s: any) => {
+        vrSpecs.file(s.path ?? `${(s.description ?? "spec").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.spec.ts`, `// ${s.description}\n\n${s.code ?? ""}`);
+      });
+
+      // Performance
+      const perf = kit.performance ?? {};
+      const perfF = zip.folder("performance") ?? zip;
+      perfF.file("budgets.json", perf.budgetsJson ?? "{}");
+      perfF.file("lighthouserc.json", perf.lighthouseCiConfig ?? "{}");
+      perfF.file("popup-tti.test.ts", perf.popupTtiTestCode ?? "");
+      perfF.file("sw-bench.test.ts", perf.backgroundServiceWorkerBenchCode ?? "");
+      perfF.file("memory-leak-detector.ts", perf.memoryLeakDetectorCode ?? "");
+
+      // Load & stress
+      const ls = kit.loadAndStress ?? {};
+      const load = zip.folder("load-stress") ?? zip;
+      load.file("README.md", ls.notes ?? "");
+      load.file("storage-stress.test.ts", ls.storageStressTestCode ?? "");
+      load.file("messaging-storm.test.ts", ls.messagingStormTestCode ?? "");
+      load.file("tabs-burst.test.ts", ls.tabsBurstTestCode ?? "");
+
+      // Validators
+      const v = kit.manifestAndCwsValidators ?? {};
+      const val = zip.folder("validators") ?? zip;
+      val.file("manifest-validator.ts", v.manifestValidatorCode ?? "");
+      val.file("cws-policy-checker.ts", v.cwsPolicyCheckerCode ?? "");
+      val.file("permission-minimizer.ts", v.permissionMinimizerCode ?? "");
+      val.file("privacy-leak-scanner.ts", v.privacyLeakScannerCode ?? "");
+
+      // Mocks
+      const m = kit.mockFactories ?? {};
+      const mocks = zip.folder("mocks") ?? zip;
+      mocks.file("chrome.storage.ts", m.chromeStorageMockCode ?? "");
+      mocks.file("chrome.tabs.ts", m.chromeTabsMockCode ?? "");
+      mocks.file("chrome.runtime.ts", m.chromeRuntimeMockCode ?? "");
+      mocks.file("chrome.action.ts", m.chromeActionMockCode ?? "");
+      mocks.file("fetch.ts", m.fetchMockCode ?? "");
+
+      // Smoke
+      const smoke = zip.folder("smoke") ?? zip;
+      (kit.smokeSuite ?? []).forEach((s: any) => {
+        const slug = String(s.name ?? "smoke").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        smoke.file(`${slug}.spec.ts`, `// ${s.name} — ${s.surface}\n// ${s.description}\n\n${s.code ?? ""}`);
+      });
+
+      // Regression
+      const reg = zip.folder("regression") ?? zip;
+      (kit.regressionSuite ?? []).forEach((r: any) => {
+        const slug = String(r.name ?? "regression").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        reg.file(`${slug}.spec.ts`, `// ${r.name}\n// ${r.description}\n\n${r.code ?? ""}`);
+      });
+
+      // Flaky policy
+      const flaky = kit.flakyTestPolicy ?? {};
+      zip.file("flaky-tests.md",
+`${flaky.markdown ?? ""}
+
+## Retry strategy
+${flaky.retryStrategy ?? ""}
+
+## Quarantine workflow
+${flaky.quarantineWorkflow ?? ""}`);
+
+      // Reports
+      const rep = kit.reportGeneration ?? {};
+      const reports = zip.folder("reports") ?? zip;
+      reports.file("html-reporter.ts", rep.htmlReporterCode ?? "");
+      reports.file("junit-notes.md", rep.junitReporterNotes ?? "");
+      reports.file("dashboard.html", rep.dashboardHtml ?? "");
+      reports.file("slack-digest.ts", rep.slackDigestCode ?? "");
+
+      // CI
+      const ci = kit.ciIntegration ?? {};
+      const ciF = zip.folder("ci") ?? zip;
+      ciF.file("qa.yml", ci.githubWorkflowYaml ?? "");
+      ciF.file("required-secrets.md", (ci.requiredSecrets ?? []).map((s: any) => `- \`${s.name}\` — ${s.purpose}`).join("\n"));
+      ciF.file("pr-comment-bot.ts", ci.prCommentBotCode ?? "");
+      ciF.file("artifact-retention.md", ci.artifactRetentionNotes ?? "");
+
+      // package.json scripts
+      zip.file("package.json.scripts.json",
+`# Merge these into your package.json "scripts" block
+${JSON.stringify(kit.packageJsonScripts ?? {}, null, 2)}`);
+
+      // Checklist
+      zip.file("checklist.md",
+`# QA Setup Checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-qa-harness.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-qa-harness.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`qaHarness:${selected.id}`]: kit }));
+      toast.success("QA & test harness ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "QA harness generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
+
+
   async function oneClickShip() {
     if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
     const blueprint = a("blueprint");
@@ -3302,6 +3557,42 @@ All copy is original and IP-safe.`);
                     </CardContent>
                   )}
                 </Card>
+
+
+                <Card className="border-lime-400/40 bg-lime-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><TestTube2 className="h-4 w-4 text-lime-400" />QA & Test Harness</CardTitle>
+                        <CardDescription className="text-[10px]">Vitest unit + chrome API mocks, Playwright & Puppeteer E2E with real extension loading, MV3 permission/CSP/messaging fuzzers, axe-core a11y audits per surface, cross-browser matrix (Chrome/Edge/Brave), visual regression, Lighthouse + TTI + memory-leak checks, storage/messaging/tabs stress, manifest + CWS policy + privacy-leak validators, HTML/JUnit/Slack reporting, and full GitHub Actions QA workflow.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateQaHarness} disabled={analyzing === "qaHarness" || !selected}>
+                        {analyzing === "qaHarness" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate QA Harness
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("qaHarness") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").unit?.sampleTests ?? []).length} unit</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").e2ePlaywright?.sampleSpecs ?? []).length} playwright</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").e2ePuppeteer?.sampleSpecs ?? []).length} puppeteer</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").permissionFuzzer?.sampleScenarios ?? []).length} fuzz scenarios</Badge>
+                        <Badge variant="outline" className="text-[9px]">a11y {a("qaHarness").accessibility?.wcagLevel ?? "AA"}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").crossBrowserMatrix?.targets ?? []).length} browsers</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").smokeSuite ?? []).length} smoke</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("qaHarness").regressionSuite ?? []).length} regression</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Coverage target: {a("qaHarness").overview?.coverageTargets?.statements ?? "?"}% stmt · {a("qaHarness").overview?.coverageTargets?.branches ?? "?"}% br · runs {a("qaHarness").overview?.runFrequency ?? ""}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
 
