@@ -247,6 +247,70 @@ IMPORTANT:
 - Do NOT include remote script imports; MV3 forbids them. Use fetch to first-party endpoints only.
 - The self-hosted edgeFunctionCode must be a Deno Deploy / Supabase Edge Function style handler that validates payload, strips PII, and inserts into the sqlSchema.
 - Consent banner must default to OFF and gate every tracker call.`,
+  cicd: `Generate a complete CI/CD & AUTO-PUBLISH PIPELINE for a Chrome MV3 extension repo. Produce REAL, runnable files (GitHub Actions YAML, Node/TS scripts, JSON configs) — not summaries. Assume the repo already contains the extension source under \`extension/\` and uses npm. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "philosophy": string, "branchStrategy": string, "environments": string[], "releaseCadence": string },
+  "prerequisites": { "chromeWebStoreApi": { "steps": string[], "requiredSecrets": [{ "name": string, "purpose": string, "howToObtain": string }] }, "githubSecrets": [{ "name": string, "purpose": string }] },
+  "workflows": {
+    "ciYaml": string,
+    "releaseYaml": string,
+    "publishYaml": string,
+    "nightlyYaml": string,
+    "prPreviewYaml": string,
+    "dependencyReviewYaml": string
+  },
+  "scripts": {
+    "buildTs": string,
+    "packageTs": string,
+    "uploadToCwsTs": string,
+    "publishOnCwsTs": string,
+    "bumpVersionTs": string,
+    "generateChangelogTs": string,
+    "generateReleaseNotesTs": string,
+    "regenerateScreenshotsTs": string,
+    "preflightChecksTs": string,
+    "manifestValidatorTs": string,
+    "sizeBudgetCheckTs": string
+  },
+  "configs": {
+    "packageJsonScripts": { [k: string]: string },
+    "dependabotYml": string,
+    "eslintConfig": string,
+    "prettierConfig": string,
+    "gitignore": string,
+    "changesetsConfig": string,
+    "releasePleaseConfig": string,
+    "commitlintConfig": string,
+    "huskyPreCommit": string,
+    "sizeBudgetJson": string
+  },
+  "docs": {
+    "contributingMd": string,
+    "releasingMd": string,
+    "troubleshootingMd": string,
+    "prTemplateMd": string,
+    "issueTemplateBug": string,
+    "issueTemplateFeature": string,
+    "codeownersFile": string,
+    "securityMd": string
+  },
+  "releaseNotesTemplate": string,
+  "changelogSeed": string,
+  "versioningStrategy": { "scheme": "semver"|"calver", "rules": string, "prereleaseChannels": string[] },
+  "smokeTests": [{ "name": string, "description": string, "code": string }],
+  "puppeteerPreflight": { "description": string, "code": string },
+  "cwsApiNotes": { "endpoints": [{ "method": string, "url": string, "purpose": string }], "quotaGuidance": string, "commonErrors": [{ "code": string, "cause": string, "fix": string }] },
+  "rollbackPlan": { "markdown": string, "scriptTs": string },
+  "matrixTesting": { "browsers": string[], "chromeChannels": string[], "notes": string },
+  "monitoring": { "buildStatusBadgesMd": string, "slackNotifierCode": string },
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- All GitHub Actions YAML must be valid, pinned to major action versions (e.g. actions/checkout@v4), and include job-level permissions blocks.
+- The upload script must use the official Chrome Web Store Publish API (https://www.googleapis.com/upload/chromewebstore/v1.1/items/{itemId}) with an OAuth refresh-token flow — no third-party npm wrappers unless standard.
+- Every YAML/TS file must be complete and directly writable to disk with no placeholders like "// ...".
+- Secrets must be read via \`process.env.*\` or \`\${{ secrets.* }}\` — never hardcoded.
+- publishYaml must gate on tag push (v*) and require manual environment approval before actually pushing to public.`,
 };
 
 serve(async (req) => {
