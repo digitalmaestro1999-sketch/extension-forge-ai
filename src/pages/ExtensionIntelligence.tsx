@@ -351,6 +351,92 @@ export default function ExtensionIntelligence() {
     } finally { setAnalyzing(null); }
   }
 
+  async function generateStoreKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("storekit");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-store-kit", {
+        body: {
+          blueprint: a("blueprint"),
+          buildBetter: a("buildBetter"),
+          listing: a("listing"),
+          competitor_name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      const l = kit.listing ?? {};
+      zip.file("00-README.md",
+`# Chrome Web Store Publish Kit
+Generated ${new Date().toISOString()}
+
+Contents:
+- listing.md — title, descriptions, category, keywords
+- privacy-policy.md — host this at a public URL and link it in the CWS listing
+- permissions.md — justification for every permission (paste into CWS review notes)
+- single-purpose.txt — required single-purpose statement
+- data-usage.json — data disclosure form answers
+- icon-brief.md — icon generation prompt
+- promo-tiles.md — 440x280 / 920x680 / 1400x560 concepts
+- screenshots.md — screenshot brief (1280x800 or 640x400)
+
+All copy is original and IP-safe.`);
+
+      zip.file("listing.md",
+`# ${l.title ?? ""}
+
+**Category:** ${l.category ?? ""}
+**Language:** ${l.language ?? "en"}
+
+## Short description
+${l.shortDescription ?? ""}
+
+## Detailed description
+${l.detailedDescription ?? ""}
+
+## Keywords
+${(l.keywords ?? []).join(", ")}`);
+
+      zip.file("privacy-policy.md", kit.privacyPolicy ?? "");
+      zip.file("single-purpose.txt", kit.singlePurpose ?? "");
+
+      const perms = (kit.permissionsJustification ?? []).map((p: any) =>
+        `## ${p.permission}\n**Why:** ${p.why}\n**Minimal alternative:** ${p.minimalAlternative}\n`).join("\n");
+      zip.file("permissions.md", `# Permissions Justification\n\n${perms}`);
+
+      zip.file("data-usage.json", JSON.stringify(kit.dataUsageDisclosure ?? {}, null, 2));
+      zip.file("icon-brief.md", `# Icon Brief (128×128)\n\n${kit.iconPrompt ?? ""}`);
+
+      const tiles = (kit.promoTileConcepts ?? []).map((t: any) =>
+        `## ${t.size}\n${t.concept}\n`).join("\n");
+      zip.file("promo-tiles.md", `# Promotional Tile Concepts\n\n${tiles}`);
+
+      const shots = (kit.screenshots ?? []).map((s: any, i: number) =>
+        `## ${i + 1}. ${s.filename}\n**Size:** ${s.size}\n**Caption:** ${s.caption}\n**Content:** ${s.content}\n`).join("\n");
+      zip.file("screenshots.md", `# Screenshot Brief\n\n${shots}`);
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (l.title ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-cws-kit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`storekit:${selected.id}`]: kit }));
+      toast.success("Publish kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Store kit failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
@@ -1057,6 +1143,37 @@ export default function ExtensionIntelligence() {
                     </CardContent>
                   )}
                 </Card>
+
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Trophy className="h-4 w-4" />Chrome Web Store Publish Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Store listing, privacy policy, permissions justification, promo tile briefs, screenshot briefs — everything needed to pass CWS review.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateStoreKit} disabled={analyzing === "storekit" || !selected}>
+                        {analyzing === "storekit" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("storekit") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("storekit").listing?.title}</strong> — {a("storekit").listing?.category}</div>
+                      <div className="text-muted-foreground">{a("storekit").listing?.shortDescription}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {(a("storekit").listing?.keywords ?? []).slice(0, 12).map((k: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("storekit").permissionsJustification ?? []).length} permissions justified · privacy policy generated · {(a("storekit").screenshots ?? []).length} screenshots briefed
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
