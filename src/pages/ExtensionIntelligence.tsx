@@ -2102,6 +2102,39 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-amber-400/40 bg-amber-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Scale className="h-4 w-4 text-amber-400" />Legal & Compliance Vault</CardTitle>
+                        <CardDescription className="text-[10px]">Privacy policy, ToS, DPA, cookie policy, DMCA, AUP, GDPR + CCPA notices, CWS single-purpose statement, per-permission & per-host justifications, remote-code statement, data-usage disclosure, security whitepaper, SOC2-lite checklist, incident response, subprocessors, breach templates, cookie banner + consent modal HTML.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateLegalVault} disabled={analyzing === "legal" || !selected}>
+                        {analyzing === "legal" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Vault
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("legal") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">Privacy · {a("legal").privacyPolicy?.wordCount ?? 0} words</Badge>
+                        <Badge variant="outline" className="text-[9px]">ToS</Badge>
+                        <Badge variant="outline" className="text-[9px]">GDPR</Badge>
+                        <Badge variant="outline" className="text-[9px]">CCPA</Badge>
+                        <Badge variant="outline" className="text-[9px]">DPA</Badge>
+                        <Badge variant="outline" className="text-[9px]">CWS single-purpose</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("legal").cwsPermissionJustifications ?? []).length} permission justifications</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("legal").soc2Checklist ?? []).length} SOC2 controls</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("legal").subprocessorList ?? []).length} subprocessors</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Sells data: {a("legal").cwsDataUsageDisclosure?.sellsData ? "yes" : "no"} · Collects PII: {a("legal").cwsDataUsageDisclosure?.collectsPii ? "yes" : "no"}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
