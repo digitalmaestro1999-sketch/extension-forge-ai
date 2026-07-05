@@ -2850,6 +2850,36 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-pink-400/40 bg-pink-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-pink-400" />Analytics & Instrumentation Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Privacy-safe telemetry: event schema, anon-id + session logic, consent banner, MV3 tracker code (background/popup/content/onboarding/uninstall), GA4/PostHog/Plausible/Mixpanel/self-hosted adapters (with Edge Function + SQL), funnels, cohorts, dashboards, SQL KPI library, A/B test framework, alerting, data dictionary, CWS privacy answers.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateAnalyticsKit} disabled={analyzing === "analytics" || !selected}>
+                        {analyzing === "analytics" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("analytics") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("analytics").eventSchema ?? []).length} events</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("analytics").funnels ?? []).length} funnels</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("analytics").cohorts ?? []).length} cohorts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("analytics").sqlKpis ?? []).length} SQL KPIs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("analytics").abTestFramework?.exampleExperiments ?? []).length} A/B examples</Badge>
+                        <Badge variant="outline" className="text-[9px]">5 adapters</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Consent-gated · anon-id: {a("analytics").identity?.anonIdStrategy?.slice(0, 60)}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
