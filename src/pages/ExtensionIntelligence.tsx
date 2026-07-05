@@ -136,20 +136,47 @@ export default function ExtensionIntelligence() {
     setAnalyzing(stage);
     try {
       const input = ctx === "competitor"
-        ? { name: comp!.name, description: comp!.raw?.description, url: comp!.url, developer: comp!.developer }
+        ? {
+            name: comp!.name,
+            description: comp!.raw?.description,
+            url: comp!.url,
+            developer: comp!.developer,
+            rating: comp!.rating,
+            users: comp!.users_count,
+            reviews_raw: comp!.raw?.reviews_raw ?? [],
+          }
         : { competitors: competitors.map(c => ({ name: c.name, description: c.raw?.description, rating: c.rating, users: c.users_count })) };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
         body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const key = stage + (comp?.id ? `:${comp.id}` : "");
-      setAnalyses((a) => ({ ...a, [key]: data.result }));
+      const k = stage + (comp?.id ? `:${comp.id}` : "");
+      setAnalyses((prev) => ({ ...prev, [k]: data.result }));
       toast.success(`${stage} complete`);
     } catch (e: any) {
       toast.error(e.message ?? `${stage} failed`);
     } finally { setAnalyzing(null); }
   }
+
+  async function runVision() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const shot = selected.raw?.screenshot_url;
+    if (!shot) { toast.error("Scrape metadata first to capture the screenshot"); return; }
+    setAnalyzing("screenshots");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-vision", {
+        body: { screenshot_url: shot, competitor_name: selected.name, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAnalyses((prev) => ({ ...prev, [`screenshots:${selected.id}`]: data.result }));
+      toast.success("Screenshot analysis complete");
+    } catch (e: any) {
+      toast.error(e.message ?? "Vision failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
