@@ -64,6 +64,7 @@ export default function ExtensionIntelligence() {
   const [analyses, setAnalyses] = useState<Record<string, any>>({});
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [fullRun, setFullRun] = useState<{ stage: string; done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (!user) return;
