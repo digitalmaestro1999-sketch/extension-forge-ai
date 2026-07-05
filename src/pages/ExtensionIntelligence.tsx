@@ -2405,6 +2405,36 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-green-400/40 bg-green-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-green-400" />Monetization & Revenue Engine</CardTitle>
+                        <CardDescription className="text-[10px]">Recommended model (ARPU/LTV/churn), pricing tiers + self-contained pricing page, trigger-based paywalls, upsell/downsell/trial/cancellation flows, checkout + receipt + dunning + renewal emails, referral & affiliate programs, enterprise pitch + objection responses, ROI calculator, Stripe & Paddle blueprints with real code, license-key system, KPIs.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateRevenueEngine} disabled={analyzing === "revenue" || !selected}>
+                        {analyzing === "revenue" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Engine
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("revenue") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{a("revenue").strategy?.recommendedModel}</Badge>
+                        <Badge variant="outline" className="text-[9px]">ARPU {a("revenue").strategy?.expectedArpu}</Badge>
+                        <Badge variant="outline" className="text-[9px]">LTV {a("revenue").strategy?.expectedLtv}</Badge>
+                        {(a("revenue").pricingTiers ?? []).map((t: any, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{t.name} ${t.monthlyPrice}/mo</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("revenue").paywallCopy ?? []).length} paywalls · {(a("revenue").upsellFlows ?? []).length} upsells · {(a("revenue").dunningEmails ?? []).length} dunning · Stripe + Paddle blueprints
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
