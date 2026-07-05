@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -486,6 +486,175 @@ ${(l.keywords ?? []).join(", ")}`);
       toast.success("Publish kit ready");
     } catch (e: any) {
       toast.error(e.message ?? "Store kit failed");
+    } finally { setAnalyzing(null); }
+  }
+
+  async function generateLaunchKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("launch");
+    try {
+      const input = {
+        competitor: { name: selected.name, description: selected.raw?.description, category: selected.raw?.category },
+        blueprint: a("blueprint") ?? null,
+        buildBetter: a("buildBetter") ?? null,
+        listing: a("storekit")?.listing ?? a("listing") ?? null,
+        monetization: a("monetization") ?? null,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "launch", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      const p = kit.positioning ?? {};
+      zip.file("00-README.md",
+`# Launch & Marketing Kit
+Generated ${new Date().toISOString()}
+
+- positioning.md — tagline, one-liner, personas, UVPs
+- product-hunt.md — full PH launch post + first comment
+- tweets.md — launch thread + single tweets + reply hooks
+- reddit.md — subreddit-specific posts
+- hacker-news.md — Show HN post
+- linkedin.md — founder + company posts + long-form article
+- cold-emails.md — persona-tailored outreach
+- blog-post.md — SEO-optimized launch blog post
+- press-release.md — traditional PR
+- landing-page.html — self-contained landing page
+- launch-checklist.md — day-by-day launch plan
+- influencer-outreach.md — channel-tailored pitches
+- raw-kit.json — full JSON
+
+All copy is original and IP-safe.`);
+
+      zip.file("positioning.md",
+`# Positioning
+
+**Tagline:** ${p.tagline ?? ""}
+**One-liner:** ${p.oneLiner ?? ""}
+
+## Elevator Pitch
+${p.elevatorPitch ?? ""}
+
+## Target Personas
+${(p.targetPersonas ?? []).map((x: string) => `- ${x}`).join("\n")}
+
+## Unique Value Props
+${(p.uniqueValueProps ?? []).map((x: string) => `- ${x}`).join("\n")}`);
+
+      const ph = kit.productHunt ?? {};
+      zip.file("product-hunt.md",
+`# Product Hunt Launch
+
+**Name:** ${ph.name ?? ""}
+**Tagline:** ${ph.tagline ?? ""}
+**Topics:** ${(ph.topics ?? []).join(", ")}
+
+## Description
+${ph.description ?? ""}
+
+## First Comment (Maker)
+${ph.firstComment ?? ""}
+
+## Maker Comment
+${ph.makerComment ?? ""}
+
+## Gallery Briefs
+${(ph.gallery ?? []).map((g: string, i: number) => `${i + 1}. ${g}`).join("\n")}`);
+
+      const tw = kit.tweets ?? {};
+      zip.file("tweets.md",
+`# X / Twitter
+
+## Launch Thread
+${(tw.launchThread ?? []).map((t: string, i: number) => `${i + 1}/ ${t}`).join("\n\n")}
+
+## Single Tweets
+${(tw.singleTweets ?? []).map((t: string) => `- ${t}`).join("\n")}
+
+## Reply Hooks
+${(tw.replyHooks ?? []).map((t: string) => `- ${t}`).join("\n")}`);
+
+      zip.file("reddit.md",
+`# Reddit Posts\n\n${(kit.reddit ?? []).map((r: any) =>
+`## r/${r.subreddit}  ·  flair: ${r.flair ?? "—"}
+**Title:** ${r.title}
+
+${r.body}`).join("\n\n---\n\n")}`);
+
+      const hn = kit.hackerNews ?? {};
+      zip.file("hacker-news.md",
+`# Hacker News
+
+**Title:** ${hn.title ?? ""}
+
+## Show HN Body
+${hn.showHnBody ?? ""}`);
+
+      const li = kit.linkedin ?? {};
+      zip.file("linkedin.md",
+`# LinkedIn
+
+## Founder Post
+${li.founderPost ?? ""}
+
+## Company Post
+${li.companyPost ?? ""}
+
+## Long-form Article: ${li.articleTitle ?? ""}
+${li.articleBody ?? ""}`);
+
+      zip.file("cold-emails.md",
+`# Cold Outreach Emails\n\n${(kit.coldEmails ?? []).map((e: any) =>
+`## To: ${e.persona}
+**Subject:** ${e.subject}
+
+${e.body}`).join("\n\n---\n\n")}`);
+
+      const bp = kit.blogPost ?? {};
+      zip.file("blog-post.md",
+`---
+title: "${bp.title ?? ""}"
+description: "${bp.metaDescription ?? ""}"
+slug: "${bp.slug ?? ""}"
+---
+
+${bp.markdown ?? ""}`);
+
+      const pr = kit.pressRelease ?? {};
+      zip.file("press-release.md",
+`# ${pr.headline ?? ""}
+### ${pr.subheadline ?? ""}
+
+${pr.body ?? ""}
+
+---
+${pr.boilerplate ?? ""}`);
+
+      zip.file("landing-page.html", kit.landingPageHtml ?? "<!doctype html><html><body>Landing page not generated.</body></html>");
+
+      zip.file("launch-checklist.md",
+`# Launch Checklist\n\n${(kit.launchChecklist ?? []).map((c: string) => `- [ ] ${c}`).join("\n")}`);
+
+      zip.file("influencer-outreach.md",
+`# Influencer Outreach\n\n${(kit.influencerOutreach ?? []).map((o: any) =>
+`## ${o.channel}\n${o.pitch}`).join("\n\n---\n\n")}`);
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-launch-kit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`launch:${selected.id}`]: kit }));
+      toast.success("Launch kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Launch kit failed");
     } finally { setAnalyzing(null); }
   }
 
@@ -1424,6 +1593,37 @@ All copy is original and IP-safe.`);
                     </CardContent>
                   )}
                 </Card>
+
+                <Card className="border-sky-400/40 bg-sky-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-sky-400" />Launch & Marketing Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Product Hunt post, X launch thread, Reddit / HN / LinkedIn posts, cold emails, blog post, press release, self-contained landing page, day-by-day checklist. All original copy.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateLaunchKit} disabled={analyzing === "launch" || !selected}>
+                        {analyzing === "launch" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("launch") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("launch").positioning?.tagline}</strong></div>
+                      <div className="text-muted-foreground">{a("launch").positioning?.oneLiner}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {(a("launch").positioning?.uniqueValueProps ?? []).slice(0, 6).map((k: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        PH · {(a("launch").tweets?.launchThread ?? []).length} tweets · {(a("launch").reddit ?? []).length} subreddits · {(a("launch").coldEmails ?? []).length} cold emails · landing page
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
 
 
