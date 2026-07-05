@@ -31,6 +31,7 @@ import AdminUsers from "./pages/AdminUsers";
 import ManageExtension from "./pages/ManageExtension";
 import LiveControl from "./pages/LiveControl";
 import SoftwareIntelligence from "./pages/SoftwareIntelligence";
+import ExtensionIntelligence from "./pages/ExtensionIntelligence";
 import NotFound from "./pages/NotFound";
 import { RouteGuard } from "@/components/RouteGuard";
 
@@ -82,7 +83,8 @@ const App = () => (
                       <Route path="/manual" element={<UserManual />} />
                       <Route path="/manage" element={<ManageExtension />} />
                       <Route path="/control" element={<LiveControl />} />
-                      <Route path="/intelligence" element={<SoftwareIntelligence />} />
+                      <Route path="/intelligence" element={<ExtensionIntelligence />} />
+                      <Route path="/intelligence/codebase" element={<SoftwareIntelligence />} />
 
 
 
