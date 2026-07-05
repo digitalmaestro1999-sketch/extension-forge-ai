@@ -658,6 +658,89 @@ ${pr.boilerplate ?? ""}`);
     } finally { setAnalyzing(null); }
   }
 
+  async function generateLocalizationKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("localize");
+    try {
+      const listing = a("storekit")?.listing ?? a("listing") ?? null;
+      const launch = a("launch") ?? null;
+      const targetLocales = ["es", "pt-BR", "de", "fr", "ja", "ko", "zh-CN", "hi", "ru", "it"];
+      const input = {
+        sourceLocale: "en",
+        targetLocales,
+        source: {
+          name: selected.name,
+          title: listing?.title,
+          shortDescription: listing?.shortDescription,
+          detailedDescription: listing?.detailedDescription,
+          keywords: listing?.keywords,
+          tagline: launch?.positioning?.tagline,
+          oneLiner: launch?.positioning?.oneLiner,
+          uniqueValueProps: launch?.positioning?.uniqueValueProps,
+        },
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "localize", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Global Localization Kit
+Generated ${new Date().toISOString()}
+
+Locales included: ${(kit.locales ?? []).map((l: any) => l.locale).join(", ")}
+
+Each locale folder contains:
+- listing.md — CWS listing translated & culturally adapted
+- landing-page.html — self-contained landing page
+- keywords.txt — locale-native SEO keywords (not raw translation)
+- cultural-notes.md — tone, idioms, cultural considerations
+
+Chrome Web Store supports per-locale listings. Add each locale in the CWS
+developer dashboard under "Store listing" → "Add translation".`);
+
+      (kit.locales ?? []).forEach((loc: any) => {
+        const folder = zip.folder(loc.locale) ?? zip;
+        folder.file("listing.md",
+`# ${loc.title ?? ""}
+
+**Locale:** ${loc.locale} (${loc.languageName ?? ""})
+**CTA:** ${loc.cta ?? ""}
+
+## Short description
+${loc.shortDescription ?? ""}
+
+## Detailed description
+${loc.detailedDescription ?? ""}
+
+## Keywords
+${(loc.keywords ?? []).join(", ")}`);
+        folder.file("keywords.txt", (loc.keywords ?? []).join("\n"));
+        folder.file("cultural-notes.md", `# Cultural Notes — ${loc.languageName ?? loc.locale}\n\n${loc.culturalNotes ?? ""}`);
+        folder.file("landing-page.html", loc.landingPageHtml ?? `<!doctype html><html lang="${loc.locale}"><body>Landing page not generated.</body></html>`);
+      });
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-localization-kit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`localize:${selected.id}`]: kit }));
+      toast.success(`Localized into ${(kit.locales ?? []).length} locales`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Localization failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
   async function oneClickShip() {
     if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
     const blueprint = a("blueprint");
