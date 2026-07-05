@@ -1347,8 +1347,7 @@ All copy is original and IP-safe.`);
                     </CardContent>
                   )}
                 </Card>
-
-
+                <Card className="border-primary/40 bg-primary/5">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
