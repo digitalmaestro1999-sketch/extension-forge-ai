@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1925,16 +1925,181 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
     } finally { setAnalyzing(null); }
   }
 
+  async function generateSupportHub() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("supportHub");
+    try {
+      const architecture = a("architecture") ?? null;
+      const listing = a("storekit")?.listing ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        architecture,
+        listing,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "supportHub", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
 
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Support & Help Center Kit
+Generated ${new Date().toISOString()}
 
+## Philosophy
+${kit.overview?.philosophy ?? ""}
 
+- **Channels:** ${(kit.overview?.supportChannels ?? []).join(", ")}
+- **Target response:** ${kit.overview?.targetResponseTime ?? ""}
+- **Target resolution:** ${kit.overview?.targetResolutionTime ?? ""}
+- **Tone:** ${kit.overview?.tone ?? ""}
 
+## Layout
+- help-center/ — index, categories, ${(kit.helpCenter?.articles ?? []).length} articles, sitemap, search index
+- faq/ — page + JSON-LD
+- in-app-help/ — widget (html/css/js) + tooltips + onboarding
+- canned-responses/ — ${(kit.cannedResponses ?? []).length} macros
+- ticket-templates/ — bug, feature, refund, account, permissions, data-deletion
+- sla/ — policy + tiers
+- escalation/ — ${(kit.escalationPlaybooks ?? []).length} playbooks
+- contact/ — page + form
+- status/ — status page + incident template
+- chatbot/ — KB + intents + handoff
+- review-responses/ — CWS review reply templates
+- metrics/ — support KPIs`);
 
+      // Help center
+      const hc = zip.folder("help-center") ?? zip;
+      hc.file("index.html", kit.helpCenter?.indexHtml ?? "");
+      hc.file("sitemap.xml", kit.helpCenter?.sitemapXml ?? "");
+      hc.file("search-index.json", kit.helpCenter?.searchIndexJson ?? "{}");
+      hc.file("categories.json", JSON.stringify(kit.helpCenter?.categories ?? [], null, 2));
+      const articles = hc.folder("articles") ?? hc;
+      (kit.helpCenter?.articles ?? []).forEach((art: any) => {
+        articles.file(`${art.slug ?? "article"}.html`, art.html ?? "");
+      });
+      hc.file("articles-index.md",
+`# Articles
+${(kit.helpCenter?.articles ?? []).map((a: any) => `- [${a.title}](./articles/${a.slug}.html) — ${a.estReadMinutes ?? "?"} min — _${a.categorySlug}_`).join("\n")}`);
 
+      // FAQ
+      const faq = zip.folder("faq") ?? zip;
+      faq.file("index.html", kit.faq?.pageHtml ?? "");
+      faq.file("faq.json", JSON.stringify(kit.faq?.items ?? [], null, 2));
+      faq.file("faq-jsonld.json", kit.faq?.jsonLd ?? "{}");
 
+      // In-app help
+      const iah = zip.folder("in-app-help") ?? zip;
+      iah.file("widget.html", kit.inAppHelp?.widgetHtml ?? "");
+      iah.file("widget.css", kit.inAppHelp?.widgetCss ?? "");
+      iah.file("widget.js", kit.inAppHelp?.widgetJs ?? "");
+      iah.file("tooltips.json", JSON.stringify(kit.inAppHelp?.contextualTooltips ?? [], null, 2));
+      iah.file("onboarding.json", JSON.stringify(kit.inAppHelp?.onboardingChecklist ?? [], null, 2));
 
+      // Canned responses
+      const cr = zip.folder("canned-responses") ?? zip;
+      (kit.cannedResponses ?? []).forEach((c: any) => {
+        const slug = String(c.id ?? c.title ?? "macro").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        cr.file(`${slug}.md`,
+`# ${c.title}
 
+**Channel:** ${c.channel}
+**Trigger:** ${c.trigger}
+**Tags:** ${(c.tags ?? []).join(", ")}
 
+---
+
+${c.body ?? ""}`);
+      });
+
+      // Ticket templates
+      const tt = zip.folder("ticket-templates") ?? zip;
+      const t = kit.ticketTemplates ?? {};
+      tt.file("bug-report.md", t.bugReport ?? "");
+      tt.file("feature-request.md", t.featureRequest ?? "");
+      tt.file("refund-request.md", t.refundRequest ?? "");
+      tt.file("account-issue.md", t.accountIssue ?? "");
+      tt.file("permissions-concern.md", t.permissionsConcern ?? "");
+      tt.file("data-deletion-request.md", t.dataDeletionRequest ?? "");
+
+      // SLA
+      const sla = zip.folder("sla") ?? zip;
+      sla.file("policy.md", kit.slaPolicy?.markdown ?? "");
+      sla.file("tiers.json", JSON.stringify(kit.slaPolicy?.tiers ?? [], null, 2));
+
+      // Escalation
+      const esc = zip.folder("escalation") ?? zip;
+      (kit.escalationPlaybooks ?? []).forEach((p: any, i: number) => {
+        const slug = String(p.scenario ?? `playbook-${i}`).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        esc.file(`${p.severity ?? "p2"}-${slug}.md`,
+`# ${p.scenario} (${p.severity})
+
+**Owner:** ${p.owner}
+
+## Steps
+${(p.steps ?? []).map((s: string, idx: number) => `${idx + 1}. ${s}`).join("\n")}
+
+## Comms template
+${p.commsTemplate ?? ""}`);
+      });
+
+      // Contact
+      const contact = zip.folder("contact") ?? zip;
+      contact.file("index.html", kit.contactPage?.html ?? "");
+      contact.file("form-fields.json", JSON.stringify(kit.contactPage?.formFields ?? [], null, 2));
+
+      // Status
+      const status = zip.folder("status") ?? zip;
+      status.file("index.html", kit.statusPage?.html ?? "");
+      status.file("components.json", JSON.stringify(kit.statusPage?.componentsToMonitor ?? [], null, 2));
+      status.file("incident-template.md", kit.statusPage?.incidentTemplateMd ?? "");
+
+      // Chatbot
+      const bot = zip.folder("chatbot") ?? zip;
+      bot.file("system-prompt.md", kit.chatbotKnowledgeBase?.systemPrompt ?? "");
+      bot.file("intents.json", JSON.stringify(kit.chatbotKnowledgeBase?.intents ?? [], null, 2));
+      bot.file("handoff-rules.md", (kit.chatbotKnowledgeBase?.handoffRules ?? []).map((r: string) => `- ${r}`).join("\n"));
+
+      // Review responses
+      const rr = zip.folder("review-responses") ?? zip;
+      (kit.reviewResponseTemplates ?? []).forEach((r: any, i: number) => {
+        rr.file(`${r.starRating ?? "x"}-star-${String(r.sentiment ?? i).toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`,
+`# ${r.starRating}★ — ${r.sentiment}
+
+${r.template ?? ""}`);
+      });
+
+      // Metrics
+      zip.file("metrics.md",
+`# Support Metrics
+${(kit.supportMetrics ?? []).map((m: any) => `## ${m.name}\n- **Definition:** ${m.definition}\n- **Target:** ${m.target}\n\n\`\`\`\n${m.sqlOrFormula ?? ""}\n\`\`\`\n`).join("\n")}`);
+
+      // Checklist
+      zip.file("checklist.md",
+`# Support Launch Checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-support-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-support-hub.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`supportHub:${selected.id}`]: kit }));
+      toast.success("Support & help center kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Support hub generation failed");
+    } finally { setAnalyzing(null); }
+  }
 
 
   async function oneClickShip() {
@@ -3106,6 +3271,40 @@ All copy is original and IP-safe.`);
                     </CardContent>
                   )}
                 </Card>
+
+
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><LifeBuoy className="h-4 w-4 text-emerald-400" />Support & Help Center Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Complete help center (index + long-form articles + search index + sitemap), FAQ page with JSON-LD, in-app help widget (HTML/CSS/JS + contextual tooltips + onboarding), canned responses, ticket templates, SLA policy, escalation playbooks, contact + status pages, chatbot KB with intents, CWS review reply templates, and support KPIs.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateSupportHub} disabled={analyzing === "supportHub" || !selected}>
+                        {analyzing === "supportHub" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Support Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("supportHub") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").helpCenter?.articles ?? []).length} articles</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").faq?.items ?? []).length} FAQs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").cannedResponses ?? []).length} macros</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").escalationPlaybooks ?? []).length} playbooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").chatbotKnowledgeBase?.intents ?? []).length} intents</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").reviewResponseTemplates ?? []).length} review replies</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Response SLA: {a("supportHub").overview?.targetResponseTime} · Resolution: {a("supportHub").overview?.targetResolutionTime}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
                 <Card>

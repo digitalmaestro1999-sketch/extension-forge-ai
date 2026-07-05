@@ -311,6 +311,52 @@ IMPORTANT:
 - Every YAML/TS file must be complete and directly writable to disk with no placeholders like "// ...".
 - Secrets must be read via \`process.env.*\` or \`\${{ secrets.* }}\` — never hardcoded.
 - publishYaml must gate on tag push (v*) and require manual environment approval before actually pushing to public.`,
+  supportHub: `Generate a complete SUPPORT & HELP CENTER KIT for a NEW, ORIGINAL Chrome MV3 extension. All content must be original, empathetic, specific to this product, and directly usable. HTML pages must be complete, self-contained, mobile-responsive with inline CSS, no external assets, no external scripts. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "philosophy": string, "supportChannels": string[], "targetResponseTime": string, "targetResolutionTime": string, "tone": string },
+  "helpCenter": {
+    "indexHtml": string,
+    "categories": [{ "slug": string, "title": string, "description": string, "articleSlugs": string[] }],
+    "articles": [{ "slug": string, "categorySlug": string, "title": string, "metaDescription": string, "keywords": string[], "html": string, "estReadMinutes": number }],
+    "searchIndexJson": string,
+    "sitemapXml": string
+  },
+  "faq": {
+    "pageHtml": string,
+    "items": [{ "question": string, "answer": string, "category": string }],
+    "jsonLd": string
+  },
+  "inAppHelp": {
+    "widgetHtml": string,
+    "widgetCss": string,
+    "widgetJs": string,
+    "contextualTooltips": [{ "surface": string, "selector": string, "tip": string, "trigger": "hover"|"click"|"first-visit" }],
+    "onboardingChecklist": [{ "step": string, "description": string, "surface": string }]
+  },
+  "cannedResponses": [{ "id": string, "title": string, "trigger": string, "body": string, "tags": string[], "channel": "email"|"chat"|"cws-review" }],
+  "ticketTemplates": {
+    "bugReport": string,
+    "featureRequest": string,
+    "refundRequest": string,
+    "accountIssue": string,
+    "permissionsConcern": string,
+    "dataDeletionRequest": string
+  },
+  "slaPolicy": { "markdown": string, "tiers": [{ "name": string, "responseTime": string, "resolutionTime": string, "hoursOfCoverage": string }] },
+  "escalationPlaybooks": [{ "scenario": string, "severity": "p0"|"p1"|"p2"|"p3", "steps": string[], "owner": string, "commsTemplate": string }],
+  "contactPage": { "html": string, "formFields": [{ "name": string, "label": string, "type": string, "required": boolean }] },
+  "statusPage": { "html": string, "componentsToMonitor": [{ "name": string, "description": string, "checkType": string }], "incidentTemplateMd": string },
+  "chatbotKnowledgeBase": { "systemPrompt": string, "intents": [{ "name": string, "utterances": string[], "response": string, "handoffToHuman": boolean }], "handoffRules": string[] },
+  "reviewResponseTemplates": [{ "starRating": 1|2|3|4|5, "sentiment": string, "template": string }],
+  "supportMetrics": [{ "name": string, "definition": string, "target": string, "sqlOrFormula": string }],
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- Help center articles must be REAL long-form content (300+ words each), not outlines. Include screenshots-suggested placeholders only where a screenshot is actually needed.
+- Every HTML page must include proper <meta> tags (title, description, viewport, og:*) and semantic structure (header, main, footer, h1).
+- Canned responses must be warm, non-templated-feeling, and include a specific placeholder like {{firstName}} or {{issueSummary}} where useful.
+- Escalation playbooks must include concrete steps, not vague advice.
+- chatbotKnowledgeBase.systemPrompt must be MV3-safe and never invent product capabilities.`,
 };
 
 serve(async (req) => {
