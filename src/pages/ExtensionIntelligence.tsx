@@ -614,41 +614,303 @@ export default function ExtensionIntelligence() {
                 </Card>
 
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between py-3">
-                    <CardTitle className="text-sm">Opportunity Heatmap</CardTitle>
-                    <Badge variant="secondary" className="text-[10px]">Phase 3</Badge>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Flame className="h-4 w-4" />Opportunity Heatmap</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("heatmap", "report")} disabled={analyzing === "heatmap" || competitors.length === 0}>
+                      {analyzing === "heatmap" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Build
+                    </Button>
                   </CardHeader>
-                  <CardContent className="text-xs text-muted-foreground pb-4">Visualization coming in Phase 3.</CardContent>
+                  <CardContent className="text-xs">
+                    {analyses["heatmap"]?.cells ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="text-left text-muted-foreground border-b border-border">
+                              <th className="py-1 pr-2">Niche</th>
+                              <th className="py-1 px-1">AI ready</th>
+                              <th className="py-1 px-1">Demand</th>
+                              <th className="py-1 px-1">Competition</th>
+                              <th className="py-1 px-1">Revenue</th>
+                              <th className="py-1 px-1">Complexity</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analyses["heatmap"].cells.map((c: any, i: number) => (
+                              <tr key={i} className="border-b border-border/50">
+                                <td className="py-1 pr-2 font-medium">{c.niche}</td>
+                                {["aiReadiness","userDemand","competitionLevel","revenuePotential","complexity"].map((k) => {
+                                  const v = Number(c[k]) || 0;
+                                  const bg = v >= 75 ? "bg-emerald-500/30" : v >= 50 ? "bg-amber-500/30" : v >= 25 ? "bg-orange-500/30" : "bg-rose-500/30";
+                                  return <td key={k} className={`py-1 px-1 text-center ${bg}`}>{v}</td>;
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : <p className="text-muted-foreground">Map niche opportunities across AI readiness, demand, competition, revenue, complexity.</p>}
+                  </CardContent>
                 </Card>
               </TabsContent>
 
 
               <TabsContent value="build" className="mt-4 space-y-3">
-                {PHASE3.map((m) => (
-                  <Card key={m}>
-                    <CardHeader className="flex flex-row items-center justify-between py-3">
-                      <CardTitle className="text-sm">{m}</CardTitle>
-                      <Badge variant="secondary" className="text-[10px]">Phase 3</Badge>
-                    </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground pb-4">
-                      Original, IP-safe strategy generators. Ships in Phase 3.
-                    </CardContent>
-                  </Card>
-                ))}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="h-4 w-4" />Innovation Engine</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("innovation")} disabled={analyzing === "innovation" || !selected?.raw?.description}>
+                      {analyzing === "innovation" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Ideate
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("innovation")?.ideas ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {a("innovation").ideas.map((idea: any, i: number) => (
+                          <div key={i} className="rounded border border-border p-2 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold">{idea.title}</span>
+                              <Badge variant="outline" className="text-[9px]">{idea.category}</Badge>
+                            </div>
+                            <p className="text-muted-foreground">{idea.description}</p>
+                            <div className="flex gap-3 text-[10px]">
+                              <span>Novelty <strong className="text-primary">{idea.novelty}</strong></span>
+                              <span>Impact <strong className="text-primary">{idea.impact}</strong></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Generate brand-new, IP-safe feature ideas nobody in the category has shipped.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" />Architecture</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("architecture")} disabled={analyzing === "architecture" || !selected?.raw?.description}>
+                      {analyzing === "architecture" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Design
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("architecture") ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {Object.entries(a("architecture")).map(([k, v]) => (
+                          <div key={k} className="rounded border border-border p-2">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                            <pre className="whitespace-pre-wrap font-mono text-[10px]">{typeof v === "string" ? v : JSON.stringify(v, null, 2)}</pre>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Original Manifest V3 architecture blueprint — folders, messaging, permissions, storage.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><DollarSign className="h-4 w-4" />Monetization</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("monetization")} disabled={analyzing === "monetization" || !selected?.raw?.description}>
+                      {analyzing === "monetization" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Model
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2">
+                    {a("monetization") ? (
+                      <>
+                        <div><strong>Current:</strong> {(a("monetization").current ?? []).join(", ")}</div>
+                        <div className="rounded border border-primary/30 bg-primary/5 p-2">
+                          <div><strong>Recommended:</strong> {a("monetization").recommended?.model}</div>
+                          <div><strong>Pricing:</strong> {a("monetization").recommended?.pricing}</div>
+                          <div className="text-muted-foreground mt-1">{a("monetization").recommended?.rationale}</div>
+                        </div>
+                        <div><strong>Revenue projection:</strong> {a("monetization").revenueProjection}</div>
+                      </>
+                    ) : <p className="text-muted-foreground">Detect current model, recommend superior pricing structure.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Palette className="h-4 w-4" />UX Redesign</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("ux")} disabled={analyzing === "ux" || !selected?.raw?.description}>
+                      {analyzing === "ux" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Redesign
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("ux") ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(a("ux")).map(([k, v]) => (
+                          <div key={k} className="rounded border border-border p-2">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                            <ul className="space-y-0.5">
+                              {Array.isArray(v) && v.slice(0, 8).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Original modern UI directions — no visual copying.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><ListChecks className="h-4 w-4" />Feature Prioritizer</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("prioritizer")} disabled={analyzing === "prioritizer" || !selected?.raw?.description}>
+                      {analyzing === "prioritizer" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Prioritize
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2">
+                    {a("prioritizer") ? (
+                      <>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">RICE</div>
+                          <table className="w-full text-[10px]">
+                            <thead><tr className="text-left text-muted-foreground"><th>Feature</th><th>R</th><th>I</th><th>C</th><th>E</th><th>Score</th></tr></thead>
+                            <tbody>
+                              {(a("prioritizer").rice ?? []).slice(0, 10).map((r: any, i: number) => (
+                                <tr key={i} className="border-t border-border/50">
+                                  <td className="py-0.5 pr-2">{r.feature}</td>
+                                  <td>{r.reach}</td><td>{r.impact}</td><td>{r.confidence}</td><td>{r.effort}</td>
+                                  <td className="text-primary font-semibold">{r.score}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 pt-2">
+                          {(["must","should","could","wont"] as const).map((k) => (
+                            <div key={k} className="rounded border border-border p-2">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                              <ul className="space-y-0.5">
+                                {(a("prioritizer").moscow?.[k] ?? []).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : <p className="text-muted-foreground">RICE + MoSCoW + ICE scoring for your feature backlog.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Blueprint / PRD</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("blueprint")} disabled={analyzing === "blueprint" || !selected?.raw?.description}>
+                      {analyzing === "blueprint" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Draft
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("blueprint") ? (
+                      <div className="space-y-2">
+                        {Object.entries(a("blueprint")).map(([k, v]) => (
+                          <div key={k} className="rounded border border-border p-2">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                            <pre className="whitespace-pre-wrap font-sans">{String(v)}</pre>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">PRD, technical design, roadmap, sprint plan, marketing + launch plan.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="h-4 w-4" />Build Better Plan</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("buildBetter")} disabled={analyzing === "buildBetter" || !selected?.raw?.description}>
+                      {analyzing === "buildBetter" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Generate
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("buildBetter") ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {Object.entries(a("buildBetter")).map(([k, v]) => (
+                          <div key={k} className="rounded border border-border p-2">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                            {Array.isArray(v) ? (
+                              <ul className="space-y-0.5">
+                                {v.slice(0, 8).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                              </ul>
+                            ) : (
+                              <p>{String(v)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Original 'better than this' plan — differentiation across every axis.</p>}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="ship" className="mt-4 space-y-3">
-                {PHASE4.map((m) => (
-                  <Card key={m}>
-                    <CardHeader className="flex flex-row items-center justify-between py-3">
-                      <CardTitle className="text-sm">{m}</CardTitle>
-                      <Badge variant="secondary" className="text-[10px]">Phase 4</Badge>
-                    </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground pb-4">
-                      Dev prompts (Lovable / Cursor / Windsurf / Claude Code / Gemini CLI / Copilot / Bolt / Replit) + PDF/Excel/CSV/Markdown/JSON exports.
-                    </CardContent>
-                  </Card>
-                ))}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Terminal className="h-4 w-4" />Dev Prompts</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("prompts")} disabled={analyzing === "prompts" || !selected?.raw?.description}>
+                      {analyzing === "prompts" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Generate
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("prompts") ? (
+                      <div className="space-y-2">
+                        {Object.entries(a("prompts")).map(([tool, prompt]) => (
+                          <div key={tool} className="rounded border border-border">
+                            <div className="flex items-center justify-between px-2 py-1 border-b border-border bg-muted/40">
+                              <span className="text-[10px] uppercase tracking-wider font-semibold">{tool}</span>
+                              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(String(prompt)); toast.success(`${tool} prompt copied`); }}>
+                                Copy
+                              </Button>
+                            </div>
+                            <pre className="whitespace-pre-wrap p-2 text-[10px] font-mono max-h-48 overflow-auto">{String(prompt)}</pre>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Production-ready prompts for Lovable, Cursor, Windsurf, Claude Code, Gemini CLI, Copilot, Bolt, Replit.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Download className="h-4 w-4" />Export Center</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2">
+                    <p className="text-muted-foreground">Download the complete report bundle (all modules, all competitors) as JSON.</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const bundle = { report_id: reportId, competitors, analyses };
+                        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url; a.download = `intel-report-${reportId ?? "export"}.json`; a.click();
+                        URL.revokeObjectURL(url);
+                        toast.success("Report exported");
+                      }} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export JSON
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const rows = [["module","competitor","key","value"]];
+                        Object.entries(analyses).forEach(([k, v]) => {
+                          const [mod, cid] = k.split(":");
+                          rows.push([mod, cid ?? "report", "payload", JSON.stringify(v).replace(/"/g, '""')]);
+                        });
+                        const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+                        const blob = new Blob([csv], { type: "text/csv" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url; a.download = `intel-report-${reportId ?? "export"}.csv`; a.click();
+                        URL.revokeObjectURL(url);
+                        toast.success("CSV exported");
+                      }} disabled={!reportId}>
+                        <Download className="h-3 w-3 mr-1" /> Export CSV
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="codebase" className="mt-4">
