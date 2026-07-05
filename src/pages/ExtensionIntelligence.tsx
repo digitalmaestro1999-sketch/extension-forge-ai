@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2, ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2354,6 +2354,329 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
   }
 
 
+  async function generateSecurityAudit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("securityAudit");
+    try {
+      const architecture = a("architecture") ?? null;
+      const manifest = a("storekit")?.manifest ?? architecture?.manifest ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        manifest,
+        surfaces: ["popup", "options", "background", "content", "onboarding", "offscreen", "sidepanel"],
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "securityAudit", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Security & Privacy Audit Pack
+Generated ${new Date().toISOString()}
+
+## Scope
+${kit.overview?.scope ?? ""}
+
+**Overall risk rating:** ${kit.overview?.overallRiskRating ?? "?"}
+
+## Assumptions
+${(kit.overview?.assumptions ?? []).map((a: string) => `- ${a}`).join("\n")}
+
+## Out of scope
+${(kit.overview?.outOfScope ?? []).map((a: string) => `- ${a}`).join("\n")}
+
+## Layout
+- 01-executive-summary.md
+- csp/ — hardening report, recommended CSP, validator script
+- permissions/ — analysis, minimizer, activeTab migration, optional-perm plan
+- data-flow/ — narrative, Mermaid diagram, inventory, third-party endpoints, messaging map
+- dpia/ — full DPIA with processing activities & risk register
+- pia/ — PIA document
+- threat-model/ — STRIDE analysis, attack trees, abuse cases, boundary diagram
+- pen-test/ — methodology, tools, ${(kit.penTestChecklist?.checklist ?? []).length}-item checklist, report template
+- supply-chain/ — SBOM, dependabot, pinned-actions policy
+- secrets-storage/ — inventory, handling, rotation, scanner
+- content-script-isolation/ — isolated world, DOM XSS, postMessage, sanitizers
+- network/ — allowed origins, CORS, TLS, cert pinning stance
+- incident-response/ — playbook, severity matrix, VDP, security.txt, postmortem template
+- cws-policy-mapping/ — policy compliance, purpose statement, permissions justification, remote-code attestation, user-data form
+- owasp-top10/ — browser extension OWASP mapping
+- findings/ — ${(kit.auditFindings ?? []).length} findings with severity
+- roadmap.md — remediation phases
+- sign-off.md`);
+
+      zip.file("01-executive-summary.md", kit.overview?.executiveSummaryMd ?? "");
+
+      // CSP
+      const csp = kit.cspHardening ?? {};
+      const cspF = zip.folder("csp") ?? zip;
+      cspF.file("01-current-analysis.md", csp.currentCspAnalysisMd ?? "");
+      cspF.file("02-recommended-csp.json", JSON.stringify(csp.recommendedManifestCsp ?? {}, null, 2));
+      cspF.file("03-rationale.md", csp.rationaleMd ?? "");
+      cspF.file("04-common-mistakes.md",
+`# Common CSP Mistakes
+${(csp.commonMistakes ?? []).map((m: any) => `## ${m.mistake}\n**Why it's bad:** ${m.why}\n**Fix:** ${m.fix}\n`).join("\n")}`);
+      cspF.file("csp-validator.ts", csp.cspValidatorScript ?? "");
+      cspF.file("checklist.md",
+`# CSP Hardening Checklist
+${(csp.hardeningChecklist ?? []).map((c: any) => `- [${c.status === "done" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      // Permissions
+      const p = kit.permissionMinimizer ?? {};
+      const perm = zip.folder("permissions") ?? zip;
+      perm.file("01-current.md",
+`# Current permissions
+${(p.currentPermissions ?? []).map((x: string) => `- \`${x}\``).join("\n")}
+
+## Host permissions
+${(p.currentHostPermissions ?? []).map((x: string) => `- \`${x}\``).join("\n")}`);
+      perm.file("02-analysis.md",
+`# Permission-by-permission analysis
+
+| Permission | Purpose (inferred) | Risk | Remove? | Replace with | Justification |
+|---|---|---|---|---|---|
+${(p.analysis ?? []).map((x: any) => `| \`${x.permission}\` | ${x.purposeInferred} | ${x.risk} | ${x.canRemove ? "yes" : "no"} | ${x.canReplaceWith ?? "—"} | ${x.justification} |`).join("\n")}`);
+      perm.file("03-recommended-manifest-patch.json", p.recommendedManifestPatch ?? "{}");
+      perm.file("04-activeTab-migration.md", p.activeTabMigrationGuideMd ?? "");
+      perm.file("05-optional-permissions-plan.md",
+`# Optional permissions plan
+${(p.optionalPermissionsPlan ?? []).map((o: any) => `## \`${o.permission}\`\n- **Trigger:** ${o.requestTrigger}\n- **User copy:** ${o.userFacingCopy}\n`).join("\n")}`);
+      perm.file("permission-minimizer.ts", p.minimizerScript ?? "");
+
+      // Data flow
+      const df = kit.dataFlow ?? {};
+      const dfF = zip.folder("data-flow") ?? zip;
+      dfF.file("01-narrative.md", df.narrativeMd ?? "");
+      dfF.file("02-diagram.mmd", df.mermaidDiagram ?? "");
+      dfF.file("03-data-inventory.json", JSON.stringify(df.dataInventory ?? [], null, 2));
+      dfF.file("03-data-inventory.md",
+`# Data inventory
+
+| Field | Source | Stored in | Sent to | At-rest enc | In-transit enc | Retention | Classification |
+|---|---|---|---|---|---|---|---|
+${(df.dataInventory ?? []).map((d: any) => `| ${d.field} | ${d.source} | ${d.storedIn} | ${d.transmittedTo} | ${d.encryptionAtRest} | ${d.encryptionInTransit} | ${d.retention} | ${d.classification} |`).join("\n")}`);
+      dfF.file("04-third-party-endpoints.md",
+`# Third-party endpoints
+${(df.thirdPartyEndpoints ?? []).map((e: any) => `## ${e.vendor} — \`${e.url}\`\n- **Purpose:** ${e.purpose}\n- **Data sent:** ${e.dataSent}\n- **Necessity:** ${e.necessity}\n`).join("\n")}`);
+      dfF.file("05-messaging-map.md",
+`# Cross-context messaging
+
+| From | To | Channel | Payload | Crosses trust boundary |
+|---|---|---|---|---|
+${(df.crossContextMessagingMap ?? []).map((m: any) => `| ${m.from} | ${m.to} | ${m.channel} | ${m.payload} | ${m.trustBoundary ? "YES" : "no"} |`).join("\n")}`);
+
+      // DPIA
+      const dpia = kit.dpia ?? {};
+      const dpiaF = zip.folder("dpia") ?? zip;
+      dpiaF.file("dpia.md", dpia.documentMd ?? "");
+      dpiaF.file("processing-activities.json", JSON.stringify(dpia.processingActivities ?? [], null, 2));
+      dpiaF.file("data-subject-rights.md",
+`# Data subject rights
+${(dpia.dataSubjectRights ?? []).map((r: any) => `## ${r.right}\n- **How handled:** ${r.howHandled}\n- **SLA:** ${r.responseSlaHours}h\n`).join("\n")}`);
+      dpiaF.file("risk-register.md",
+`# Risk register
+
+| Risk | Likelihood | Impact | Mitigation | Residual |
+|---|---|---|---|---|
+${(dpia.riskRegister ?? []).map((r: any) => `| ${r.risk} | ${r.likelihood} | ${r.impact} | ${r.mitigation} | ${r.residualRisk} |`).join("\n")}`);
+      dpiaF.file("gdpr.md", `# GDPR\n**Applies:** ${dpia.gdprAssessment?.applies ? "yes" : "no"}\n\n${dpia.gdprAssessment?.notesMd ?? ""}`);
+      dpiaF.file("ccpa.md", `# CCPA\n**Applies:** ${dpia.ccpaAssessment?.applies ? "yes" : "no"}\n\n${dpia.ccpaAssessment?.notesMd ?? ""}`);
+
+      // PIA
+      const pia = kit.pia ?? {};
+      const piaF = zip.folder("pia") ?? zip;
+      piaF.file("pia.md", pia.documentMd ?? "");
+      piaF.file("purpose-specification.md", pia.purposeSpecification ?? "");
+      piaF.file("data-minimization-evidence.md", (pia.dataMinimizationEvidence ?? []).map((e: string) => `- ${e}`).join("\n"));
+      piaF.file("consent-model.md", pia.userConsentModelMd ?? "");
+      piaF.file("international-transfers.md", pia.internationalTransfersMd ?? "");
+
+      // Threat model
+      const tm = kit.threatModel ?? {};
+      const tmF = zip.folder("threat-model") ?? zip;
+      tmF.file("01-system-description.md", tm.systemDescriptionMd ?? "");
+      tmF.file("02-trust-boundaries.mmd", tm.trustBoundariesDiagram ?? "");
+      tmF.file("03-assets.json", JSON.stringify(tm.assets ?? [], null, 2));
+      tmF.file("04-entry-points.json", JSON.stringify(tm.entryPoints ?? [], null, 2));
+      tmF.file("05-stride.md",
+`# STRIDE Analysis
+
+| Component | Cat | Threat | Scenario | Impact | Likelihood | Existing mitigations | Recommended | Residual |
+|---|---|---|---|---|---|---|---|---|
+${(tm.stride ?? []).map((s: any) => `| ${s.component} | ${s.category} | ${s.threat} | ${s.attackScenario} | ${s.impact} | ${s.likelihood} | ${(s.existingMitigations ?? []).join("; ")} | ${(s.recommendedMitigations ?? []).join("; ")} | ${s.residualRisk} |`).join("\n")}`);
+      tmF.file("06-attack-trees.md", tm.attackTreesMd ?? "");
+      tmF.file("07-abuse-cases.md",
+`# Abuse cases
+${(tm.abuseCases ?? []).map((a: any) => `## ${a.actor} → ${a.goal}\n**Steps:**\n${(a.steps ?? []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}\n\n**Detection:** ${a.detection}\n`).join("\n")}`);
+
+      // Pen-test
+      const pt = kit.penTestChecklist ?? {};
+      const ptF = zip.folder("pen-test") ?? zip;
+      ptF.file("01-methodology.md", pt.methodology ?? "");
+      ptF.file("02-environment-setup.md", pt.environmentSetupMd ?? "");
+      ptF.file("03-tools.md",
+`# Tools
+${(pt.tools ?? []).map((t: any) => `## ${t.name}\n**Purpose:** ${t.purpose}\n\`\`\`bash\n${t.installCmd}\n\`\`\`\n`).join("\n")}`);
+      ptF.file("04-checklist.md",
+`# Pen-test checklist
+${(pt.checklist ?? []).map((c: any) => `## ${c.id} — ${c.item} _(${c.category}, sev-if-fails: ${c.severityIfFails})_
+${c.procedureMd}
+
+**Expected:** ${c.expectedResult}
+**Reference:** ${c.reference}
+`).join("\n")}`);
+      ptF.file("05-report-template.md", pt.reportTemplateMd ?? "");
+
+      // Supply chain
+      const sc = kit.supplyChain ?? {};
+      const scF = zip.folder("supply-chain") ?? zip;
+      scF.file("npm-audit-notes.md", sc.npmAuditNotesMd ?? "");
+      scF.file("lockfile-hygiene.md", sc.lockfileHygieneMd ?? "");
+      scF.file("recommended-tools.md", (sc.recommendedTools ?? []).map((t: any) => `- **${t.name}** — ${t.purpose}`).join("\n"));
+      scF.file("generate-sbom.ts", sc.sbomGenerationScript ?? "");
+      scF.file("dependabot.yml", sc.dependabotYml ?? "");
+      scF.file("pinned-actions-policy.md", sc.pinnedActionsPolicyMd ?? "");
+
+      // Secrets & storage
+      const ss = kit.secretsAndStorage ?? {};
+      const ssF = zip.folder("secrets-storage") ?? zip;
+      ssF.file("01-inventory.md",
+`# Storage inventory
+
+| Key | Surface | Kind | Sensitivity | Encryption |
+|---|---|---|---|---|
+${(ss.storageInventory ?? []).map((s: any) => `| \`${s.key}\` | ${s.surface} | ${s.kind} | ${s.sensitivity} | ${s.encryption} |`).join("\n")}`);
+      ssF.file("02-handling.md", ss.secretHandlingMd ?? "");
+      ssF.file("03-rotation.md", ss.keyRotationMd ?? "");
+      ssF.file("secret-scanner.ts", ss.secretScannerScript ?? "");
+
+      // Content script isolation
+      const cs = kit.contentScriptIsolation ?? {};
+      const csF = zip.folder("content-script-isolation") ?? zip;
+      csF.file("01-isolated-world.md", cs.isolatedWorldNotesMd ?? "");
+      csF.file("02-dom-xss.md", cs.domXssAuditMd ?? "");
+      csF.file("03-postmessage.md", cs.postMessageAuditMd ?? "");
+      csF.file("04-sanitizers.md", cs.sanitizerRecommendationsMd ?? "");
+
+      // Network
+      const net = kit.networkSecurity ?? {};
+      const netF = zip.folder("network") ?? zip;
+      netF.file("allowed-origins.json", JSON.stringify(net.allowedOrigins ?? [], null, 2));
+      netF.file("cors.md", net.corsExpectationsMd ?? "");
+      netF.file("tls.md", net.tlsRequirementsMd ?? "");
+      netF.file("cert-pinning.md", net.certPinningStanceMd ?? "");
+
+      // Incident response
+      const ir = kit.incidentResponse ?? {};
+      const irF = zip.folder("incident-response") ?? zip;
+      irF.file("01-playbook.md", ir.playbookMd ?? "");
+      irF.file("02-severity-matrix.md",
+`# Severity matrix
+
+| Sev | Definition | Response | Channel | Owner |
+|---|---|---|---|---|
+${(ir.severityMatrix ?? []).map((s: any) => `| ${s.severity} | ${s.definition} | ${s.responseTime} | ${s.commsChannel} | ${s.owner} |`).join("\n")}`);
+      irF.file("03-vdp.md", ir.vulnerabilityDisclosurePolicyMd ?? "");
+      irF.file("security.txt", ir.securityTxt ?? "");
+      irF.file("04-postmortem-template.md", ir.postmortemTemplateMd ?? "");
+
+      // CWS policy mapping
+      const cws = kit.cwsPolicyMapping ?? {};
+      const cwsF = zip.folder("cws-policy-mapping") ?? zip;
+      cwsF.file("01-policy-checklist.md",
+`# Chrome Web Store policy compliance
+
+| Policy ID | Name | Requirement | How we comply | Evidence | Status |
+|---|---|---|---|---|---|
+${(cws.policyChecklist ?? []).map((c: any) => `| ${c.policyId} | ${c.policyName} | ${c.requirement} | ${c.howWeComply} | ${c.evidence} | ${c.status} |`).join("\n")}`);
+      cwsF.file("02-single-purpose.md", cws.singlePurposeStatement ?? "");
+      cwsF.file("03-permissions-justification.md", cws.permissionsJustificationMd ?? "");
+      cwsF.file("04-remote-code-attestation.md", cws.remoteCodeAttestationMd ?? "");
+      cwsF.file("05-user-data-disclosure.md",
+`# User data disclosure form
+${(cws.userDataDisclosureForm ?? []).map((f: any) => `- **${f.field}:** ${f.answer}`).join("\n")}`);
+
+      // OWASP
+      zip.file("owasp-top10.md",
+`# Browser Extension OWASP-style top 10
+
+| ID | Risk | Applicability | Mitigation | Status |
+|---|---|---|---|---|
+${(kit.browserExtensionOwaspTop10 ?? []).map((o: any) => `| ${o.id} | ${o.risk} | ${o.applicability} | ${o.mitigation} | ${o.status} |`).join("\n")}`);
+
+      // Findings
+      const findings = zip.folder("findings") ?? zip;
+      (kit.auditFindings ?? []).forEach((f: any) => {
+        const slug = String(f.id ?? f.title ?? "finding").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        findings.file(`${f.severity ?? "info"}-${slug}.md`,
+`# ${f.id} — ${f.title}
+
+- **Severity:** ${f.severity}
+- **CWE:** ${f.cwe}
+- **Location:** ${f.location}
+- **Effort:** ${f.effort}
+- **Status:** ${f.status}
+
+## Description
+${f.descriptionMd}
+
+## Reproduction
+${(f.reproductionSteps ?? []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}
+
+## Impact
+${f.impact}
+
+## Remediation
+${f.remediation}`);
+      });
+      findings.file("index.md",
+`# Audit findings summary
+
+| ID | Severity | Title | Status |
+|---|---|---|---|
+${(kit.auditFindings ?? []).map((f: any) => `| ${f.id} | ${f.severity} | ${f.title} | ${f.status} |`).join("\n")}`);
+
+      // Roadmap
+      zip.file("roadmap.md",
+`# Remediation roadmap
+${(kit.remediationRoadmap ?? []).map((p: any) => `## ${p.phase} (${p.duration})
+${(p.items ?? []).map((i: string) => `- ${i}`).join("\n")}
+`).join("\n")}`);
+
+      zip.file("sign-off.md", kit.signOffMd ?? "");
+
+      // Checklist
+      zip.file("checklist.md",
+`# Security audit checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-security-audit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-security-audit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`securityAudit:${selected.id}`]: kit }));
+      toast.success("Security & privacy audit pack ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Security audit generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
+
+
 
 
 
@@ -3590,6 +3913,41 @@ All copy is original and IP-safe.`);
                     </CardContent>
                   )}
                 </Card>
+
+
+                <Card className="border-red-400/40 bg-red-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-400" />Security & Privacy Audit Pack</CardTitle>
+                        <CardDescription className="text-[10px]">Executive summary, CSP hardening report + validator, permission minimizer with activeTab migration + optional-perm plan, data-flow narrative + Mermaid diagram + PII inventory, full DPIA & PIA, STRIDE threat model with attack trees & abuse cases, extension-specific pen-test checklist with report template, SBOM + Dependabot + pinned-actions, storage secret scanner, content-script isolation audit, incident-response playbook + security.txt (RFC 9116) + VDP, CWS policy compliance mapping, browser-extension OWASP top-10, findings register with severity, and phased remediation roadmap.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateSecurityAudit} disabled={analyzing === "securityAudit" || !selected}>
+                        {analyzing === "securityAudit" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Audit Pack
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("securityAudit") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">risk: {a("securityAudit").overview?.overallRiskRating ?? "?"}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").permissionMinimizer?.analysis ?? []).length} perms analyzed</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").dataFlow?.dataInventory ?? []).length} data fields</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").threatModel?.stride ?? []).length} STRIDE entries</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").penTestChecklist?.checklist ?? []).length} pen-test checks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").auditFindings ?? []).length} findings</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("securityAudit").dpia?.riskRegister ?? []).length} DPIA risks</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Recommended CSP: <span className="font-mono">{(a("securityAudit").cspHardening?.recommendedManifestCsp?.extension_pages ?? "").slice(0, 90)}…</span>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
 
