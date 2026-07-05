@@ -1594,6 +1594,37 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card className="border-sky-400/40 bg-sky-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-sky-400" />Launch & Marketing Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Product Hunt post, X launch thread, Reddit / HN / LinkedIn posts, cold emails, blog post, press release, self-contained landing page, day-by-day checklist. All original copy.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateLaunchKit} disabled={analyzing === "launch" || !selected}>
+                        {analyzing === "launch" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("launch") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("launch").positioning?.tagline}</strong></div>
+                      <div className="text-muted-foreground">{a("launch").positioning?.oneLiner}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {(a("launch").positioning?.uniqueValueProps ?? []).slice(0, 6).map((k: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        PH · {(a("launch").tweets?.launchThread ?? []).length} tweets · {(a("launch").reddit ?? []).length} subreddits · {(a("launch").coldEmails ?? []).length} cold emails · landing page
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
 
