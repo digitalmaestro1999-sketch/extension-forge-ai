@@ -1327,7 +1327,28 @@ All copy is original and IP-safe.`);
               </TabsContent>
 
               <TabsContent value="ship" className="mt-4 space-y-3">
-                <Card className="border-primary/40 bg-primary/5">
+                <Card className="border-fuchsia-400/50 bg-gradient-to-br from-fuchsia-500/10 via-primary/10 to-emerald-400/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Rocket className="h-4 w-4 text-fuchsia-400" />One-Click Ship-Ready Bundle</CardTitle>
+                        <CardDescription className="text-[10px]">Runs Auto-Build → Publish Kit → AI Icons and merges everything into a single submission-ready ZIP. Real icons embedded, listing/privacy/permissions written, checklist included.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={oneClickShip} disabled={analyzing === "ship" || !selected} className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white">
+                        {analyzing === "ship" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trophy className="h-3 w-3 mr-1" />}
+                        Ship It
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("ship") && (
+                    <CardContent className="text-xs space-y-1">
+                      <div>✅ <strong>{a("ship").name}</strong> bundled at {new Date(a("ship").at).toLocaleTimeString()}</div>
+                      <div className="text-[10px] text-muted-foreground">Structure: <code>extension/</code> (with real icons) · <code>store-kit/</code> · <code>assets/icon512.png</code> · <code>SHIP.md</code></div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
