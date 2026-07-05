@@ -95,6 +95,32 @@ Return JSON: {
   }]
 }
 Each landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts) with lang attribute set correctly, including hero, features, CTA, footer. Title ≤45 chars, shortDescription ≤132 chars.`,
+  growth: `Generate a complete POST-LAUNCH GROWTH OS for a NEW, ORIGINAL Chrome extension. Use the provided listing/launch/reviews context if present. All copy must be original, empathetic, on-brand, and directly usable. ${GUARDRAIL}
+Return JSON: {
+  "reviewResponses": {
+    "fiveStar": [{ "trigger": string, "response": string }],
+    "fourStar": [{ "trigger": string, "response": string }],
+    "threeStar": [{ "trigger": string, "response": string }],
+    "twoStar": [{ "trigger": string, "response": string }],
+    "oneStar": [{ "trigger": string, "response": string }],
+    "bugReport": [{ "trigger": string, "response": string }],
+    "featureRequest": [{ "trigger": string, "response": string }],
+    "permissionsConcern": [{ "trigger": string, "response": string }],
+    "pricingComplaint": [{ "trigger": string, "response": string }]
+  },
+  "ratingsRecovery": { "playbook": string, "outreachTemplates": [{ "channel": string, "subject": string, "body": string }], "incentiveIdeas": string[] },
+  "abListingVariants": [{ "hypothesis": string, "title": string, "shortDescription": string, "screenshotBrief": string, "successMetric": string }],
+  "roadmap90d": { "month1": [{ "feature": string, "why": string }], "month2": [{ "feature": string, "why": string }], "month3": [{ "feature": string, "why": string }] },
+  "changelogTemplates": [{ "version": string, "type": "feature"|"fix"|"perf"|"security", "markdown": string }],
+  "supportMacros": [{ "topic": string, "macro": string }],
+  "retentionEmails": [{ "trigger": string, "subject": string, "body": string, "sendAfter": string }],
+  "reactivationEmails": [{ "trigger": string, "subject": string, "body": string }],
+  "uninstallSurvey": { "questions": [{ "q": string, "options": string[] }], "followUpEmail": string },
+  "asoRefreshCadence": { "weekly": string[], "monthly": string[], "quarterly": string[] },
+  "upgradeCtas": [{ "surface": string, "copy": string, "cta": string }],
+  "communityKit": { "discordAnnouncement": string, "slackAnnouncement": string, "changelogPost": string },
+  "kpis": [{ "name": string, "target": string, "instrumentation": string }]
+}`,
 };
 
 serve(async (req) => {

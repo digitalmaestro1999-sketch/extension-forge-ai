@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -736,6 +736,158 @@ ${(loc.keywords ?? []).join(", ")}`);
       toast.success(`Localized into ${(kit.locales ?? []).length} locales`);
     } catch (e: any) {
       toast.error(e.message ?? "Localization failed");
+    } finally { setAnalyzing(null); }
+  }
+
+  async function generateGrowthKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("growth");
+    try {
+      const listing = a("storekit")?.listing ?? a("listing") ?? null;
+      const launch = a("launch") ?? null;
+      const reviews = a("reviews") ?? null;
+      const sentiment = a("sentiment") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          tagline: launch?.positioning?.tagline,
+          oneLiner: launch?.positioning?.oneLiner,
+          uniqueValueProps: launch?.positioning?.uniqueValueProps,
+        },
+        listing: listing ? { title: listing.title, shortDescription: listing.shortDescription, keywords: listing.keywords } : null,
+        reviewsSignal: reviews,
+        sentimentSignal: sentiment,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "growth", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Post-Launch Growth OS
+Generated ${new Date().toISOString()}
+
+## Contents
+- review-responses/ — Copy-paste replies for every rating tier and complaint type
+- ratings-recovery.md — Playbook + outreach templates to lift a struggling rating
+- ab-listing-variants.md — Ready-to-test CWS listing variants with hypotheses
+- roadmap-90d.md — 3-month feature roadmap prioritized by user impact
+- changelog-templates.md — Version bump templates (feature/fix/perf/security)
+- support-macros.md — Support inbox macros
+- retention-emails.md — Onboarding & retention email flows
+- reactivation-emails.md — Win-back sequences for dormant users
+- uninstall-survey.md — Exit survey + follow-up
+- aso-refresh.md — ASO refresh cadence (weekly/monthly/quarterly)
+- upgrade-ctas.md — In-product upgrade CTA library
+- community-kit.md — Discord/Slack/changelog announcement templates
+- kpis.md — Target metrics + instrumentation
+- raw-kit.json`);
+
+      const rr = kit.reviewResponses ?? {};
+      const rrFolder = zip.folder("review-responses") ?? zip;
+      Object.entries(rr).forEach(([bucket, items]: any) => {
+        const md = `# ${bucket} responses\n\n` + (items ?? []).map((i: any, idx: number) =>
+          `## ${idx + 1}. Trigger: ${i.trigger}\n\n${i.response}\n`).join("\n");
+        rrFolder.file(`${bucket}.md`, md);
+      });
+
+      zip.file("ratings-recovery.md",
+`# Ratings Recovery Playbook
+
+${kit.ratingsRecovery?.playbook ?? ""}
+
+## Outreach templates
+${(kit.ratingsRecovery?.outreachTemplates ?? []).map((t: any) => `### ${t.channel}\n**Subject:** ${t.subject}\n\n${t.body}\n`).join("\n")}
+
+## Incentive ideas
+${(kit.ratingsRecovery?.incentiveIdeas ?? []).map((i: string) => `- ${i}`).join("\n")}`);
+
+      zip.file("ab-listing-variants.md",
+`# A/B Listing Variants
+${(kit.abListingVariants ?? []).map((v: any, i: number) =>
+`## Variant ${i + 1}
+**Hypothesis:** ${v.hypothesis}
+**Title:** ${v.title}
+**Short description:** ${v.shortDescription}
+**Screenshot brief:** ${v.screenshotBrief}
+**Success metric:** ${v.successMetric}
+`).join("\n")}`);
+
+      zip.file("roadmap-90d.md",
+`# 90-Day Roadmap
+${(["month1","month2","month3"] as const).map((m, i) =>
+`## Month ${i + 1}
+${(kit.roadmap90d?.[m] ?? []).map((f: any) => `- **${f.feature}** — ${f.why}`).join("\n")}`).join("\n\n")}`);
+
+      zip.file("changelog-templates.md",
+`# Changelog Templates
+${(kit.changelogTemplates ?? []).map((c: any) => `## v${c.version} (${c.type})\n\n${c.markdown}\n`).join("\n")}`);
+
+      zip.file("support-macros.md",
+`# Support Macros
+${(kit.supportMacros ?? []).map((m: any) => `## ${m.topic}\n\n${m.macro}\n`).join("\n")}`);
+
+      zip.file("retention-emails.md",
+`# Retention Emails
+${(kit.retentionEmails ?? []).map((e: any) => `## ${e.trigger} — send ${e.sendAfter}\n**Subject:** ${e.subject}\n\n${e.body}\n`).join("\n")}`);
+
+      zip.file("reactivation-emails.md",
+`# Reactivation Emails
+${(kit.reactivationEmails ?? []).map((e: any) => `## ${e.trigger}\n**Subject:** ${e.subject}\n\n${e.body}\n`).join("\n")}`);
+
+      zip.file("uninstall-survey.md",
+`# Uninstall Survey
+${(kit.uninstallSurvey?.questions ?? []).map((q: any, i: number) =>
+`## Q${i + 1}. ${q.q}\n${(q.options ?? []).map((o: string) => `- ${o}`).join("\n")}`).join("\n\n")}
+
+## Follow-up email
+${kit.uninstallSurvey?.followUpEmail ?? ""}`);
+
+      zip.file("aso-refresh.md",
+`# ASO Refresh Cadence
+## Weekly
+${(kit.asoRefreshCadence?.weekly ?? []).map((s: string) => `- ${s}`).join("\n")}
+## Monthly
+${(kit.asoRefreshCadence?.monthly ?? []).map((s: string) => `- ${s}`).join("\n")}
+## Quarterly
+${(kit.asoRefreshCadence?.quarterly ?? []).map((s: string) => `- ${s}`).join("\n")}`);
+
+      zip.file("upgrade-ctas.md",
+`# Upgrade CTAs
+${(kit.upgradeCtas ?? []).map((c: any) => `## ${c.surface}\n${c.copy}\n\n**CTA:** ${c.cta}\n`).join("\n")}`);
+
+      zip.file("community-kit.md",
+`# Community Kit
+## Discord
+${kit.communityKit?.discordAnnouncement ?? ""}
+
+## Slack
+${kit.communityKit?.slackAnnouncement ?? ""}
+
+## Changelog post
+${kit.communityKit?.changelogPost ?? ""}`);
+
+      zip.file("kpis.md",
+`# KPIs
+${(kit.kpis ?? []).map((k: any) => `- **${k.name}** → target ${k.target} · instrumentation: ${k.instrumentation}`).join("\n")}`);
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-growth-os.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`growth:${selected.id}`]: kit }));
+      toast.success("Growth OS ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Growth OS failed");
     } finally { setAnalyzing(null); }
   }
 
@@ -1733,12 +1885,32 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
-
-
-
-
-
-
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-400" />Post-Launch Growth OS</CardTitle>
+                        <CardDescription className="text-[10px]">Review-response library (5★→1★, bugs, feature reqs, permissions, pricing), ratings-recovery playbook, A/B listing variants, 90-day roadmap, changelog templates, support macros, retention & reactivation emails, uninstall survey, ASO refresh cadence, upgrade CTAs, community kit, and KPI targets.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateGrowthKit} disabled={analyzing === "growth" || !selected}>
+                        {analyzing === "growth" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate OS
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("growth") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        {Object.keys(a("growth").reviewResponses ?? {}).map((k) => (
+                          <Badge key={k} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("growth").abListingVariants ?? []).length} A/B variants · {(a("growth").retentionEmails ?? []).length} retention · {(a("growth").supportMacros ?? []).length} macros · {(a("growth").kpis ?? []).length} KPIs
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
 
 
                 <Card>
