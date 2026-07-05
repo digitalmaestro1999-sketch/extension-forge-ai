@@ -891,6 +891,196 @@ ${(kit.kpis ?? []).map((k: any) => `- **${k.name}** → target ${k.target} · in
     } finally { setAnalyzing(null); }
   }
 
+  async function generateLegalVault() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("legal");
+    try {
+      const listing = a("storekit")?.listing ?? a("listing") ?? null;
+      const architecture = a("architecture") ?? null;
+      const security = a("security") ?? null;
+      const manifest = a("storekit")?.manifest ?? architecture?.manifest ?? null;
+      const permissions = manifest?.permissions ?? architecture?.permissions ?? [];
+      const hostPermissions = manifest?.host_permissions ?? [];
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          shortDescription: listing?.shortDescription,
+          description: listing?.detailedDescription ?? selected.raw?.description,
+        },
+        manifest,
+        permissions,
+        hostPermissions,
+        securitySignals: security,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "legal", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      const ph = kit.companyPlaceholders ?? {};
+      zip.file("00-README.md",
+`# Legal & Compliance Vault
+Generated ${new Date().toISOString()}
+
+## Before you publish
+Search-and-replace these placeholders across every file:
+- {{companyName}} → ${ph.companyName ?? "your legal entity"}
+- {{contactEmail}} → ${ph.contactEmail ?? "privacy@yourdomain.com"}
+- {{jurisdiction}} → ${ph.jurisdiction ?? "your governing jurisdiction"}
+- {{effectiveDate}} → ${ph.effectiveDate ?? new Date().toISOString().slice(0, 10)}
+
+## Contents
+- policies/ — privacy, ToS, cookie, DPA, DMCA, AUP
+- regional/ — GDPR + CCPA specific notices
+- cws/ — Chrome Web Store submission-ready statements (single purpose, permission justifications, data usage disclosure)
+- security/ — whitepaper, SOC2-lite checklist, incident response plan, subprocessor list, breach template
+- widgets/ — cookie banner + consent modal HTML snippets
+- data-handling.md — data categories, purposes, retention, sharing
+- raw-vault.json
+
+## Disclaimer
+These are production-ready templates, not legal advice. Have counsel review before publishing.`);
+
+      const policies = zip.folder("policies") ?? zip;
+      policies.file("privacy-policy.md", `# ${kit.privacyPolicy?.title ?? "Privacy Policy"}\n\n${kit.privacyPolicy?.markdown ?? ""}`);
+      policies.file("terms-of-service.md", `# ${kit.termsOfService?.title ?? "Terms of Service"}\n\n${kit.termsOfService?.markdown ?? ""}`);
+      policies.file("cookie-policy.md", `# ${kit.cookiePolicy?.title ?? "Cookie Policy"}\n\nUses cookies: ${kit.cookiePolicy?.usesCookies ? "yes" : "no"}\n\n${kit.cookiePolicy?.markdown ?? ""}`);
+      policies.file("dpa.md", `# ${kit.dataProcessingAgreement?.title ?? "Data Processing Agreement"}\n\n${kit.dataProcessingAgreement?.markdown ?? ""}`);
+      policies.file("dmca-policy.md", `# ${kit.dmcaPolicy?.title ?? "DMCA Policy"}\n\n${kit.dmcaPolicy?.markdown ?? ""}`);
+      policies.file("acceptable-use-policy.md", `# ${kit.acceptableUsePolicy?.title ?? "Acceptable Use Policy"}\n\n${kit.acceptableUsePolicy?.markdown ?? ""}`);
+
+      const regional = zip.folder("regional") ?? zip;
+      regional.file("gdpr.md",
+`# ${kit.gdprNotice?.title ?? "GDPR Notice"}
+
+## Lawful basis
+${(kit.gdprNotice?.lawfulBasis ?? []).map((l: string) => `- ${l}`).join("\n")}
+
+## Data subject rights
+${(kit.gdprNotice?.dataSubjectRights ?? []).map((l: string) => `- ${l}`).join("\n")}
+
+${kit.gdprNotice?.markdown ?? ""}`);
+      regional.file("ccpa.md",
+`# ${kit.ccpaNotice?.title ?? "CCPA Notice"}
+
+## Consumer rights
+${(kit.ccpaNotice?.consumerRights ?? []).map((l: string) => `- ${l}`).join("\n")}
+
+${kit.ccpaNotice?.markdown ?? ""}`);
+
+      const cws = zip.folder("cws") ?? zip;
+      cws.file("single-purpose.md",
+`# Single Purpose Statement (paste into CWS listing)
+
+${kit.cwsSinglePurpose?.statement ?? ""}
+
+## Justification
+${kit.cwsSinglePurpose?.justification ?? ""}`);
+      cws.file("permission-justifications.md",
+`# Permission Justifications (paste each into the CWS Privacy Practices tab)
+
+${(kit.cwsPermissionJustifications ?? []).map((p: any) =>
+`## ${p.permission}
+**Justification:** ${p.justification}
+**User benefit:** ${p.userBenefit}
+**Minimal alternative considered:** ${p.minimalAlternative}
+`).join("\n")}`);
+      cws.file("host-permission-justifications.md",
+`# Host Permission Justifications
+
+${(kit.cwsHostPermissionJustifications ?? []).map((h: any) =>
+`## ${h.host}
+${h.justification}
+`).join("\n")}`);
+      cws.file("remote-code.md", `# Remote Code Use\n\n${kit.cwsRemoteCodeStatement ?? "This extension does NOT execute remote code. All logic is packaged in the extension."}`);
+      cws.file("data-usage-disclosure.md",
+`# Data Usage Disclosure (CWS Privacy Practices form)
+
+**Collects PII:** ${kit.cwsDataUsageDisclosure?.collectsPii ? "Yes" : "No"}
+**Sells user data:** ${kit.cwsDataUsageDisclosure?.sellsData ? "Yes" : "No"}
+
+## Categories collected
+${(kit.cwsDataUsageDisclosure?.categories ?? []).map((c: string) => `- ${c}`).join("\n")}
+
+## Usage declarations (check each)
+${(kit.cwsDataUsageDisclosure?.usageDeclarations ?? []).map((c: string) => `- [ ] ${c}`).join("\n")}
+
+## Sharing declarations
+${(kit.cwsDataUsageDisclosure?.shareDeclarations ?? []).map((c: string) => `- [ ] ${c}`).join("\n")}`);
+
+      const sec = zip.folder("security") ?? zip;
+      sec.file("security-whitepaper.md",
+`# ${kit.securityWhitepaper?.title ?? "Security Whitepaper"}
+
+## Controls
+${(kit.securityWhitepaper?.controls ?? []).map((c: string) => `- ${c}`).join("\n")}
+
+${kit.securityWhitepaper?.markdown ?? ""}`);
+      sec.file("soc2-checklist.md",
+`# SOC2-Lite Readiness Checklist
+
+| Category | Control | Status | Action |
+|---|---|---|---|
+${(kit.soc2Checklist ?? []).map((c: any) => `| ${c.category} | ${c.control} | ${c.status} | ${c.action} |`).join("\n")}`);
+      sec.file("incident-response-plan.md",
+`# ${kit.incidentResponsePlan?.title ?? "Incident Response Plan"}
+
+## Severity levels
+${(kit.incidentResponsePlan?.severityLevels ?? []).map((s: any) => `- **${s.level}** — ${s.definition} (SLA: ${s.sla})`).join("\n")}
+
+${kit.incidentResponsePlan?.markdown ?? ""}`);
+      sec.file("subprocessors.md",
+`# Subprocessors
+
+| Name | Purpose | Location | Data access |
+|---|---|---|---|
+${(kit.subprocessorList ?? []).map((s: any) => `| ${s.name} | ${s.purpose} | ${s.location} | ${s.dataAccess} |`).join("\n")}`);
+      sec.file("data-breach-template.md",
+`# Data Breach Notification Templates
+
+## User email
+**Subject:** ${kit.dataBreachTemplate?.userEmailSubject ?? ""}
+
+${kit.dataBreachTemplate?.userEmailBody ?? ""}
+
+## Regulator notice
+${kit.dataBreachTemplate?.regulatorNotice ?? ""}`);
+
+      const widgets = zip.folder("widgets") ?? zip;
+      widgets.file("cookie-banner.html", kit.cookieBannerHtml ?? "<!-- cookie banner not generated -->");
+      widgets.file("consent-modal.html", kit.consentModalHtml ?? "<!-- consent modal not generated -->");
+
+      zip.file("data-handling.md",
+`# ${kit.dataHandlingDoc?.title ?? "Data Handling Document"}
+
+| Category | Purpose | Retention | Shared with |
+|---|---|---|---|
+${(kit.dataHandlingDoc?.dataCategories ?? []).map((d: any) => `| ${d.category} | ${d.purpose} | ${d.retention} | ${(d.sharedWith ?? []).join(", ")} |`).join("\n")}
+
+${kit.dataHandlingDoc?.markdown ?? ""}`);
+
+      zip.file("raw-vault.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-legal-vault.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`legal:${selected.id}`]: kit }));
+      toast.success("Legal vault ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Legal vault failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
   async function oneClickShip() {
