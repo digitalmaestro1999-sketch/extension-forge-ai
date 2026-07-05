@@ -147,6 +147,31 @@ Return JSON: {
   "dataBreachTemplate": { "userEmailSubject": string, "userEmailBody": string, "regulatorNotice": string }
 }
 Every markdown document MUST use {{companyName}}, {{contactEmail}}, {{jurisdiction}}, {{effectiveDate}} placeholders so the operator can search-and-replace.`,
+  revenue: `Generate a complete MONETIZATION & REVENUE ENGINE for a NEW, ORIGINAL Chrome extension. Use the provided product/market/listing context. Everything must be original, high-converting, and specific to this product — no generic templates. ${GUARDRAIL}
+Return JSON: {
+  "strategy": { "recommendedModel": "freemium"|"free_trial"|"subscription"|"one_time"|"usage_based"|"lifetime"|"hybrid", "rationale": string, "expectedArpu": string, "expectedConversion": string, "expectedLtv": string, "expectedChurn": string },
+  "pricingTiers": [{ "name": string, "monthlyPrice": number, "yearlyPrice": number, "targetPersona": string, "features": string[], "limits": { [k: string]: string }, "highlight": boolean, "cta": string, "positioning": string }],
+  "pricingPageHtml": string,
+  "paywallCopy": [{ "trigger": string, "headline": string, "subhead": string, "bullets": string[], "primaryCta": string, "secondaryCta": string, "socialProof": string }],
+  "upsellFlows": [{ "trigger": string, "flow": string, "copy": string, "expectedLiftPct": number }],
+  "downsellFlows": [{ "trigger": string, "offer": string, "copy": string }],
+  "trialConversion": { "day": number, "channel": "in_app"|"email"|"push", "subject": string, "body": string }[],
+  "checkoutCopy": { "pageTitle": string, "trustBadges": string[], "guarantees": string[], "faqs": [{ "q": string, "a": string }] },
+  "receiptEmail": { "subject": string, "body": string },
+  "dunningEmails": [{ "attempt": number, "sendDay": number, "subject": string, "body": string }],
+  "renewalEmails": [{ "trigger": string, "subject": string, "body": string }],
+  "cancellationFlow": { "surveyQuestions": [{ "q": string, "options": string[] }], "saveOffer": string, "confirmationEmail": { "subject": string, "body": string } },
+  "referralProgram": { "userReward": string, "friendReward": string, "mechanics": string, "shareCopy": { "email": string, "twitter": string, "linkedin": string, "whatsapp": string }, "referralPageHtml": string },
+  "affiliateProgram": { "commission": string, "cookieWindow": string, "payoutTerms": string, "recruitmentEmail": { "subject": string, "body": string }, "assets": string[] },
+  "enterprisePitch": { "onePagerMarkdown": string, "pricingModel": string, "salesEmail": { "subject": string, "body": string }, "objectionResponses": [{ "objection": string, "response": string }] },
+  "roiCalculator": { "inputs": [{ "name": string, "label": string, "type": "number"|"select", "defaultValue": string, "options": string[] }], "formula": string, "html": string },
+  "stripeBlueprint": { "products": [{ "name": string, "priceId": string, "amount": number, "interval": "month"|"year"|"one_time" }], "webhookEvents": string[], "envVars": string[], "checkoutSessionCode": string, "portalSessionCode": string, "webhookHandlerCode": string },
+  "paddleBlueprint": { "products": [{ "name": string, "priceId": string, "amount": number, "billingCycle": string }], "webhookEvents": string[], "envVars": string[], "checkoutCode": string, "webhookHandlerCode": string },
+  "licenseKeySystem": { "schema": string, "activationFlowCode": string, "validationFlowCode": string, "revocationFlowCode": string },
+  "billingFaq": [{ "q": string, "a": string }],
+  "kpis": [{ "name": string, "target": string, "formula": string }]
+}
+pricingPageHtml, referralPageHtml, and roiCalculator.html MUST each be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no external scripts).`,
 };
 
 serve(async (req) => {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1079,6 +1079,276 @@ ${kit.dataHandlingDoc?.markdown ?? ""}`);
     } finally { setAnalyzing(null); }
   }
 
+  async function generateRevenueEngine() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("revenue");
+    try {
+      const listing = a("storekit")?.listing ?? a("listing") ?? null;
+      const launch = a("launch") ?? null;
+      const monetization = a("monetization") ?? null;
+      const buildBetter = a("buildBetter") ?? null;
+      const scorecard = a("scorecard") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: listing?.detailedDescription ?? selected.raw?.description,
+          tagline: launch?.positioning?.tagline,
+          uniqueValueProps: launch?.positioning?.uniqueValueProps,
+          personas: launch?.positioning?.targetPersonas,
+        },
+        currentMonetization: monetization,
+        competitivePricingContext: scorecard?.scores ? { popularity: scorecard.scores.popularity, monetization: scorecard.scores.monetization } : null,
+        betterPricing: buildBetter?.betterPricing,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "revenue", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Monetization & Revenue Engine
+Generated ${new Date().toISOString()}
+
+## Recommended model
+**${kit.strategy?.recommendedModel ?? "n/a"}** — ARPU ${kit.strategy?.expectedArpu ?? "?"}, conversion ${kit.strategy?.expectedConversion ?? "?"}, LTV ${kit.strategy?.expectedLtv ?? "?"}, churn ${kit.strategy?.expectedChurn ?? "?"}
+
+${kit.strategy?.rationale ?? ""}
+
+## Contents
+- strategy.md — recommended model + KPIs
+- pricing/ — tiers, self-contained pricing-page.html
+- paywalls.md — trigger-specific paywall copy
+- flows/ — upsell, downsell, trial-conversion, cancellation
+- checkout/ — page copy, receipt, dunning, renewal emails
+- referral/ — program mechanics + share copy + landing page
+- affiliate/ — program + recruitment email + asset list
+- enterprise/ — one-pager + sales email + objection responses
+- roi-calculator.html — self-contained calculator
+- integrations/stripe/ — products, webhook events, checkout + portal + webhook handler code
+- integrations/paddle/ — products, webhook events, checkout + webhook handler code
+- integrations/license-keys/ — schema + activation/validation/revocation code
+- billing-faq.md
+- raw-engine.json`);
+
+      zip.file("strategy.md",
+`# Monetization Strategy
+
+- **Model:** ${kit.strategy?.recommendedModel ?? ""}
+- **Expected ARPU:** ${kit.strategy?.expectedArpu ?? ""}
+- **Expected conversion:** ${kit.strategy?.expectedConversion ?? ""}
+- **Expected LTV:** ${kit.strategy?.expectedLtv ?? ""}
+- **Expected churn:** ${kit.strategy?.expectedChurn ?? ""}
+
+${kit.strategy?.rationale ?? ""}
+
+## KPIs
+${(kit.kpis ?? []).map((k: any) => `- **${k.name}** → ${k.target} (\`${k.formula}\`)`).join("\n")}`);
+
+      const pricing = zip.folder("pricing") ?? zip;
+      pricing.file("tiers.md",
+`# Pricing Tiers
+${(kit.pricingTiers ?? []).map((t: any) =>
+`## ${t.name} — $${t.monthlyPrice}/mo · $${t.yearlyPrice}/yr${t.highlight ? " ⭐" : ""}
+**Persona:** ${t.targetPersona}
+**Positioning:** ${t.positioning}
+**CTA:** ${t.cta}
+
+### Features
+${(t.features ?? []).map((f: string) => `- ${f}`).join("\n")}
+
+### Limits
+${Object.entries(t.limits ?? {}).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+`).join("\n")}`);
+      pricing.file("pricing-page.html", kit.pricingPageHtml ?? "<!-- pricing page not generated -->");
+
+      zip.file("paywalls.md",
+`# Paywall Copy Library
+${(kit.paywallCopy ?? []).map((p: any) =>
+`## ${p.trigger}
+### ${p.headline}
+${p.subhead}
+
+${(p.bullets ?? []).map((b: string) => `- ${b}`).join("\n")}
+
+**Primary CTA:** ${p.primaryCta}
+**Secondary CTA:** ${p.secondaryCta}
+**Social proof:** ${p.socialProof}
+`).join("\n")}`);
+
+      const flows = zip.folder("flows") ?? zip;
+      flows.file("upsells.md",
+`# Upsell Flows
+${(kit.upsellFlows ?? []).map((u: any) => `## ${u.trigger} (+${u.expectedLiftPct}% expected)\n${u.flow}\n\n**Copy:** ${u.copy}\n`).join("\n")}`);
+      flows.file("downsells.md",
+`# Downsell Flows
+${(kit.downsellFlows ?? []).map((d: any) => `## ${d.trigger}\n**Offer:** ${d.offer}\n\n${d.copy}\n`).join("\n")}`);
+      flows.file("trial-conversion.md",
+`# Trial Conversion Sequence
+${(kit.trialConversion ?? []).map((t: any) => `## Day ${t.day} · ${t.channel}\n**Subject:** ${t.subject}\n\n${t.body}\n`).join("\n")}`);
+      flows.file("cancellation.md",
+`# Cancellation Flow
+
+## Exit survey
+${(kit.cancellationFlow?.surveyQuestions ?? []).map((q: any, i: number) => `### Q${i + 1}. ${q.q}\n${(q.options ?? []).map((o: string) => `- ${o}`).join("\n")}`).join("\n\n")}
+
+## Save offer
+${kit.cancellationFlow?.saveOffer ?? ""}
+
+## Confirmation email
+**Subject:** ${kit.cancellationFlow?.confirmationEmail?.subject ?? ""}
+
+${kit.cancellationFlow?.confirmationEmail?.body ?? ""}`);
+
+      const checkout = zip.folder("checkout") ?? zip;
+      checkout.file("checkout-copy.md",
+`# Checkout Page
+
+**Title:** ${kit.checkoutCopy?.pageTitle ?? ""}
+
+## Trust badges
+${(kit.checkoutCopy?.trustBadges ?? []).map((b: string) => `- ${b}`).join("\n")}
+
+## Guarantees
+${(kit.checkoutCopy?.guarantees ?? []).map((g: string) => `- ${g}`).join("\n")}
+
+## FAQs
+${(kit.checkoutCopy?.faqs ?? []).map((f: any) => `### ${f.q}\n${f.a}`).join("\n\n")}`);
+      checkout.file("receipt-email.md",
+`# Receipt Email
+**Subject:** ${kit.receiptEmail?.subject ?? ""}
+
+${kit.receiptEmail?.body ?? ""}`);
+      checkout.file("dunning-emails.md",
+`# Dunning Emails (failed payment recovery)
+${(kit.dunningEmails ?? []).map((d: any) => `## Attempt ${d.attempt} · day ${d.sendDay}\n**Subject:** ${d.subject}\n\n${d.body}\n`).join("\n")}`);
+      checkout.file("renewal-emails.md",
+`# Renewal Emails
+${(kit.renewalEmails ?? []).map((r: any) => `## ${r.trigger}\n**Subject:** ${r.subject}\n\n${r.body}\n`).join("\n")}`);
+
+      const referral = zip.folder("referral") ?? zip;
+      referral.file("program.md",
+`# Referral Program
+
+- **User reward:** ${kit.referralProgram?.userReward ?? ""}
+- **Friend reward:** ${kit.referralProgram?.friendReward ?? ""}
+
+## Mechanics
+${kit.referralProgram?.mechanics ?? ""}
+
+## Share copy
+### Email
+${kit.referralProgram?.shareCopy?.email ?? ""}
+
+### Twitter
+${kit.referralProgram?.shareCopy?.twitter ?? ""}
+
+### LinkedIn
+${kit.referralProgram?.shareCopy?.linkedin ?? ""}
+
+### WhatsApp
+${kit.referralProgram?.shareCopy?.whatsapp ?? ""}`);
+      referral.file("referral-page.html", kit.referralProgram?.referralPageHtml ?? "<!-- referral page not generated -->");
+
+      const affiliate = zip.folder("affiliate") ?? zip;
+      affiliate.file("program.md",
+`# Affiliate Program
+
+- **Commission:** ${kit.affiliateProgram?.commission ?? ""}
+- **Cookie window:** ${kit.affiliateProgram?.cookieWindow ?? ""}
+- **Payout terms:** ${kit.affiliateProgram?.payoutTerms ?? ""}
+
+## Assets
+${(kit.affiliateProgram?.assets ?? []).map((a: string) => `- ${a}`).join("\n")}`);
+      affiliate.file("recruitment-email.md",
+`# Affiliate Recruitment Email
+**Subject:** ${kit.affiliateProgram?.recruitmentEmail?.subject ?? ""}
+
+${kit.affiliateProgram?.recruitmentEmail?.body ?? ""}`);
+
+      const enterprise = zip.folder("enterprise") ?? zip;
+      enterprise.file("one-pager.md", kit.enterprisePitch?.onePagerMarkdown ?? "");
+      enterprise.file("pricing-model.md", `# Enterprise Pricing Model\n\n${kit.enterprisePitch?.pricingModel ?? ""}`);
+      enterprise.file("sales-email.md",
+`# Enterprise Sales Email
+**Subject:** ${kit.enterprisePitch?.salesEmail?.subject ?? ""}
+
+${kit.enterprisePitch?.salesEmail?.body ?? ""}`);
+      enterprise.file("objection-responses.md",
+`# Objection Responses
+${(kit.enterprisePitch?.objectionResponses ?? []).map((o: any) => `## "${o.objection}"\n${o.response}`).join("\n\n")}`);
+
+      zip.file("roi-calculator.html", kit.roiCalculator?.html ?? "<!-- roi calculator not generated -->");
+      zip.file("roi-calculator.md",
+`# ROI Calculator
+
+**Formula:** \`${kit.roiCalculator?.formula ?? ""}\`
+
+## Inputs
+${(kit.roiCalculator?.inputs ?? []).map((i: any) => `- **${i.label}** (${i.type}, default \`${i.defaultValue}\`)${(i.options ?? []).length ? ` — options: ${i.options.join(", ")}` : ""}`).join("\n")}`);
+
+      const stripe = zip.folder("integrations/stripe") ?? zip;
+      stripe.file("README.md",
+`# Stripe Integration
+
+## Products
+${(kit.stripeBlueprint?.products ?? []).map((p: any) => `- **${p.name}** — $${p.amount} / ${p.interval} · price id: \`${p.priceId}\``).join("\n")}
+
+## Webhook events
+${(kit.stripeBlueprint?.webhookEvents ?? []).map((e: string) => `- \`${e}\``).join("\n")}
+
+## Env vars
+${(kit.stripeBlueprint?.envVars ?? []).map((e: string) => `- \`${e}\``).join("\n")}`);
+      stripe.file("checkout-session.ts", kit.stripeBlueprint?.checkoutSessionCode ?? "// not generated");
+      stripe.file("portal-session.ts", kit.stripeBlueprint?.portalSessionCode ?? "// not generated");
+      stripe.file("webhook-handler.ts", kit.stripeBlueprint?.webhookHandlerCode ?? "// not generated");
+
+      const paddle = zip.folder("integrations/paddle") ?? zip;
+      paddle.file("README.md",
+`# Paddle Integration
+
+## Products
+${(kit.paddleBlueprint?.products ?? []).map((p: any) => `- **${p.name}** — $${p.amount} / ${p.billingCycle} · price id: \`${p.priceId}\``).join("\n")}
+
+## Webhook events
+${(kit.paddleBlueprint?.webhookEvents ?? []).map((e: string) => `- \`${e}\``).join("\n")}
+
+## Env vars
+${(kit.paddleBlueprint?.envVars ?? []).map((e: string) => `- \`${e}\``).join("\n")}`);
+      paddle.file("checkout.ts", kit.paddleBlueprint?.checkoutCode ?? "// not generated");
+      paddle.file("webhook-handler.ts", kit.paddleBlueprint?.webhookHandlerCode ?? "// not generated");
+
+      const lic = zip.folder("integrations/license-keys") ?? zip;
+      lic.file("schema.sql", kit.licenseKeySystem?.schema ?? "-- not generated");
+      lic.file("activation.ts", kit.licenseKeySystem?.activationFlowCode ?? "// not generated");
+      lic.file("validation.ts", kit.licenseKeySystem?.validationFlowCode ?? "// not generated");
+      lic.file("revocation.ts", kit.licenseKeySystem?.revocationFlowCode ?? "// not generated");
+
+      zip.file("billing-faq.md",
+`# Billing FAQ
+${(kit.billingFaq ?? []).map((f: any) => `## ${f.q}\n${f.a}`).join("\n\n")}`);
+
+      zip.file("raw-engine.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-revenue-engine.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`revenue:${selected.id}`]: kit }));
+      toast.success("Revenue engine ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Revenue engine failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
@@ -2130,6 +2400,36 @@ All copy is original and IP-safe.`);
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Sells data: {a("legal").cwsDataUsageDisclosure?.sellsData ? "yes" : "no"} · Collects PII: {a("legal").cwsDataUsageDisclosure?.collectsPii ? "yes" : "no"}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card className="border-green-400/40 bg-green-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-green-400" />Monetization & Revenue Engine</CardTitle>
+                        <CardDescription className="text-[10px]">Recommended model (ARPU/LTV/churn), pricing tiers + self-contained pricing page, trigger-based paywalls, upsell/downsell/trial/cancellation flows, checkout + receipt + dunning + renewal emails, referral & affiliate programs, enterprise pitch + objection responses, ROI calculator, Stripe & Paddle blueprints with real code, license-key system, KPIs.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateRevenueEngine} disabled={analyzing === "revenue" || !selected}>
+                        {analyzing === "revenue" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Engine
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("revenue") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{a("revenue").strategy?.recommendedModel}</Badge>
+                        <Badge variant="outline" className="text-[9px]">ARPU {a("revenue").strategy?.expectedArpu}</Badge>
+                        <Badge variant="outline" className="text-[9px]">LTV {a("revenue").strategy?.expectedLtv}</Badge>
+                        {(a("revenue").pricingTiers ?? []).map((t: any, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px]">{t.name} ${t.monthlyPrice}/mo</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("revenue").paywallCopy ?? []).length} paywalls · {(a("revenue").upsellFlows ?? []).length} upsells · {(a("revenue").dunningEmails ?? []).length} dunning · Stripe + Paddle blueprints
                       </div>
                     </CardContent>
                   )}
