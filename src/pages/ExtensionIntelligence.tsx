@@ -4241,6 +4241,38 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-pink-400/40 bg-pink-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><MessageCircle className="h-4 w-4 text-pink-400" />Feedback Loop & Review Prompts</CardTitle>
+                        <CardDescription className="text-[10px]">Smart review-ask triggers with cooldowns, value-moment scoring, and CWS deep-link; NPS/CSAT/CES micro-surveys with follow-ups + SQL dashboards; MV3-safe in-extension feedback form with offline queue + PII redaction; Supabase-backed feedback inbox with RLS, triage, SLA matrix, auto-tagging, AI clustering, duplicate detection, Slack/Discord/Linear/GitHub webhooks; public roadmap voting board with anti-brigading + moderation + status changelog; close-the-loop response templates + shipped notifications; detractor recovery workflow; CWS review monitoring & reply templates; GDPR/CCPA consent flow; full event taxonomy + funnels; AI feedback agent prompts.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateFeedbackLoop} disabled={analyzing === "feedbackLoop" || !selected}>
+                        {analyzing === "feedbackLoop" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Feedback Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("feedbackLoop") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").smartReviewPrompt?.triggerRules ?? []).length} triggers</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").smartReviewPrompt?.uiVariants ?? []).length} prompt UI</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").feedbackInbox?.webhookIntegrations ?? []).length} webhooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").feedbackInbox?.slaMatrix ?? []).length} SLAs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").roadmapVoting?.statuses ?? []).length} roadmap states</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").analytics?.eventTaxonomy ?? []).length} events</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").overview?.kpis ?? []).length} KPIs</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Rollout: {(a("feedbackLoop").rolloutPlan ?? []).map((p: any) => p.phase).join(" → ")}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
 
 
