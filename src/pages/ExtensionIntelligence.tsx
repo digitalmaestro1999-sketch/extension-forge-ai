@@ -5232,6 +5232,38 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><ChromeIcon className="h-4 w-4 text-blue-400" />Cross-Browser Port Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Firefox (MV3 + MV2-fallback), Edge (MV3), and Safari Web Extension (Xcode / macOS + iOS) conversions of the same MV3 extension. Shared-core polyfill + adapters (storage/messaging/scripting/menus/notifications/alarms/tabs/DNR); real per-target manifests; unified diffs for background, content-scripts, sidebar and Safari-specific patches; safari-web-extension-converter command, Xcode project layout, Info.plist + entitlements + Swift handler + native-messaging bridge; monorepo build system (Vite + web-ext + manifest transformer producing dist/chrome|firefox|edge|safari); GitHub Actions matrix with signing + auto-submit; Playwright fixtures + manual QA matrix + WebKitDriver notes; codemods, API replacement tables, pitfalls, rollback; per-store submission runbooks (CWS/AMO/Edge Add-ons/App Store Connect); permissions matrix + DNR porting + Safari content-blocker notes; cross-browser error reporter and Sentry per target.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateCrossBrowserPort} disabled={analyzing === "crossBrowserPort" || !selected}>
+                        {analyzing === "crossBrowserPort" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Port Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("crossBrowserPort") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").overview?.supportedTargets ?? []).length} targets</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").firefox?.diffs ?? []).length} FF diffs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").edge?.diffs ?? []).length} Edge diffs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").safari?.diffs ?? []).length} Safari diffs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").checklist ?? []).length} checks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("crossBrowserPort").rollout?.phases ?? []).length} rollout phases</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Targets: {(a("crossBrowserPort").overview?.supportedTargets ?? []).map((t: any) => t.target).join(" · ")}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
 
