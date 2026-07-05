@@ -239,6 +239,137 @@ export type Database = {
           },
         ]
       }
+      intel_analyses: {
+        Row: {
+          competitor_id: string | null
+          created_at: string
+          id: string
+          module_key: string
+          payload: Json
+          report_id: string
+        }
+        Insert: {
+          competitor_id?: string | null
+          created_at?: string
+          id?: string
+          module_key: string
+          payload?: Json
+          report_id: string
+        }
+        Update: {
+          competitor_id?: string | null
+          created_at?: string
+          id?: string
+          module_key?: string
+          payload?: Json
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intel_analyses_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "intel_competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intel_analyses_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "intel_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intel_competitors: {
+        Row: {
+          category: string | null
+          chrome_id: string | null
+          created_at: string
+          developer: string | null
+          id: string
+          name: string
+          rank: number | null
+          rating: number | null
+          raw: Json
+          report_id: string
+          review_count: number | null
+          url: string | null
+          users_count: string | null
+        }
+        Insert: {
+          category?: string | null
+          chrome_id?: string | null
+          created_at?: string
+          developer?: string | null
+          id?: string
+          name: string
+          rank?: number | null
+          rating?: number | null
+          raw?: Json
+          report_id: string
+          review_count?: number | null
+          url?: string | null
+          users_count?: string | null
+        }
+        Update: {
+          category?: string | null
+          chrome_id?: string | null
+          created_at?: string
+          developer?: string | null
+          id?: string
+          name?: string
+          rank?: number | null
+          rating?: number | null
+          raw?: Json
+          report_id?: string
+          review_count?: number | null
+          url?: string | null
+          users_count?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intel_competitors_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "intel_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intel_reports: {
+        Row: {
+          created_at: string
+          id: string
+          input_type: string
+          input_value: string
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_type: string
+          input_value: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_type?: string
+          input_value?: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
