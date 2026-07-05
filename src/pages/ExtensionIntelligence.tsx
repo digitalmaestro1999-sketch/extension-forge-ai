@@ -1885,12 +1885,32 @@ All copy is original and IP-safe.`);
                   )}
                 </Card>
 
-
-
-
-
-
-
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-400" />Post-Launch Growth OS</CardTitle>
+                        <CardDescription className="text-[10px]">Review-response library (5★→1★, bugs, feature reqs, permissions, pricing), ratings-recovery playbook, A/B listing variants, 90-day roadmap, changelog templates, support macros, retention & reactivation emails, uninstall survey, ASO refresh cadence, upgrade CTAs, community kit, and KPI targets.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateGrowthKit} disabled={analyzing === "growth" || !selected}>
+                        {analyzing === "growth" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate OS
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("growth") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        {Object.keys(a("growth").reviewResponses ?? {}).map((k) => (
+                          <Badge key={k} variant="outline" className="text-[9px]">{k}</Badge>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a("growth").abListingVariants ?? []).length} A/B variants · {(a("growth").retentionEmails ?? []).length} retention · {(a("growth").supportMacros ?? []).length} macros · {(a("growth").kpis ?? []).length} KPIs
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
 
 
                 <Card>
