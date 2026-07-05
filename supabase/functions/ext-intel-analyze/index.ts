@@ -64,6 +64,22 @@ Return JSON: { "scores": { "features": number, "uiUx": number, "easeOfUse": numb
 Return JSON: { "cells": [{ "niche": string, "aiReadiness": 0-100, "userDemand": 0-100, "competitionLevel": 0-100, "revenuePotential": 0-100, "complexity": 0-100 }] }`,
   prompts: `Generate production-ready dev prompts for the extension blueprint targeting each AI tool. ${GUARDRAIL}
 Return JSON: { "lovable": string, "cursor": string, "windsurf": string, "claudeCode": string, "geminiCli": string, "copilot": string, "bolt": string, "replit": string }`,
+  launch: `Generate a complete launch & marketing kit for a NEW, ORIGINAL Chrome extension inspired by (but not copying) the provided competitor context. Use the blueprint / buildBetter / listing context if present. All copy must be original, high-converting, and platform-native. ${GUARDRAIL}
+Return JSON: {
+  "positioning": { "tagline": string, "oneLiner": string, "elevatorPitch": string, "targetPersonas": string[], "uniqueValueProps": string[] },
+  "productHunt": { "name": string, "tagline": string, "description": string, "firstComment": string, "makerComment": string, "gallery": string[], "topics": string[] },
+  "tweets": { "launchThread": string[], "singleTweets": string[], "replyHooks": string[] },
+  "reddit": [{ "subreddit": string, "title": string, "body": string, "flair": string }],
+  "hackerNews": { "title": string, "showHnBody": string },
+  "linkedin": { "founderPost": string, "companyPost": string, "articleTitle": string, "articleBody": string },
+  "coldEmails": [{ "persona": string, "subject": string, "body": string }],
+  "blogPost": { "title": string, "metaDescription": string, "slug": string, "markdown": string },
+  "pressRelease": { "headline": string, "subheadline": string, "body": string, "boilerplate": string },
+  "landingPageHtml": string,
+  "launchChecklist": string[],
+  "influencerOutreach": [{ "channel": string, "pitch": string }]
+}
+The landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts), including hero, features, CTA, footer.`,
 };
 
 serve(async (req) => {
