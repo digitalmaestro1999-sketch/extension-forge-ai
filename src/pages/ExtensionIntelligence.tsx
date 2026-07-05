@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import SoftwareIntelligence from "./SoftwareIntelligence";
 import jsPDF from "jspdf";
+import JSZip from "jszip";
 
 type InputType = "keyword" | "category" | "url" | "chrome_id";
 interface Competitor {
@@ -298,6 +299,58 @@ export default function ExtensionIntelligence() {
     doc.save(`intel-report-${reportId}.pdf`);
     toast.success("PDF exported");
   }
+
+  // Tiny 1x1 transparent PNG (base64) — placeholder icons users can replace
+  const PLACEHOLDER_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+  async function generateExtension() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const blueprint = a("blueprint");
+    const buildBetter = a("buildBetter");
+    const architecture = a("architecture");
+    if (!blueprint && !buildBetter && !architecture) {
+      toast.error("Generate Blueprint, Build Better, or Architecture first (Build tab)");
+      return;
+    }
+    setAnalyzing("generate");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-generate", {
+        body: {
+          blueprint, buildBetter, architecture,
+          competitor_name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const result = data.result;
+      const files: Record<string, string> = result.files ?? {};
+      if (!files["manifest.json"]) throw new Error("Generator did not return manifest.json");
+
+      const zip = new JSZip();
+      Object.entries(files).forEach(([path, content]) => zip.file(path, content));
+      // Add placeholder icons (binary)
+      const iconBinary = Uint8Array.from(atob(PLACEHOLDER_PNG), c => c.charCodeAt(0));
+      zip.file("icon16.png", iconBinary);
+      zip.file("icon48.png", iconBinary);
+      zip.file("icon128.png", iconBinary);
+      zip.file("INSTALL.txt",
+        `Install unpacked:\n1. Unzip this folder.\n2. Open chrome://extensions\n3. Toggle Developer mode (top-right).\n4. Click "Load unpacked" and select the unzipped folder.\n\nReplace icon16/48/128.png with real icons before publishing.`);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safeName = (result.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safeName}.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`generated:${selected.id}`]: result }));
+      toast.success(`Generated "${result.name}" — ready to load unpacked`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
@@ -983,6 +1036,28 @@ export default function ExtensionIntelligence() {
               </TabsContent>
 
               <TabsContent value="ship" className="mt-4 space-y-3">
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Package className="h-4 w-4" />Auto-Build Extension (MV3 ZIP)</CardTitle>
+                        <CardDescription className="text-[10px]">Compiles Blueprint + Build Better + Architecture into a working, IP-safe Chrome extension you can Load Unpacked.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateExtension} disabled={analyzing === "generate" || !selected}>
+                        {analyzing === "generate" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Rocket className="h-3 w-3 mr-1" />}
+                        Generate & Download ZIP
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("generated") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div><strong>{a("generated").name}</strong> — {a("generated").description}</div>
+                      <div className="text-[10px] text-muted-foreground">Files: {Object.keys(a("generated").files ?? {}).join(", ")}</div>
+                      <div className="text-[10px] text-muted-foreground">Install: unzip → chrome://extensions → Developer mode → Load unpacked → select folder.</div>
+                    </CardContent>
+                  )}
+                </Card>
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-sm flex items-center gap-2"><Terminal className="h-4 w-4" />Dev Prompts</CardTitle>
