@@ -3608,6 +3608,261 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
     } finally { setAnalyzing(null); }
   }
 
+  async function generateCrossBrowserPort() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("crossBrowserPort");
+    try {
+      const blueprint = a("blueprint") ?? null;
+      const codegen = a("codegen") ?? null;
+      const listing = a("listing") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        blueprint,
+        codegen,
+        listing,
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "crossBrowserPort", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Cross-Browser Port Kit
+Generated ${new Date().toISOString()}
+
+${kit.overview?.summaryMd ?? ""}
+
+## Supported targets
+${(kit.overview?.supportedTargets ?? []).map((t: any) => `- **${t.target}** (min ${t.minVersion}) → ${t.storeName} · ${t.packageFormat} — ${t.notes}`).join("\n")}
+
+## Layout
+- shared-core/ — polyfill, adapters (storage/messaging/scripting/menus/notifications/alarms/tabs/DNR)
+- firefox/ — MV3 + MV2-fallback manifests, diffs, web-ext + AMO submission
+- edge/ — MV3 manifest, Partner Center + certification runbook
+- safari/ — safari-web-extension-converter, Xcode project, Info.plist, entitlements, Swift bridges
+- build-system/ — vite/webext monorepo, per-target build, manifest transformer
+- ci-cd/ — GitHub Actions matrix, signing, auto-submit
+- testing/ — Playwright fixtures, manual QA matrix, visual regression
+- migration/ — codemods, API replacement tables, pitfalls, rollback
+- store-submissions/ — reviewer notes and asset specs per store
+- permissions/ — permissions matrix, DNR porting, Safari content blocker notes
+- telemetry/ — cross-browser error reporter, Sentry per target
+- rollout-plan.md · checklist.md · raw-crossbrowser.json`);
+
+      zip.file("01-compatibility-matrix.md", kit.overview?.compatibilityMatrixMd ?? "");
+      zip.file("02-api-parity-matrix.md", kit.overview?.apiParityMatrixMd ?? "");
+      zip.file("03-known-limitations.md", kit.overview?.knownLimitationsMd ?? "");
+      zip.file("04-risk-register.md", kit.overview?.riskRegisterMd ?? "");
+
+      // Shared core
+      const sc = kit.sharedCore ?? {};
+      const scF = zip.folder("shared-core") ?? zip;
+      scF.file("00-strategy.md", sc.browserPolyfillStrategyMd ?? "");
+      scF.file("polyfill-loader.md", sc.polyfillLoaderMd ?? "");
+      scF.file("browser.ts", sc.browserShimTs ?? "");
+      scF.file("feature-detection.ts", sc.featureDetectionTs ?? "");
+      scF.file("adapters/storage.ts", sc.storageAdapterTs ?? "");
+      scF.file("adapters/messaging.ts", sc.messagingAdapterTs ?? "");
+      scF.file("adapters/scripting.ts", sc.scriptingAdapterTs ?? "");
+      scF.file("adapters/context-menus.ts", sc.contextMenusAdapterTs ?? "");
+      scF.file("adapters/notifications.ts", sc.notificationsAdapterTs ?? "");
+      scF.file("adapters/alarms.ts", sc.alarmsAdapterTs ?? "");
+      scF.file("adapters/tabs.ts", sc.tabsAdapterTs ?? "");
+      scF.file("adapters/declarative-net-request.ts", sc.declarativeNetRequestAdapterTs ?? "");
+
+      // Firefox
+      const ff = kit.firefox ?? {};
+      const ffF = zip.folder("firefox") ?? zip;
+      ffF.file("manifest.mv3.json", ff.manifestMv3Json ?? "");
+      ffF.file("manifest.mv2-fallback.json", ff.manifestMv2FallbackJson ?? "");
+      ffF.file("manifest.diff.md", ff.manifestDiffMd ?? "");
+      ffF.file("background-strategy.md", ff.backgroundStrategyMd ?? "");
+      ffF.file("event-page-background.js", ff.eventPageBackgroundJs ?? "");
+      ffF.file("browser-specific-settings.md", ff.browserSpecificSettingsMd ?? "");
+      ffF.file("gecko-id-guidance.md", ff.geckoIdGuidanceMd ?? "");
+      ffF.file("content-script.diff.md", ff.contentScriptDiffMd ?? "");
+      ffF.file("csrf-cors-gotchas.md", ff.csrfCorsGotchasMd ?? "");
+      ffF.file("webextension-polyfill-setup.md", ff.webExtensionsPolyfillSetupMd ?? "");
+      ffF.file("about-debugging-runbook.md", ff.aboutDebuggingRunbookMd ?? "");
+      ffF.file("web-ext-submit.md", ff.webExtSubmitMd ?? "");
+      ffF.file("amo-review-checklist.md", ff.amoReviewChecklistMd ?? "");
+      ffF.file("signing-workflow.md", ff.signingWorkflowMd ?? "");
+      ffF.file("known-rejection-reasons.md", ff.knownRejectionReasonsMd ?? "");
+      const ffDF = ffF.folder("diffs") ?? ffF;
+      (ff.diffs ?? []).forEach((d: any, i: number) => {
+        const slug = `${String(i + 1).padStart(2, "0")}-${String(d.file ?? "file").replace(/[^a-zA-Z0-9.-]+/g, "-")}`;
+        ffDF.file(`${slug}.patch`, d.unifiedDiff ?? "");
+        ffDF.file(`${slug}.md`, `# ${d.file}\n${d.reason ?? ""}`);
+      });
+
+      // Edge
+      const eg = kit.edge ?? {};
+      const egF = zip.folder("edge") ?? zip;
+      egF.file("manifest.json", eg.manifestJson ?? "");
+      egF.file("manifest.diff.md", eg.manifestDiffMd ?? "");
+      egF.file("store-metadata.md", eg.storeMetadataMd ?? "");
+      egF.file("partner-center-onboarding.md", eg.partnerCenterOnboardingMd ?? "");
+      egF.file("edge-specific-apis.md", eg.edgeSpecificApisMd ?? "");
+      egF.file("sidebar-panel.diff.md", eg.sidebarPanelDiffMd ?? "");
+      egF.file("identity-redirect-urls.md", eg.identityRedirectUrlsMd ?? "");
+      egF.file("certification-checklist.md", eg.certificationChecklistMd ?? "");
+      const egDF = egF.folder("diffs") ?? egF;
+      (eg.diffs ?? []).forEach((d: any, i: number) => {
+        const slug = `${String(i + 1).padStart(2, "0")}-${String(d.file ?? "file").replace(/[^a-zA-Z0-9.-]+/g, "-")}`;
+        egDF.file(`${slug}.patch`, d.unifiedDiff ?? "");
+        egDF.file(`${slug}.md`, `# ${d.file}\n${d.reason ?? ""}`);
+      });
+
+      // Safari
+      const sf = kit.safari ?? {};
+      const sfF = zip.folder("safari") ?? zip;
+      sfF.file("00-converter-command.sh", sf.converterCommand ?? "");
+      sfF.file("01-converter-flags.md", sf.converterFlagsExplainedMd ?? "");
+      sfF.file("02-xcode-project-structure.md", sf.xcodeProjectStructureMd ?? "");
+      sfF.file("SafariWebExtensionHandler.swift", sf.safariWebExtensionHandlerSwift ?? "");
+      sfF.file("NativeMessagingBridge.swift", sf.nativeMessagingBridgeSwift ?? "");
+      sfF.file("shim.swift", sf.swiftShimSample ?? "");
+      sfF.file("Info.plist.patch.xml", sf.infoPlistPatchXml ?? "");
+      sfF.file("Extension.entitlements", sf.entitlementsPlistXml ?? "");
+      sfF.file("swift-package-dependencies.md", sf.swiftPackageDependenciesMd ?? "");
+      sfF.file("mac-catalyst-notes.md", sf.macCatalystNotesMd ?? "");
+      sfF.file("ios-container-app.md", sf.iosContainerAppMd ?? "");
+      sfF.file("manifest.json", sf.manifestJson ?? "");
+      sfF.file("manifest.diff.md", sf.manifestDiffMd ?? "");
+      sfF.file("content-script-world-notes.md", sf.contentScriptWorldNotesMd ?? "");
+      sfF.file("storage-quirks.md", sf.storageQuirksMd ?? "");
+      sfF.file("background-lifecycle.md", sf.backgroundLifecycleMd ?? "");
+      sfF.file("declarative-net-request-notes.md", sf.declarativeNetRequestNotesMd ?? "");
+      sfF.file("app-store-review-checklist.md", sf.appStoreReviewChecklistMd ?? "");
+      sfF.file("signing-and-provisioning.md", sf.signingAndProvisioningMd ?? "");
+      sfF.file("testflight-runbook.md", sf.testflightRunbookMd ?? "");
+      sfF.file("known-rejection-reasons.md", sf.knownRejectionReasonsMd ?? "");
+      const sfDF = sfF.folder("diffs") ?? sfF;
+      (sf.diffs ?? []).forEach((d: any, i: number) => {
+        const slug = `${String(i + 1).padStart(2, "0")}-${String(d.file ?? "file").replace(/[^a-zA-Z0-9.-]+/g, "-")}`;
+        sfDF.file(`${slug}.patch`, d.unifiedDiff ?? "");
+        sfDF.file(`${slug}.md`, `# ${d.file}\n${d.reason ?? ""}`);
+      });
+
+      // Build system
+      const bs = kit.buildSystem ?? {};
+      const bsF = zip.folder("build-system") ?? zip;
+      bsF.file("00-monorepo-layout.md", bs.monorepoLayoutMd ?? "");
+      bsF.file("package.json", bs.packageJson ?? "");
+      bsF.file("vite.config.ts", bs.viteConfigTs ?? "");
+      bsF.file("web-ext.config.mjs", bs.webExtConfigMjs ?? "");
+      bsF.file("scripts/build-all-targets.ts", bs.buildAllTargetsScriptTs ?? "");
+      bsF.file("scripts/postbuild.ts", bs.targetSpecificPostbuildTs ?? "");
+      bsF.file("scripts/manifest-transformer.ts", bs.manifestTransformerTs ?? "");
+      bsF.file("Makefile", bs.makefile ?? "");
+      bsF.file("cli-usage.md", bs.cliUsageMd ?? "");
+
+      // CI/CD
+      const ci = kit.ciCd ?? {};
+      const ciF = zip.folder("ci-cd") ?? zip;
+      ciF.file(".github/workflows/release.yml", ci.githubActionsYml ?? "");
+      ciF.file("01-matrix-strategy.md", ci.matrixStrategyMd ?? "");
+      ciF.file("02-caching.md", ci.cachingStrategyMd ?? "");
+      ciF.file("03-release-pipeline.md", ci.releasePipelineMd ?? "");
+      ciF.file("04-changesets.md", ci.changesetsFlowMd ?? "");
+      ciF.file("05-artifact-signing.md", ci.artifactSigningMd ?? "");
+      ciF.file("06-auto-submit.md", ci.autoSubmitJobsMd ?? "");
+
+      // Testing
+      const ts = kit.testing ?? {};
+      const tsF = zip.folder("testing") ?? zip;
+      tsF.file("playwright.config.ts", ts.playwrightConfigTs ?? "");
+      tsF.file("fixtures/extension.ts", ts.playwrightExtensionFixtureTs ?? "");
+      tsF.file("e2e.spec.ts", ts.e2eTestsTs ?? "");
+      tsF.file("01-puppeteer-firefox.md", ts.puppeteerFirefoxNoteMd ?? "");
+      tsF.file("02-safari-webkitdriver.md", ts.safariWebkitDriverNotesMd ?? "");
+      tsF.file("03-manual-qa-matrix.md", ts.manualQaMatrixMd ?? "");
+      tsF.file("04-smoke-checklist.md", ts.smokeChecklistPerTargetMd ?? "");
+      tsF.file("05-visual-regression.md", ts.visualRegressionSetupMd ?? "");
+
+      // Migration
+      const mg = kit.migration ?? {};
+      const mgF = zip.folder("migration") ?? zip;
+      mgF.file("00-prerequisites.md", mg.prerequisitesMd ?? "");
+      mgF.file("01-step-by-step.md", mg.stepByStepGuideMd ?? "");
+      mgF.file("02-codemod-patches.md", mg.codemodPatchesMd ?? "");
+      mgF.file("03-api-replacement.md", mg.apiReplacementTableMd ?? "");
+      mgF.file("04-manifest-field-migration.md", mg.manifestFieldMigrationTableMd ?? "");
+      mgF.file("05-common-pitfalls.md", mg.commonPitfallsMd ?? "");
+      mgF.file("06-rollback-plan.md", mg.rollbackPlanMd ?? "");
+
+      // Store submissions
+      const ss = kit.storeSubmissions ?? {};
+      const ssF = zip.folder("store-submissions") ?? zip;
+      ssF.file("chrome-web-store.md", ss.chromeWebStoreMd ?? "");
+      ssF.file("firefox-amo.md", ss.firefoxAmoMd ?? "");
+      ssF.file("edge-add-ons.md", ss.edgeAddOnsMd ?? "");
+      ssF.file("safari-app-store-connect.md", ss.safariAppStoreConnectMd ?? "");
+      ssF.file("reviewer-notes-per-store.md", ss.reviewerNotesTemplatePerStoreMd ?? "");
+      ssF.file("screenshots-and-assets-spec.md", ss.screenshotsAndAssetsSpecMd ?? "");
+      ssF.file("privacy-policy-deltas.md", ss.privacyPolicyDeltasMd ?? "");
+
+      // Permissions
+      const pm = kit.userScriptsAndPermissions ?? {};
+      const pmF = zip.folder("permissions") ?? zip;
+      pmF.file("01-permissions-matrix.md", pm.permissionsMatrixMd ?? "");
+      pmF.file("02-optional-host-permissions.md", pm.optionalHostPermissionsStrategyMd ?? "");
+      pmF.file("03-declarative-net-request-porting.md", pm.declarativeNetRequestPortingMd ?? "");
+      pmF.file("04-webrequest-blocking-fallback.md", pm.webRequestBlockingFallbackMd ?? "");
+      pmF.file("05-safari-content-blocker.md", pm.safariContentBlockerNotesMd ?? "");
+
+      // Telemetry
+      const te = kit.telemetryAndErrors ?? {};
+      const teF = zip.folder("telemetry") ?? zip;
+      teF.file("cross-browser-error-reporter.ts", te.crossBrowserErrorReporterTs ?? "");
+      teF.file("01-feature-flag-fallbacks.md", te.featureFlagFallbacksMd ?? "");
+      teF.file("02-sentry-per-target.md", te.sentrySetupPerTargetMd ?? "");
+
+      // Rollout
+      zip.file("rollout-plan.md",
+`# Rollout plan
+${(kit.rollout?.phases ?? []).map((p: any) => `## ${p.phase} (${p.duration})
+**Goals**
+${(p.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+**Guardrails**
+${(p.guardrails ?? []).map((g: string) => `- ${g}`).join("\n")}
+`).join("\n")}
+
+## Canary strategy
+${kit.rollout?.canaryStrategyMd ?? ""}
+
+## Support routing
+${kit.rollout?.supportRoutingMd ?? ""}`);
+
+      zip.file("checklist.md",
+`# Cross-browser checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.target} · ${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-crossbrowser.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-crossbrowser-port.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`crossBrowserPort:${selected.id}`]: kit }));
+      toast.success("Cross-browser port kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Cross-browser port generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
