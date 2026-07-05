@@ -3273,6 +3273,40 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-emerald-400/40 bg-emerald-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><LifeBuoy className="h-4 w-4 text-emerald-400" />Support & Help Center Kit</CardTitle>
+                        <CardDescription className="text-[10px]">Complete help center (index + long-form articles + search index + sitemap), FAQ page with JSON-LD, in-app help widget (HTML/CSS/JS + contextual tooltips + onboarding), canned responses, ticket templates, SLA policy, escalation playbooks, contact + status pages, chatbot KB with intents, CWS review reply templates, and support KPIs.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateSupportHub} disabled={analyzing === "supportHub" || !selected}>
+                        {analyzing === "supportHub" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Support Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("supportHub") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").helpCenter?.articles ?? []).length} articles</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").faq?.items ?? []).length} FAQs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").cannedResponses ?? []).length} macros</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").escalationPlaybooks ?? []).length} playbooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").chatbotKnowledgeBase?.intents ?? []).length} intents</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("supportHub").reviewResponseTemplates ?? []).length} review replies</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Response SLA: {a("supportHub").overview?.targetResponseTime} · Resolution: {a("supportHub").overview?.targetResolutionTime}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
+
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-sm flex items-center gap-2"><Terminal className="h-4 w-4" />Dev Prompts</CardTitle>
