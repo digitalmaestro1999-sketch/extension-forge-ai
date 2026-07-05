@@ -351,6 +351,92 @@ export default function ExtensionIntelligence() {
     } finally { setAnalyzing(null); }
   }
 
+  async function generateStoreKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("storekit");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-store-kit", {
+        body: {
+          blueprint: a("blueprint"),
+          buildBetter: a("buildBetter"),
+          listing: a("listing"),
+          competitor_name: selected.name,
+          category: selected.raw?.category ?? null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      const l = kit.listing ?? {};
+      zip.file("00-README.md",
+`# Chrome Web Store Publish Kit
+Generated ${new Date().toISOString()}
+
+Contents:
+- listing.md — title, descriptions, category, keywords
+- privacy-policy.md — host this at a public URL and link it in the CWS listing
+- permissions.md — justification for every permission (paste into CWS review notes)
+- single-purpose.txt — required single-purpose statement
+- data-usage.json — data disclosure form answers
+- icon-brief.md — icon generation prompt
+- promo-tiles.md — 440x280 / 920x680 / 1400x560 concepts
+- screenshots.md — screenshot brief (1280x800 or 640x400)
+
+All copy is original and IP-safe.`);
+
+      zip.file("listing.md",
+`# ${l.title ?? ""}
+
+**Category:** ${l.category ?? ""}
+**Language:** ${l.language ?? "en"}
+
+## Short description
+${l.shortDescription ?? ""}
+
+## Detailed description
+${l.detailedDescription ?? ""}
+
+## Keywords
+${(l.keywords ?? []).join(", ")}`);
+
+      zip.file("privacy-policy.md", kit.privacyPolicy ?? "");
+      zip.file("single-purpose.txt", kit.singlePurpose ?? "");
+
+      const perms = (kit.permissionsJustification ?? []).map((p: any) =>
+        `## ${p.permission}\n**Why:** ${p.why}\n**Minimal alternative:** ${p.minimalAlternative}\n`).join("\n");
+      zip.file("permissions.md", `# Permissions Justification\n\n${perms}`);
+
+      zip.file("data-usage.json", JSON.stringify(kit.dataUsageDisclosure ?? {}, null, 2));
+      zip.file("icon-brief.md", `# Icon Brief (128×128)\n\n${kit.iconPrompt ?? ""}`);
+
+      const tiles = (kit.promoTileConcepts ?? []).map((t: any) =>
+        `## ${t.size}\n${t.concept}\n`).join("\n");
+      zip.file("promo-tiles.md", `# Promotional Tile Concepts\n\n${tiles}`);
+
+      const shots = (kit.screenshots ?? []).map((s: any, i: number) =>
+        `## ${i + 1}. ${s.filename}\n**Size:** ${s.size}\n**Caption:** ${s.caption}\n**Content:** ${s.content}\n`).join("\n");
+      zip.file("screenshots.md", `# Screenshot Brief\n\n${shots}`);
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (l.title ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-cws-kit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`storekit:${selected.id}`]: kit }));
+      toast.success("Publish kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Store kit failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
