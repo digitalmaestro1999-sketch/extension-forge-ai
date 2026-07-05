@@ -1227,6 +1227,35 @@ ${(l.keywords ?? []).join(", ")}`);
                   )}
                 </Card>
 
+                <Card className="border-amber-400/40 bg-amber-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Palette className="h-4 w-4" />AI Icon Generator</CardTitle>
+                        <CardDescription className="text-[10px]">Generates a real icon via Lovable AI, auto-resizes to 16/48/128/512 PNGs. Uses the icon brief from the Publish Kit when available.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateIcons} disabled={analyzing === "icons" || !selected}>
+                        {analyzing === "icons" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                        Generate Icons
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("icons")?.preview && (
+                    <CardContent className="text-xs">
+                      <div className="flex items-end gap-4">
+                        {[128, 48, 16].map((s) => (
+                          <div key={s} className="flex flex-col items-center gap-1">
+                            <img src={a("icons").preview} alt={`icon ${s}`} style={{ width: s, height: s, imageRendering: s <= 48 ? "pixelated" : "auto" }} className="rounded border border-border bg-black/20" />
+                            <span className="text-[9px] text-muted-foreground">{s}px</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+
 
 
                 <Card>
