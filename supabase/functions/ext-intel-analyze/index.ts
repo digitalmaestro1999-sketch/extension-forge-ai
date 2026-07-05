@@ -859,6 +859,145 @@ IMPORTANT:
 - Dashboard status transitions must be enforced in code, not just described.
 - CWS reviewer note must explicitly state: no remote code is executed, remote config is data-only JSON with signed integrity, and all variant behavior ships in the reviewed bundle.
 - Every script (verifier, assignment engine, SRM check, sample-size calc, significance calc) must be complete, standalone TS runnable with \`npx tsx <file>\` — no placeholders.`,
+  communityEngine: `Generate a complete COMMUNITY & CONTENT ENGINE for a NEW, ORIGINAL Chrome extension inspired by (but never copying) the provided competitor context. Produce REAL, ready-to-use assets — full posts, full outreach emails, full editorial calendar entries, real subreddit/community targeting, tone-appropriate copy — never summaries or placeholders. Everything must be platform-native (respect each community's rules and tone) and non-spammy. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "productPositioning": string, "targetAudiences": string[], "voiceAndTone": string, "brandPillars": string[], "goals": string[], "kpis": [{ "metric": string, "target": string }], "antiPatternsMd": string },
+  "launchScheduler": {
+    "narrativeMd": string,
+    "recommendedLaunchDay": { "weekday": string, "reasoning": string },
+    "timelineWeeks": number,
+    "phases": [{ "phase": "prep"|"soft-launch"|"launch-day"|"post-launch"|"sustain", "startOffsetDays": number, "durationDays": number, "goals": string[], "channels": string[] }],
+    "channelSchedule": [{
+      "channel": "producthunt"|"hackernews"|"indiehackers"|"reddit"|"twitter"|"linkedin"|"devto"|"hashnode"|"medium"|"lobsters"|"betalist"|"microlaunch"|"peerlist"|"youtube"|"tiktok"|"substack"|"newsletter"|"discord"|"slack"|"facebook-group",
+      "targetHandleOrCommunity": string,
+      "scheduledOffsetHours": number,
+      "postType": string,
+      "hookHeadline": string,
+      "postBody": string,
+      "firstComment": string,
+      "cta": string,
+      "assetsNeeded": string[],
+      "rulesChecklist": string[],
+      "successCriteria": string
+    }],
+    "producthunt": { "productName": string, "tagline": string, "description": string, "topics": string[], "makerComment": string, "firstComment": string, "hunterOutreachTemplate": string, "gallerySpec": string[], "faqAnswers": [{ "q": string, "a": string }], "launchDayScheduleMd": string, "upvoteEthicsMd": string },
+    "hackerNews": { "showHnTitle": string, "showHnBody": string, "commentReplyTemplates": [{ "situation": string, "reply": string }], "postingWindowUtc": string, "moderationDosAndDontsMd": string },
+    "indieHackers": { "milestoneTitle": string, "milestoneBody": string, "productPageMd": string, "groupsToPostIn": string[], "founderStoryPost": string },
+    "reddit": {
+      "subredditPlan": [{ "subreddit": string, "audienceFit": string, "rulesSummary": string, "selfPromoRatioNotes": string, "bestDay": string, "bestTimeUtc": string, "flair": string, "postTitle": string, "postBody": string, "commentFirstReply": string, "modOutreachTemplate": string }],
+      "amaPlanMd": string,
+      "antiSpamPlaybookMd": string
+    },
+    "seedingCommunities": [{ "type": "discord"|"slack"|"circle"|"facebook-group"|"forum", "name": string, "url": string, "audienceFit": string, "introMessage": string, "rulesNotes": string }],
+    "launchDayRunbookMd": string,
+    "postLaunchFollowupsMd": string
+  },
+  "contentCalendar": {
+    "strategyMd": string,
+    "cadence": { "postsPerWeek": number, "cornerstonePerMonth": number, "socialPerDay": number },
+    "pillarsBreakdown": [{ "pillar": string, "percent": number, "sampleTopics": string[] }],
+    "weeks": [{
+      "weekNumber": number,
+      "theme": string,
+      "days": [{
+        "dayOfWeek": "Mon"|"Tue"|"Wed"|"Thu"|"Fri"|"Sat"|"Sun",
+        "items": [{ "channel": string, "format": "blog"|"tweet"|"thread"|"linkedin-post"|"short-video"|"long-video"|"newsletter"|"reddit"|"devto"|"hn"|"ih"|"changelog"|"case-study"|"tutorial", "workingTitle": string, "hook": string, "outline": string, "cta": string, "keywords": string[], "estimatedEffortHours": number, "assetsNeeded": string[] }]
+      }]
+    }],
+    "seoTargetsMd": string,
+    "repurposingRulesMd": string,
+    "editorialWorkflowMd": string,
+    "kanbanStates": [{ "id": "idea"|"draft"|"review"|"scheduled"|"published"|"analyzed", "label": string, "next": string[] }],
+    "styleGuideMd": string,
+    "briefTemplateMd": string,
+    "distributionChecklistMd": string,
+    "icalExportSampleMd": string
+  },
+  "outreachCrm": {
+    "productSpecMd": string,
+    "databaseSchemaSql": string,
+    "rlsPoliciesSql": string,
+    "supabaseEdgeFunctionsTs": [{ "name": string, "purpose": string, "code": string }],
+    "contactSchema": [{ "field": string, "type": string, "purpose": string, "sensitive": boolean }],
+    "segments": [{ "id": string, "label": string, "criteria": string }],
+    "personas": [{ "id": string, "name": string, "role": string, "watering-holes": string[], "painPoints": string[], "objections": string[], "hooks": string[] }],
+    "sequences": [{
+      "id": string,
+      "purpose": "launch-influencer"|"press"|"partnership"|"newsletter-swap"|"podcast-pitch"|"youtube-collab"|"customer-advocate"|"beta-tester",
+      "channel": "email"|"twitter-dm"|"linkedin-dm"|"cold-comment",
+      "steps": [{ "dayOffset": number, "subject": string, "body": string, "personalizationHints": string[] }]
+    }],
+    "influencerTiers": [{ "tier": "nano"|"micro"|"mid"|"macro"|"press", "followerRange": string, "outreachStrategy": string, "compensationNorms": string, "kpi": string }],
+    "sourcingListsMd": string,
+    "prospectingScriptTs": string,
+    "replyClassifierPrompt": string,
+    "followupCadenceMd": string,
+    "compliance": { "canSpamMd": string, "gdprMd": string, "unsubscribeCopyMd": string },
+    "trackingSchemaSql": string,
+    "reportingViewsSql": string,
+    "adminInboxReactTsx": string,
+    "sequenceEditorReactTsx": string,
+    "kpiDashboardReactTsx": string,
+    "webhookIntegrations": [{ "target": "slack"|"discord"|"notion"|"linear"|"hubspot"|"email", "payloadTemplate": string, "setupMd": string }]
+  },
+  "prToolkit": {
+    "pressReleaseMd": string,
+    "boilerplate": string,
+    "mediaKitMd": string,
+    "journalistOutreachTemplate": string,
+    "targetPublications": [{ "outlet": string, "beat": string, "reason": string, "pitchAngle": string }],
+    "helpAReporterOutRepliesMd": string,
+    "podcastPitches": [{ "podcast": string, "host": string, "angle": string, "email": string }]
+  },
+  "communityBuilding": {
+    "philosophyMd": string,
+    "recommendedPlatform": "discord"|"slack"|"circle"|"discourse",
+    "channelsAndRolesMd": string,
+    "welcomeSequenceMd": string,
+    "codeOfConductMd": string,
+    "moderationPlaybookMd": string,
+    "engagementRitualsMd": string,
+    "ambassadorProgramMd": string,
+    "eventCalendarMd": string
+  },
+  "amplification": {
+    "referralProgramMd": string,
+    "affiliateProgramMd": string,
+    "userGeneratedContentPromptsMd": string,
+    "customerStoryTemplateMd": string,
+    "reviewGenerationPlaybookMd": string
+  },
+  "analytics": {
+    "eventTaxonomy": [{ "event": string, "props": [{ "name": string, "type": string }], "purpose": string }],
+    "utmSchemeMd": string,
+    "attributionModelMd": string,
+    "dashboardSpecMd": string,
+    "sampleQueriesSql": string[]
+  },
+  "safetyAndEthics": {
+    "communityRulesRespectMd": string,
+    "disclosureRequirementsMd": string,
+    "antiSpamRulesMd": string,
+    "brandSafetyMd": string,
+    "rateLimitsMd": string
+  },
+  "manifestAdditions": { "permissions": string[], "hostPermissions": string[], "optionalPermissions": string[], "rationaleMd": string },
+  "integrationGuideMd": string,
+  "rolloutPlan": [{ "phase": string, "duration": string, "goals": string[], "guardrails": string[] }],
+  "opsRunbookMd": string,
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- Every Reddit entry MUST target a real, appropriate subreddit and reflect its self-promo rules. Never recommend blanket cross-posting.
+- Product Hunt tagline max 60 chars; description ≤ 260 chars; use Pacific-time launch cadence in launchDayScheduleMd and warn against upvote manipulation.
+- Hacker News: "Show HN:" title must follow HN guidelines (no marketing fluff, no "Show HN: We're excited to launch…"), body must be substantive, and reply templates must be humble/technical.
+- Indie Hackers milestone must include real metrics language (MRR, WAU) and a genuine founder story, not a press release.
+- Outreach sequences must be short (3–5 touches), personalization-first, include a soft opt-out line, and honor CAN-SPAM/GDPR — every email lists sender identity and unsubscribe copy.
+- SQL must target Supabase Postgres, include RLS scoped to workspace/owner so one workspace's CRM data is never visible to another. Tracking tables must never store third-party PII beyond what the user explicitly imported.
+- Webhook payload templates must be real JSON strings ready to paste into Slack/Discord/Notion/Linear/HubSpot, not placeholders.
+- The content calendar must span at least 4 weeks with concrete titles, hooks, and CTAs — no "TBD" or "Content idea 1".
+- Reference the Chrome extension product context (name, category, positioning) throughout — copy must not read as generic SaaS marketing.
+- Amplification programs (referral/affiliate) must comply with Chrome Web Store policies (no incentivized fake reviews).`,
 };
 
 serve(async (req) => {
