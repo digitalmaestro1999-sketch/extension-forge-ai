@@ -80,6 +80,21 @@ Return JSON: {
   "influencerOutreach": [{ "channel": string, "pitch": string }]
 }
 The landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts), including hero, features, CTA, footer.`,
+  localize: `Localize a Chrome Web Store listing and landing copy into the requested target locales. Do NOT do word-for-word translation — adapt tone, idioms, cultural references, CTAs, and SEO keywords for each locale's Chrome Web Store market. Keep the same product meaning. ${GUARDRAIL}
+Return JSON: {
+  "locales": [{
+    "locale": string,
+    "languageName": string,
+    "title": string,
+    "shortDescription": string,
+    "detailedDescription": string,
+    "keywords": string[],
+    "cta": string,
+    "culturalNotes": string,
+    "landingPageHtml": string
+  }]
+}
+Each landingPageHtml MUST be a complete, self-contained, mobile-responsive HTML page with inline CSS (no external assets, no scripts) with lang attribute set correctly, including hero, features, CTA, footer. Title ≤45 chars, shortDescription ≤132 chars.`,
 };
 
 serve(async (req) => {
