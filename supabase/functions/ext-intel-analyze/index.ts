@@ -205,6 +205,48 @@ IMPORTANT constraints:
 - Every comparison page must be a fully-formed HTML page comparing the new product to the named competitor without disparagement or copying — objective feature-benefit framing only.
 - Generate exactly 10 blogPosts and at least 3 comparisonPages.
 - sitemapXml must reference every page (root pages + blog posts + comparison pages).`,
+  analytics: `Generate a complete ANALYTICS & INSTRUMENTATION KIT for a NEW, ORIGINAL Chrome MV3 extension. Everything must be privacy-safe by default (no PII, opt-in consent, hashed user ids), specific to this product, and directly usable. Provide REAL executable code for the extension side (MV3 service worker + popup + content script). ${GUARDRAIL}
+Return JSON: {
+  "philosophy": { "principles": string[], "piiRules": string[], "retention": string, "optInFlow": string },
+  "eventSchema": [{ "name": string, "trigger": string, "surface": "popup"|"background"|"content"|"options"|"onboarding"|"install"|"uninstall", "properties": [{ "key": string, "type": "string"|"number"|"boolean"|"enum", "example": string, "pii": boolean, "required": boolean }], "sampling": number }],
+  "identity": { "anonIdStrategy": string, "userIdStrategy": string, "sessionRules": string, "code": string },
+  "consentBanner": { "html": string, "storageKey": string, "gateCode": string },
+  "extensionSnippets": {
+    "trackerCoreTs": string,
+    "backgroundTs": string,
+    "popupTs": string,
+    "contentTs": string,
+    "onboardingTs": string,
+    "uninstallHookTs": string
+  },
+  "adapters": {
+    "ga4": { "envVars": string[], "code": string, "measurementProtocolNotes": string },
+    "posthog": { "envVars": string[], "code": string },
+    "plausible": { "envVars": string[], "code": string },
+    "mixpanel": { "envVars": string[], "code": string },
+    "selfHosted": { "endpoint": string, "code": string, "edgeFunctionCode": string, "sqlSchema": string }
+  },
+  "funnels": [{ "name": string, "steps": [{ "event": string, "windowMinutes": number }], "successCriterion": string }],
+  "cohorts": [{ "name": string, "definition": string, "purpose": string }],
+  "dashboards": [{ "name": string, "tool": "ga4"|"posthog"|"looker"|"metabase"|"custom", "widgets": [{ "title": string, "metric": string, "viz": "line"|"bar"|"pie"|"funnel"|"table"|"number" }] }],
+  "sqlKpis": [{ "name": string, "sql": string, "dialect": "postgres"|"bigquery"|"clickhouse" }],
+  "abTestFramework": {
+    "assignmentCode": string,
+    "experimentSchemaSql": string,
+    "guardrailMetrics": string[],
+    "sampleSizeGuidance": string,
+    "exampleExperiments": [{ "name": string, "hypothesis": string, "variants": string[], "primaryMetric": string, "guardrails": string[] }]
+  },
+  "alerting": [{ "metric": string, "condition": string, "channel": "email"|"slack"|"webhook", "severity": "info"|"warn"|"critical" }],
+  "dataDictionary": [{ "event": string, "property": string, "description": string, "example": string }],
+  "privacyDisclosure": { "cwsFormAnswers": [{ "field": string, "answer": string }], "userFacingMarkdown": string },
+  "instrumentationChecklist": [{ "item": string, "surface": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- All code must be TypeScript-flavored (ok to be .ts extension) targeting Chrome MV3 with \`chrome.storage.local\`, \`chrome.runtime\`, \`chrome.tabs\`, \`chrome.action\` — never window.localStorage in service workers.
+- Do NOT include remote script imports; MV3 forbids them. Use fetch to first-party endpoints only.
+- The self-hosted edgeFunctionCode must be a Deno Deploy / Supabase Edge Function style handler that validates payload, strips PII, and inserts into the sqlSchema.
+- Consent banner must default to OFF and gate every tracker call.`,
 };
 
 serve(async (req) => {
