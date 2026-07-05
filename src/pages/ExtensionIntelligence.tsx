@@ -4946,6 +4946,38 @@ All copy is original and IP-safe.`);
                 </Card>
 
 
+                <Card className="border-orange-400/40 bg-orange-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Users2 className="h-4 w-4 text-orange-400" />Community & Content Engine</CardTitle>
+                        <CardDescription className="text-[10px]">Phased launch scheduler with real, platform-native posts for Product Hunt / Hacker News / Indie Hackers / targeted subreddits / seeding communities + launch-day runbook; N-week content calendar with pillars, hooks, outlines, CTAs, briefs, style guide and iCal export; full outreach CRM (Supabase schema + RLS + edge functions, personas, tiered influencer strategy, multi-touch sequences, reply classifier, compliance copy, admin inbox + sequence editor + KPI dashboard React components, Slack/Discord/Notion/HubSpot webhooks); PR toolkit (press release, media kit, journalist + podcast pitches); community-building blueprint (Discord/Slack/Circle, moderation, ambassador program); referral + affiliate + UGC amplification; UTM + attribution + analytics SQL; safety & ethics guardrails.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateCommunityEngine} disabled={analyzing === "communityEngine" || !selected}>
+                        {analyzing === "communityEngine" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Community Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("communityEngine") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").launchScheduler?.channelSchedule ?? []).length} launch posts</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").launchScheduler?.reddit?.subredditPlan ?? []).length} subreddits</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").contentCalendar?.weeks ?? []).length} wk calendar</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").outreachCrm?.sequences ?? []).length} sequences</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").outreachCrm?.personas ?? []).length} personas</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").prToolkit?.targetPublications ?? []).length} pubs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("communityEngine").outreachCrm?.webhookIntegrations ?? []).length} webhooks</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Launch day: {a("communityEngine").launchScheduler?.recommendedLaunchDay?.weekday ?? "?"} · timeline {a("communityEngine").launchScheduler?.timelineWeeks ?? "?"}wk
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
 
 
