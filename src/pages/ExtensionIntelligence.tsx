@@ -1500,6 +1500,237 @@ ${kit.opengraphSpec?.imageBrief ?? ""}`);
     } finally { setAnalyzing(null); }
   }
 
+  async function generateAnalyticsKit() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("analytics");
+    try {
+      const architecture = a("architecture") ?? null;
+      const launch = a("launch") ?? null;
+      const revenue = a("revenue") ?? null;
+      const growth = a("growth") ?? null;
+      const manifest = a("storekit")?.manifest ?? architecture?.manifest ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          personas: launch?.positioning?.targetPersonas,
+          tagline: launch?.positioning?.tagline,
+        },
+        pricingTiers: revenue?.pricingTiers?.map((t: any) => ({ name: t.name, monthlyPrice: t.monthlyPrice })),
+        growthKpis: growth?.kpis,
+        manifestPermissions: manifest?.permissions,
+        surfaces: {
+          hasPopup: !!manifest?.action?.default_popup,
+          hasBackground: !!manifest?.background,
+          hasContentScripts: !!manifest?.content_scripts?.length,
+          hasOptions: !!manifest?.options_page || !!manifest?.options_ui,
+        },
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "analytics", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Analytics & Instrumentation Kit
+Generated ${new Date().toISOString()}
+
+Privacy-safe by default: consent gated, no PII, hashed anon ids.
+
+## Contents
+- philosophy.md — principles, PII rules, retention, opt-in flow
+- events/schema.md + events.json — full event schema with sampling
+- identity/ — anon/user id strategy + code
+- consent/ — banner HTML + storage key + gate code
+- extension/ — MV3 tracker core + surface hooks (background, popup, content, onboarding, uninstall)
+- adapters/ — GA4, PostHog, Plausible, Mixpanel, self-hosted (Edge Function + SQL schema)
+- funnels.md, cohorts.md, dashboards.md
+- sql-kpis/ — one file per KPI
+- ab-testing/ — assignment code, experiment schema, guardrails, example experiments
+- alerting.md — metric alerts + severity
+- data-dictionary.md — event × property lookup
+- privacy/ — CWS form answers + user-facing disclosure
+- checklist.md
+- raw-kit.json
+
+## Install order
+1. Add \`extension/tracker.ts\` to your extension source
+2. Import it from \`background.ts\`, \`popup.ts\`, and any content script (see the ready-made files in extension/)
+3. Add the consent banner to first-run/onboarding
+4. Pick ONE adapter under \`adapters/\` and wire the env vars
+5. Deploy the self-hosted edge function (optional) using \`adapters/self-hosted/edge.ts\` + \`schema.sql\`
+6. Import the SQL KPIs into your BI tool of choice`);
+
+      zip.file("philosophy.md",
+`# Analytics Philosophy
+
+## Principles
+${(kit.philosophy?.principles ?? []).map((p: string) => `- ${p}`).join("\n")}
+
+## PII rules
+${(kit.philosophy?.piiRules ?? []).map((p: string) => `- ${p}`).join("\n")}
+
+## Retention
+${kit.philosophy?.retention ?? ""}
+
+## Opt-in flow
+${kit.philosophy?.optInFlow ?? ""}`);
+
+      const events = zip.folder("events") ?? zip;
+      events.file("schema.md",
+`# Event Schema
+${(kit.eventSchema ?? []).map((e: any) =>
+`## \`${e.name}\` (${e.surface}) · sampling ${e.sampling ?? 1}
+**Trigger:** ${e.trigger}
+
+| Property | Type | Required | PII | Example |
+|---|---|---|---|---|
+${(e.properties ?? []).map((p: any) => `| \`${p.key}\` | ${p.type} | ${p.required ? "✓" : ""} | ${p.pii ? "⚠️" : ""} | ${p.example} |`).join("\n")}
+`).join("\n")}`);
+      events.file("events.json", JSON.stringify(kit.eventSchema ?? [], null, 2));
+
+      const identity = zip.folder("identity") ?? zip;
+      identity.file("README.md",
+`# Identity
+
+- **Anon id:** ${kit.identity?.anonIdStrategy ?? ""}
+- **User id:** ${kit.identity?.userIdStrategy ?? ""}
+- **Sessions:** ${kit.identity?.sessionRules ?? ""}`);
+      identity.file("identity.ts", kit.identity?.code ?? "// not generated");
+
+      const consent = zip.folder("consent") ?? zip;
+      consent.file("banner.html", kit.consentBanner?.html ?? "<!-- not generated -->");
+      consent.file("gate.ts", kit.consentBanner?.gateCode ?? "// not generated");
+      consent.file("README.md", `# Consent\n\nStorage key: \`${kit.consentBanner?.storageKey ?? "analytics_consent"}\`\n\nCall the gate BEFORE any tracker call.`);
+
+      const ext = zip.folder("extension") ?? zip;
+      const snip = kit.extensionSnippets ?? {};
+      ext.file("tracker.ts", snip.trackerCoreTs ?? "// not generated");
+      ext.file("background.ts", snip.backgroundTs ?? "// not generated");
+      ext.file("popup.ts", snip.popupTs ?? "// not generated");
+      ext.file("content.ts", snip.contentTs ?? "// not generated");
+      ext.file("onboarding.ts", snip.onboardingTs ?? "// not generated");
+      ext.file("uninstall-hook.ts", snip.uninstallHookTs ?? "// not generated");
+
+      const ad = kit.adapters ?? {};
+      const adapters = zip.folder("adapters") ?? zip;
+      const writeAdapter = (name: string, folderName: string, obj: any, extra?: (f: JSZip) => void) => {
+        const f = adapters.folder(folderName) ?? adapters;
+        f.file("README.md",
+`# ${name}
+
+## Env vars
+${(obj?.envVars ?? []).map((e: string) => `- \`${e}\``).join("\n")}
+
+${obj?.measurementProtocolNotes ? `## Notes\n${obj.measurementProtocolNotes}` : ""}`);
+        f.file("adapter.ts", obj?.code ?? "// not generated");
+        extra?.(f);
+      };
+      writeAdapter("GA4", "ga4", ad.ga4);
+      writeAdapter("PostHog", "posthog", ad.posthog);
+      writeAdapter("Plausible", "plausible", ad.plausible);
+      writeAdapter("Mixpanel", "mixpanel", ad.mixpanel);
+      if (ad.selfHosted) {
+        const f = adapters.folder("self-hosted") ?? adapters;
+        f.file("README.md", `# Self-hosted\n\n**Endpoint:** \`${ad.selfHosted.endpoint ?? ""}\``);
+        f.file("adapter.ts", ad.selfHosted.code ?? "// not generated");
+        f.file("edge.ts", ad.selfHosted.edgeFunctionCode ?? "// not generated");
+        f.file("schema.sql", ad.selfHosted.sqlSchema ?? "-- not generated");
+      }
+
+      zip.file("funnels.md",
+`# Funnels
+${(kit.funnels ?? []).map((f: any) =>
+`## ${f.name}
+${f.steps?.map((s: any, i: number) => `${i + 1}. \`${s.event}\` (within ${s.windowMinutes} min)`).join("\n")}
+
+**Success:** ${f.successCriterion}
+`).join("\n")}`);
+
+      zip.file("cohorts.md",
+`# Cohorts
+${(kit.cohorts ?? []).map((c: any) => `## ${c.name}\n**Purpose:** ${c.purpose}\n\n\`\`\`\n${c.definition}\n\`\`\``).join("\n\n")}`);
+
+      zip.file("dashboards.md",
+`# Dashboards
+${(kit.dashboards ?? []).map((d: any) =>
+`## ${d.name} (${d.tool})
+| Widget | Metric | Viz |
+|---|---|---|
+${(d.widgets ?? []).map((w: any) => `| ${w.title} | ${w.metric} | ${w.viz} |`).join("\n")}
+`).join("\n")}`);
+
+      const kpis = zip.folder("sql-kpis") ?? zip;
+      (kit.sqlKpis ?? []).forEach((k: any) => {
+        const slug = String(k.name ?? "kpi").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        kpis.file(`${slug}.${k.dialect ?? "sql"}.sql`, `-- ${k.name}\n-- dialect: ${k.dialect}\n\n${k.sql ?? ""}`);
+      });
+
+      const ab = kit.abTestFramework ?? {};
+      const abFolder = zip.folder("ab-testing") ?? zip;
+      abFolder.file("assignment.ts", ab.assignmentCode ?? "// not generated");
+      abFolder.file("schema.sql", ab.experimentSchemaSql ?? "-- not generated");
+      abFolder.file("README.md",
+`# A/B Testing
+
+## Guardrail metrics
+${(ab.guardrailMetrics ?? []).map((g: string) => `- ${g}`).join("\n")}
+
+## Sample size
+${ab.sampleSizeGuidance ?? ""}
+
+## Example experiments
+${(ab.exampleExperiments ?? []).map((e: any) =>
+`### ${e.name}
+- **Hypothesis:** ${e.hypothesis}
+- **Variants:** ${(e.variants ?? []).join(", ")}
+- **Primary metric:** ${e.primaryMetric}
+- **Guardrails:** ${(e.guardrails ?? []).join(", ")}
+`).join("\n")}`);
+
+      zip.file("alerting.md",
+`# Alerting
+| Severity | Metric | Condition | Channel |
+|---|---|---|---|
+${(kit.alerting ?? []).map((a: any) => `| ${a.severity} | ${a.metric} | ${a.condition} | ${a.channel} |`).join("\n")}`);
+
+      zip.file("data-dictionary.md",
+`# Data Dictionary
+| Event | Property | Description | Example |
+|---|---|---|---|
+${(kit.dataDictionary ?? []).map((d: any) => `| \`${d.event}\` | \`${d.property}\` | ${d.description} | ${d.example} |`).join("\n")}`);
+
+      const priv = zip.folder("privacy") ?? zip;
+      priv.file("cws-form-answers.md",
+`# CWS Privacy Practices — Answers
+${(kit.privacyDisclosure?.cwsFormAnswers ?? []).map((f: any) => `## ${f.field}\n${f.answer}\n`).join("\n")}`);
+      priv.file("user-facing.md", kit.privacyDisclosure?.userFacingMarkdown ?? "");
+
+      zip.file("checklist.md",
+`# Instrumentation Checklist
+${(kit.instrumentationChecklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) [${c.surface}] ${c.item}`).join("\n")}`);
+
+      zip.file("raw-kit.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-analytics-kit.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`analytics:${selected.id}`]: kit }));
+      toast.success("Analytics kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Analytics kit failed");
+    } finally { setAnalyzing(null); }
+  }
+
+
+
 
 
 
