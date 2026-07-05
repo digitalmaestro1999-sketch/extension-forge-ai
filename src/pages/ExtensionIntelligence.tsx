@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, Search, Sparkles, Loader2, ExternalLink, Star, Users, ShieldAlert,
   Layers, Target, Lightbulb, Building2, Wand2, DollarSign, Palette, ListChecks,
-  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2, ShieldCheck,
+  FileText, Rocket, BarChart3, Trophy, Flame, Terminal, Download, Code2, Package, Megaphone, TrendingUp, Scale, CreditCard, Globe, Activity, GitBranch, LifeBuoy, TestTube2, ShieldCheck, MessageCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2673,6 +2673,300 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
     } finally { setAnalyzing(null); }
   }
 
+  async function generateFeedbackLoop() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    setAnalyzing("feedbackLoop");
+    try {
+      const architecture = a("architecture") ?? null;
+      const listing = a("listing") ?? null;
+      const reviews = a("reviews") ?? null;
+      const input = {
+        product: {
+          name: selected.name,
+          category: selected.raw?.category ?? null,
+          description: selected.raw?.description ?? null,
+        },
+        architecture,
+        listing,
+        reviewSignals: reviews,
+        surfaces: ["popup", "options", "onboarding", "sidepanel", "inline-toast"],
+      };
+      const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
+        body: { stage: "feedbackLoop", input, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kit = data.result;
+
+      const zip = new JSZip();
+      zip.file("00-README.md",
+`# Feedback Loop & In-Extension Review Prompts
+Generated ${new Date().toISOString()}
+
+## Goals
+${(kit.overview?.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+
+## KPIs
+${(kit.overview?.kpis ?? []).map((k: any) => `- **${k.metric}** → ${k.target} (${k.why})`).join("\n")}
+
+## Layout
+- 01-principles.md · 02-success-criteria.md
+- smart-review-prompt/ — trigger rules, eligibility scorer, scheduler, UI variants, A/B plan, anti-spam
+- nps/ — widget, follow-ups, scoring, dashboard SQL
+- csat-ces/ — CSAT + CES micro-surveys
+- feedback-form/ — form, spam heuristics, offline queue
+- inbox/ — DB schema, RLS, edge function, admin React inbox, triage, SLA, webhooks
+- roadmap-voting/ — DB schema, RLS, board React, moderation, anti-brigading, changelog rules
+- close-the-loop/ — response templates, shipped notification, changelog generator
+- detractor-recovery/ — workflow, outreach templates, escalation
+- review-monitoring/ — CWS monitoring, alerts, reply templates
+- privacy/ — consent flow, dialog, PII redaction, GDPR/CCPA notices, deletion
+- analytics/ — event taxonomy, funnels, cohorts, SQL
+- ai-agent/ — clustering, theming, roadmap suggestions, weekly digest prompts
+- manifest-additions.json
+- integration-guide.md · rollout-plan.md · ops-runbook.md · checklist.md`);
+
+      zip.file("01-principles.md", kit.overview?.principlesMd ?? "");
+      zip.file("02-success-criteria.md", kit.overview?.successCriteriaMd ?? "");
+
+      // Smart review prompt
+      const s = kit.smartReviewPrompt ?? {};
+      const sF = zip.folder("smart-review-prompt") ?? zip;
+      sF.file("01-strategy.md", s.strategyMd ?? "");
+      sF.file("02-trigger-rules.json", JSON.stringify(s.triggerRules ?? [], null, 2));
+      sF.file("03-value-moment-events.md",
+`# Value moment events
+${(s.valueMomentEvents ?? []).map((e: any) => `- **${e.event}** (weight ${e.weight}) — ${e.description}`).join("\n")}`);
+      sF.file("04-eligibility-scoring.md", s.eligibilityScoringMd ?? "");
+      sF.file("eligibility-scorer.ts", s.eligibilityScorerTs ?? "");
+      sF.file("prompt-scheduler.ts", s.promptSchedulerTs ?? "");
+      sF.file("05-cws-deep-link.md", `# Chrome Web Store review deep link\n\`\`\`\n${s.chromeWebStoreDeepLinkPattern ?? ""}\n\`\`\``);
+      sF.file("06-ab-test-plan.md", s.abTestPlanMd ?? "");
+      sF.file("07-anti-spam-guardrails.md", s.antiSpamGuardrailsMd ?? "");
+      sF.file("08-storage-schema.json", JSON.stringify(s.storageSchema ?? {}, null, 2));
+      sF.file("09-telemetry-events.json", JSON.stringify(s.sampleTelemetryEvents ?? [], null, 2));
+      const uiF = sF.folder("ui-variants") ?? sF;
+      (s.uiVariants ?? []).forEach((v: any) => {
+        const slug = String(v.id ?? v.surface ?? "variant").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        uiF.file(`${slug}.html`, v.html ?? "");
+        uiF.file(`${slug}.css`, v.css ?? "");
+        uiF.file(`${slug}.copy.md`,
+`# ${v.id} — ${v.surface}
+- **Headline:** ${v.copyHeadline}
+- **Body:** ${v.copyBody}
+- **Primary CTA:** ${v.primaryCtaLabel}
+- **Secondary CTA:** ${v.secondaryCtaLabel}
+- **Dismiss:** ${v.dismissCtaLabel}`);
+      });
+
+      // NPS
+      const n = kit.npsWidget ?? {};
+      const nF = zip.folder("nps") ?? zip;
+      nF.file("01-philosophy.md", n.philosophyMd ?? "");
+      nF.file("nps-widget.html", n.componentHtml ?? "");
+      nF.file("nps-widget.css", n.componentCss ?? "");
+      nF.file("nps-widget.ts", n.componentTs ?? "");
+      nF.file("02-follow-up-questions.md",
+`# NPS follow-ups
+## Promoters
+${(n.followUpQuestions?.promoter ?? []).map((q: string) => `- ${q}`).join("\n")}
+## Passives
+${(n.followUpQuestions?.passive ?? []).map((q: string) => `- ${q}`).join("\n")}
+## Detractors
+${(n.followUpQuestions?.detractor ?? []).map((q: string) => `- ${q}`).join("\n")}`);
+      nF.file("03-frequency-rule.md", n.sampleFrequencyRule ?? "");
+      nF.file("score-calculation.ts", n.scoreCalculationTs ?? "");
+      nF.file("dashboard-query.sql", n.dashboardQuerySql ?? "");
+      nF.file("04-chart-spec.md", n.chartSpecMd ?? "");
+      nF.file("05-segmentation.md",
+`# Segmentation dimensions
+${(n.segmentationDimensions ?? []).map((d: string) => `- ${d}`).join("\n")}`);
+
+      // CSAT / CES
+      const cc = kit.csatAndCes ?? {};
+      const ccF = zip.folder("csat-ces") ?? zip;
+      ccF.file("csat-widget.html", cc.csatWidgetHtml ?? "");
+      ccF.file("csat-widget.ts", cc.csatWidgetTs ?? "");
+      ccF.file("ces-widget.html", cc.cesWidgetHtml ?? "");
+      ccF.file("ces-widget.ts", cc.cesWidgetTs ?? "");
+      ccF.file("micro-survey-triggers.md", cc.microSurveyTriggersMd ?? "");
+
+      // Feedback form
+      const ff = kit.feedbackForm ?? {};
+      const ffF = zip.folder("feedback-form") ?? zip;
+      ffF.file("form.html", ff.formHtml ?? "");
+      ffF.file("form.css", ff.formCss ?? "");
+      ffF.file("form.ts", ff.formTs ?? "");
+      ffF.file("01-categories.md",
+`# Categories
+${(ff.categories ?? []).map((c: any) => `- **${c.id}** — ${c.label} → routes to ${c.routing}`).join("\n")}`);
+      ffF.file("02-attachments.md", ff.attachmentSupportMd ?? "");
+      ffF.file("03-screenshot-consent.md", ff.screenshotConsentFlowMd ?? "");
+      ffF.file("spam-heuristics.ts", ff.spamHeuristicsTs ?? "");
+      ffF.file("04-rate-limiting.md", ff.rateLimitingMd ?? "");
+      ffF.file("offline-queue.ts", ff.offlineQueueTs ?? "");
+
+      // Inbox
+      const ib = kit.feedbackInbox ?? {};
+      const ibF = zip.folder("inbox") ?? zip;
+      ibF.file("01-architecture.md", ib.architectureMd ?? "");
+      ibF.file("schema.sql", ib.databaseSchemaSql ?? "");
+      ibF.file("rls-policies.sql", ib.rlsPoliciesSql ?? "");
+      ibF.file("edge-function.ts", ib.supabaseEdgeFunctionTs ?? "");
+      ibF.file("AdminInbox.tsx", ib.adminInboxReactTsx ?? "");
+      ibF.file("02-triage-workflow.md", ib.triageWorkflowMd ?? "");
+      ibF.file("03-statuses.md",
+`# Statuses
+${(ib.statuses ?? []).map((s: any) => `- **${s.id}** — ${s.label} → next: ${(s.next ?? []).join(", ")}`).join("\n")}`);
+      ibF.file("04-prioritization.md", ib.prioritizationRubricMd ?? "");
+      ibF.file("05-sla-matrix.md",
+`# SLA matrix
+
+| Priority | First response | Resolution |
+|---|---|---|
+${(ib.slaMatrix ?? []).map((r: any) => `| ${r.priority} | ${r.firstResponseHours}h | ${r.resolutionDays}d |`).join("\n")}`);
+      ibF.file("06-auto-tagging.md", ib.autoTaggingRulesMd ?? "");
+      ibF.file("07-ai-clustering-prompt.md", ib.aiClusteringPromptMd ?? "");
+      ibF.file("duplicate-detection.ts", ib.duplicateDetectionTs ?? "");
+      ibF.file("08-sentiment-pipeline.md", ib.sentimentPipelineMd ?? "");
+      const whF = ibF.folder("webhooks") ?? ibF;
+      (ib.webhookIntegrations ?? []).forEach((w: any) => {
+        whF.file(`${w.target}.payload.json`, w.payloadTemplate ?? "");
+        whF.file(`${w.target}.setup.md`, w.setupMd ?? "");
+      });
+
+      // Roadmap voting
+      const rv = kit.roadmapVoting ?? {};
+      const rvF = zip.folder("roadmap-voting") ?? zip;
+      rvF.file("01-product-spec.md", rv.productSpecMd ?? "");
+      rvF.file("schema.sql", rv.databaseSchemaSql ?? "");
+      rvF.file("rls-policies.sql", rv.rlsPoliciesSql ?? "");
+      rvF.file("02-vote-weighting.md", rv.voteWeightingRulesMd ?? "");
+      rvF.file("Board.tsx", rv.boardReactTsx ?? "");
+      rvF.file("ItemCard.tsx", rv.itemCardReactTsx ?? "");
+      rvF.file("SubmitIdea.tsx", rv.submitIdeaReactTsx ?? "");
+      rvF.file("03-statuses.md",
+`# Roadmap statuses
+${(rv.statuses ?? []).map((s: any) => `- **${s.id}** (${s.color}) — ${s.label}: ${s.description}`).join("\n")}`);
+      rvF.file("04-moderation.md", rv.moderationPolicyMd ?? "");
+      rvF.file("05-anti-brigading.md", rv.antiBrigadingRulesMd ?? "");
+      rvF.file("06-changelog-autopost.md", rv.changelogAutopostRulesMd ?? "");
+      rvF.file("07-public-api.md", rv.publicApiSpecMd ?? "");
+
+      // Close the loop
+      const ctl = kit.closeTheLoop ?? {};
+      const ctlF = zip.folder("close-the-loop") ?? zip;
+      ctlF.file("01-philosophy.md", ctl.philosophyMd ?? "");
+      const rtF = ctlF.folder("response-templates") ?? ctlF;
+      (ctl.responseTemplates ?? []).forEach((t: any) => {
+        const slug = String(t.id ?? "template").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        rtF.file(`${slug}.md`,
+`# ${t.id}
+- **Situation:** ${t.situation}
+- **Tone:** ${t.toneNotes}
+
+${t.template}`);
+      });
+      ctlF.file("shipped-notification.ts", ctl.shippedNotificationTs ?? "");
+      ctlF.file("changelog-generator.ts", ctl.changelogGeneratorTs ?? "");
+      ctlF.file("02-changelog-format.md", ctl.changelogFormatMd ?? "");
+
+      // Detractor recovery
+      const dr = kit.detractorRecovery ?? {};
+      const drF = zip.folder("detractor-recovery") ?? zip;
+      drF.file("01-workflow.md", dr.workflowMd ?? "");
+      drF.file("02-detection-rules.md", dr.detectionRulesMd ?? "");
+      drF.file("03-outreach-templates.md",
+`# Outreach templates
+${(dr.outreachTemplates ?? []).map((t: any) => `## ${t.channel} — ${t.subject}\n\n${t.body}\n`).join("\n---\n")}`);
+      drF.file("04-escalation.md", dr.escalationCriteriaMd ?? "");
+      drF.file("05-refund-credit-policy.md", dr.refundOrCreditPolicyMd ?? "");
+
+      // Review monitoring
+      const rm = kit.reviewMonitoring ?? {};
+      const rmF = zip.folder("review-monitoring") ?? zip;
+      rmF.file("01-cws-scraping.md", rm.cwsScrapingApproachMd ?? "");
+      rmF.file("02-alert-rules.md", rm.alertRulesMd ?? "");
+      rmF.file("03-response-playbook.md", rm.responsePlaybookMd ?? "");
+      rmF.file("04-reply-templates.md",
+`# Reply templates
+${(rm.replyTemplates ?? []).map((t: any) => `## ${t.tone}\n\n${t.template}\n`).join("\n---\n")}`);
+      rmF.file("05-kpi-dashboard.md", rm.kpiDashboardSpecMd ?? "");
+
+      // Privacy
+      const pv = kit.privacyAndConsent ?? {};
+      const pvF = zip.folder("privacy") ?? zip;
+      pvF.file("01-consent-flow.md", pv.consentFlowMd ?? "");
+      pvF.file("consent-dialog.html", pv.consentDialogHtml ?? "");
+      pvF.file("consent-dialog.ts", pv.consentDialogTs ?? "");
+      pvF.file("02-data-minimization.md", pv.dataMinimizationRulesMd ?? "");
+      pvF.file("pii-redaction.ts", pv.piiRedactionTs ?? "");
+      pvF.file("gdpr-notice.md", pv.gdprNoticeMd ?? "");
+      pvF.file("ccpa-notice.md", pv.ccpaNoticeMd ?? "");
+      pvF.file("data-deletion.md", pv.userDataDeletionMd ?? "");
+
+      // Analytics
+      const an = kit.analytics ?? {};
+      const anF = zip.folder("analytics") ?? zip;
+      anF.file("01-event-taxonomy.md",
+`# Event taxonomy
+${(an.eventTaxonomy ?? []).map((e: any) => `## \`${e.event}\` — ${e.purpose}\n${(e.props ?? []).map((p: any) => `- \`${p.name}\`: ${p.type}`).join("\n")}\n`).join("\n")}`);
+      anF.file("02-funnels.md",
+`# Funnels
+${(an.funnelDefinitions ?? []).map((f: any) => `## ${f.name}\n${(f.steps ?? []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}\n`).join("\n")}`);
+      anF.file("03-cohorts.md",
+`# Cohorts
+${(an.cohortDefinitions ?? []).map((c: any) => `- **${c.name}** — ${c.definition}`).join("\n")}`);
+      anF.file("04-dashboard.md", an.dashboardSpecMd ?? "");
+      (an.sampleQueriesSql ?? []).forEach((q: string, i: number) => anF.file(`queries/${String(i + 1).padStart(2, "0")}.sql`, q));
+
+      // AI agent
+      const ai = kit.aiFeedbackAgent ?? {};
+      const aiF = zip.folder("ai-agent") ?? zip;
+      aiF.file("01-role.md", ai.roleMd ?? "");
+      aiF.file("system-prompt.md", ai.systemPrompt ?? "");
+      aiF.file("clustering-prompt.md", ai.clusteringPrompt ?? "");
+      aiF.file("theming-prompt.md", ai.themingPrompt ?? "");
+      aiF.file("roadmap-suggestion-prompt.md", ai.roadmapSuggestionPrompt ?? "");
+      aiF.file("weekly-digest-prompt.md", ai.weeklyDigestPrompt ?? "");
+      aiF.file("tool-contract.md",
+`# Tool contract
+${(ai.toolContract ?? []).map((t: any) => `## ${t.tool}\n${t.description}\n\n\`\`\`json\n${t.inputSchema}\n\`\`\`\n`).join("\n")}`);
+
+      // Manifest additions
+      zip.file("manifest-additions.json", JSON.stringify(kit.manifestAdditions ?? {}, null, 2));
+      zip.file("manifest-additions.md", kit.manifestAdditions?.rationaleMd ?? "");
+
+      zip.file("integration-guide.md", kit.integrationGuideMd ?? "");
+      zip.file("rollout-plan.md",
+`# Rollout plan
+${(kit.rolloutPlan ?? []).map((p: any) => `## ${p.phase} (${p.duration})
+**Goals**
+${(p.goals ?? []).map((g: string) => `- ${g}`).join("\n")}
+**Guardrails**
+${(p.guardrails ?? []).map((g: string) => `- ${g}`).join("\n")}
+`).join("\n")}`);
+      zip.file("ops-runbook.md", kit.opsRunbookMd ?? "");
+      zip.file("checklist.md",
+`# Feedback loop checklist
+${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}] (${c.priority}) ${c.item}`).join("\n")}`);
+
+      zip.file("raw-feedback-loop.json", JSON.stringify(kit, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (selected.name ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-feedback-loop.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`feedbackLoop:${selected.id}`]: kit }));
+      toast.success("Feedback loop kit ready");
+    } catch (e: any) {
+      toast.error(e.message ?? "Feedback loop generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
 
 
@@ -3941,6 +4235,38 @@ All copy is original and IP-safe.`);
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Recommended CSP: <span className="font-mono">{(a("securityAudit").cspHardening?.recommendedManifestCsp?.extension_pages ?? "").slice(0, 90)}…</span>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
+                <Card className="border-pink-400/40 bg-pink-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><MessageCircle className="h-4 w-4 text-pink-400" />Feedback Loop & Review Prompts</CardTitle>
+                        <CardDescription className="text-[10px]">Smart review-ask triggers with cooldowns, value-moment scoring, and CWS deep-link; NPS/CSAT/CES micro-surveys with follow-ups + SQL dashboards; MV3-safe in-extension feedback form with offline queue + PII redaction; Supabase-backed feedback inbox with RLS, triage, SLA matrix, auto-tagging, AI clustering, duplicate detection, Slack/Discord/Linear/GitHub webhooks; public roadmap voting board with anti-brigading + moderation + status changelog; close-the-loop response templates + shipped notifications; detractor recovery workflow; CWS review monitoring & reply templates; GDPR/CCPA consent flow; full event taxonomy + funnels; AI feedback agent prompts.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateFeedbackLoop} disabled={analyzing === "feedbackLoop" || !selected}>
+                        {analyzing === "feedbackLoop" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+                        Generate Feedback Kit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("feedbackLoop") && (
+                    <CardContent className="text-xs space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").smartReviewPrompt?.triggerRules ?? []).length} triggers</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").smartReviewPrompt?.uiVariants ?? []).length} prompt UI</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").feedbackInbox?.webhookIntegrations ?? []).length} webhooks</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").feedbackInbox?.slaMatrix ?? []).length} SLAs</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").roadmapVoting?.statuses ?? []).length} roadmap states</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").analytics?.eventTaxonomy ?? []).length} events</Badge>
+                        <Badge variant="outline" className="text-[9px]">{(a("feedbackLoop").overview?.kpis ?? []).length} KPIs</Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Rollout: {(a("feedbackLoop").rolloutPlan ?? []).map((p: any) => p.phase).join(" → ")}
                       </div>
                     </CardContent>
                   )}

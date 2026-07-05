@@ -587,6 +587,146 @@ IMPORTANT:
 - DPIA/PIA must be written in plain language a non-lawyer product owner can adopt, and must call out exactly which fields are PII, sensitive PII, or pseudonymous.
 - Every script in the pack (validators, minimizer, secret scanner, SBOM generator) must be complete, standalone Node/TS files runnable with \`npx tsx <file>\` — no placeholders.
 - security.txt must follow RFC 9116 and include Contact, Expires, Preferred-Languages, and Policy fields.`,
+  feedbackLoop: `Generate a complete FEEDBACK LOOP & IN-EXTENSION REVIEW PROMPTS system for a Chrome MV3 extension. Produce REAL, runnable code (TS/HTML/CSS/SQL/YAML) plus operational playbooks — no summaries. Everything must be MV3-safe: no remote scripts, no eval, no external CDNs inside the extension, no PII sent without consent. ${GUARDRAIL}
+Return JSON: {
+  "overview": { "goals": string[], "kpis": [{ "metric": string, "target": string, "why": string }], "nonGoals": string[], "principlesMd": string, "successCriteriaMd": string },
+  "smartReviewPrompt": {
+    "strategyMd": string,
+    "triggerRules": [{ "id": string, "name": string, "condition": string, "cooldownDays": number, "maxPromptsPerUser": number, "requiredValueMoments": number, "excludeIfNegativeSentiment": boolean }],
+    "valueMomentEvents": [{ "event": string, "weight": number, "description": string }],
+    "eligibilityScoringMd": string,
+    "eligibilityScorerTs": string,
+    "promptSchedulerTs": string,
+    "chromeWebStoreDeepLinkPattern": string,
+    "uiVariants": [{ "id": string, "surface": "popup"|"options"|"onboarding"|"sidepanel"|"inline-toast", "copyHeadline": string, "copyBody": string, "primaryCtaLabel": string, "secondaryCtaLabel": string, "dismissCtaLabel": string, "html": string, "css": string }],
+    "abTestPlanMd": string,
+    "antiSpamGuardrailsMd": string,
+    "storageSchema": { "keys": [{ "key": string, "type": string, "purpose": string, "sensitive": boolean }] },
+    "sampleTelemetryEvents": [{ "event": string, "props": string[] }]
+  },
+  "npsWidget": {
+    "philosophyMd": string,
+    "componentHtml": string,
+    "componentCss": string,
+    "componentTs": string,
+    "followUpQuestions": { "promoter": string[], "passive": string[], "detractor": string[] },
+    "sampleFrequencyRule": string,
+    "scoreCalculationTs": string,
+    "dashboardQuerySql": string,
+    "chartSpecMd": string,
+    "segmentationDimensions": string[]
+  },
+  "csatAndCes": {
+    "csatWidgetHtml": string,
+    "csatWidgetTs": string,
+    "cesWidgetHtml": string,
+    "cesWidgetTs": string,
+    "microSurveyTriggersMd": string
+  },
+  "feedbackForm": {
+    "formHtml": string,
+    "formCss": string,
+    "formTs": string,
+    "categories": [{ "id": string, "label": string, "routing": string }],
+    "attachmentSupportMd": string,
+    "screenshotConsentFlowMd": string,
+    "spamHeuristicsTs": string,
+    "rateLimitingMd": string,
+    "offlineQueueTs": string
+  },
+  "feedbackInbox": {
+    "architectureMd": string,
+    "databaseSchemaSql": string,
+    "rlsPoliciesSql": string,
+    "supabaseEdgeFunctionTs": string,
+    "adminInboxReactTsx": string,
+    "triageWorkflowMd": string,
+    "statuses": [{ "id": string, "label": string, "next": string[] }],
+    "prioritizationRubricMd": string,
+    "slaMatrix": [{ "priority": "P0"|"P1"|"P2"|"P3", "firstResponseHours": number, "resolutionDays": number }],
+    "autoTaggingRulesMd": string,
+    "aiClusteringPromptMd": string,
+    "duplicateDetectionTs": string,
+    "sentimentPipelineMd": string,
+    "webhookIntegrations": [{ "target": "slack"|"discord"|"linear"|"github"|"jira"|"notion"|"email", "payloadTemplate": string, "setupMd": string }]
+  },
+  "roadmapVoting": {
+    "productSpecMd": string,
+    "databaseSchemaSql": string,
+    "rlsPoliciesSql": string,
+    "voteWeightingRulesMd": string,
+    "boardReactTsx": string,
+    "itemCardReactTsx": string,
+    "submitIdeaReactTsx": string,
+    "statuses": [{ "id": "under-review"|"planned"|"in-progress"|"shipped"|"declined", "label": string, "color": string, "description": string }],
+    "moderationPolicyMd": string,
+    "antiBrigadingRulesMd": string,
+    "changelogAutopostRulesMd": string,
+    "publicApiSpecMd": string
+  },
+  "closeTheLoop": {
+    "philosophyMd": string,
+    "responseTemplates": [{ "id": string, "situation": string, "toneNotes": string, "template": string }],
+    "shippedNotificationTs": string,
+    "changelogGeneratorTs": string,
+    "changelogFormatMd": string
+  },
+  "detractorRecovery": {
+    "workflowMd": string,
+    "detectionRulesMd": string,
+    "outreachTemplates": [{ "channel": string, "subject": string, "body": string }],
+    "escalationCriteriaMd": string,
+    "refundOrCreditPolicyMd": string
+  },
+  "reviewMonitoring": {
+    "cwsScrapingApproachMd": string,
+    "alertRulesMd": string,
+    "responsePlaybookMd": string,
+    "replyTemplates": [{ "tone": "grateful"|"neutral"|"apology"|"technical", "template": string }],
+    "kpiDashboardSpecMd": string
+  },
+  "privacyAndConsent": {
+    "consentFlowMd": string,
+    "consentDialogHtml": string,
+    "consentDialogTs": string,
+    "dataMinimizationRulesMd": string,
+    "piiRedactionTs": string,
+    "gdprNoticeMd": string,
+    "ccpaNoticeMd": string,
+    "userDataDeletionMd": string
+  },
+  "analytics": {
+    "eventTaxonomy": [{ "event": string, "props": [{ "name": string, "type": string }], "purpose": string }],
+    "funnelDefinitions": [{ "name": string, "steps": string[] }],
+    "cohortDefinitions": [{ "name": string, "definition": string }],
+    "dashboardSpecMd": string,
+    "sampleQueriesSql": string[]
+  },
+  "aiFeedbackAgent": {
+    "roleMd": string,
+    "systemPrompt": string,
+    "clusteringPrompt": string,
+    "themingPrompt": string,
+    "roadmapSuggestionPrompt": string,
+    "weeklyDigestPrompt": string,
+    "toolContract": [{ "tool": string, "description": string, "inputSchema": string }]
+  },
+  "manifestAdditions": { "permissions": string[], "hostPermissions": string[], "optionalPermissions": string[], "rationaleMd": string },
+  "integrationGuideMd": string,
+  "rolloutPlan": [{ "phase": string, "duration": string, "goals": string[], "guardrails": string[] }],
+  "opsRunbookMd": string,
+  "checklist": [{ "item": string, "priority": "high"|"medium"|"low", "status": "todo"|"ready" }]
+}
+IMPORTANT:
+- ALL widget HTML must be self-contained (no external CDN CSS/JS), CSP-safe (no inline event handlers — attach listeners in the accompanying TS), and use \`chrome.storage.local\` for state.
+- The Chrome Web Store deep link pattern must use \`https://chromewebstore.google.com/detail/<id>/reviews\` (or the current CWS review URL) and open via \`chrome.tabs.create\`.
+- Trigger rules must be concrete, event-based, and never prompt on first launch, error screens, or within N minutes of another prompt. Every rule needs a cooldown and a lifetime cap.
+- NPS must follow the standard 0–10 scale, group promoters/passives/detractors correctly, and compute NPS = %promoters − %detractors.
+- All SQL must target Supabase Postgres, include RLS policies, and never expose one user's feedback to another. Roadmap voting must prevent double-voting per user per item.
+- Webhook payload templates must be real JSON strings ready to paste into Slack/Discord/Linear/etc., not placeholders.
+- Privacy: never send raw feedback text to a third party without explicit consent, always allow user data deletion, and redact obvious PII (emails, tokens, URLs with query strings) before AI clustering.
+- The AI feedback agent prompts must be usable as-is with an LLM and reference the actual event taxonomy and inbox schema you define elsewhere in this payload.
+- Anti-brigading rules for roadmap voting must include per-account, per-IP, per-day caps and account-age minimums, described concretely.`,
 };
 
 serve(async (req) => {
