@@ -370,6 +370,158 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_generation_costs: {
+        Row: {
+          completion_tokens: number
+          cost_usd: number
+          created_at: string
+          credits: number
+          error_message: string | null
+          fallback_used: boolean
+          id: string
+          latency_ms: number | null
+          model: string
+          project_id: string | null
+          prompt_tokens: number
+          provider: string
+          success: boolean
+          task_key: string
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          completion_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          credits?: number
+          error_message?: string | null
+          fallback_used?: boolean
+          id?: string
+          latency_ms?: number | null
+          model: string
+          project_id?: string | null
+          prompt_tokens?: number
+          provider: string
+          success?: boolean
+          task_key: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          completion_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          credits?: number
+          error_message?: string | null
+          fallback_used?: boolean
+          id?: string
+          latency_ms?: number | null
+          model?: string
+          project_id?: string | null
+          prompt_tokens?: number
+          provider?: string
+          success?: boolean
+          task_key?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_generation_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "extension_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ops_model_routes: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          fallback_chain: Json
+          id: string
+          label: string
+          max_retries: number
+          notes: string | null
+          primary_model: string
+          primary_provider: string
+          task_key: string
+          temperature: number
+          timeout_ms: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          fallback_chain?: Json
+          id?: string
+          label: string
+          max_retries?: number
+          notes?: string | null
+          primary_model: string
+          primary_provider: string
+          task_key: string
+          temperature?: number
+          timeout_ms?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          fallback_chain?: Json
+          id?: string
+          label?: string
+          max_retries?: number
+          notes?: string | null
+          primary_model?: string
+          primary_provider?: string
+          task_key?: string
+          temperature?: number
+          timeout_ms?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ops_user_quotas: {
+        Row: {
+          created_at: string
+          hard_block: boolean
+          monthly_generation_cap: number
+          monthly_token_cap: number
+          monthly_usd_cap: number
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hard_block?: boolean
+          monthly_generation_cap?: number
+          monthly_token_cap?: number
+          monthly_usd_cap?: number
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hard_block?: boolean
+          monthly_generation_cap?: number
+          monthly_token_cap?: number
+          monthly_usd_cap?: number
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -562,6 +714,36 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      ops_batch_queue_all: {
+        Args: { _limit?: number }
+        Returns: {
+          completed_at: string
+          created_at: string
+          error_message: string
+          id: string
+          idea: string
+          project_id: string
+          status: string
+          user_email: string
+          user_id: string
+        }[]
+      }
+      ops_cost_summary: { Args: { _days?: number }; Returns: Json }
+      ops_user_usage_list: {
+        Args: never
+        Returns: {
+          display_name: string
+          email: string
+          hard_block: boolean
+          monthly_generation_cap: number
+          monthly_token_cap: number
+          monthly_usd_cap: number
+          mtd_cost_usd: number
+          mtd_generations: number
+          mtd_tokens: number
+          user_id: string
+        }[]
       }
     }
     Enums: {
