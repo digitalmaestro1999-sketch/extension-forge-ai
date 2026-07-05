@@ -136,20 +136,47 @@ export default function ExtensionIntelligence() {
     setAnalyzing(stage);
     try {
       const input = ctx === "competitor"
-        ? { name: comp!.name, description: comp!.raw?.description, url: comp!.url, developer: comp!.developer }
+        ? {
+            name: comp!.name,
+            description: comp!.raw?.description,
+            url: comp!.url,
+            developer: comp!.developer,
+            rating: comp!.rating,
+            users: comp!.users_count,
+            reviews_raw: comp!.raw?.reviews_raw ?? [],
+          }
         : { competitors: competitors.map(c => ({ name: c.name, description: c.raw?.description, rating: c.rating, users: c.users_count })) };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
         body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const key = stage + (comp?.id ? `:${comp.id}` : "");
-      setAnalyses((a) => ({ ...a, [key]: data.result }));
+      const k = stage + (comp?.id ? `:${comp.id}` : "");
+      setAnalyses((prev) => ({ ...prev, [k]: data.result }));
       toast.success(`${stage} complete`);
     } catch (e: any) {
       toast.error(e.message ?? `${stage} failed`);
     } finally { setAnalyzing(null); }
   }
+
+  async function runVision() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const shot = selected.raw?.screenshot_url;
+    if (!shot) { toast.error("Scrape metadata first to capture the screenshot"); return; }
+    setAnalyzing("screenshots");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-vision", {
+        body: { screenshot_url: shot, competitor_name: selected.name, report_id: reportId, competitor_id: selected.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAnalyses((prev) => ({ ...prev, [`screenshots:${selected.id}`]: data.result }));
+      toast.success("Screenshot analysis complete");
+    } catch (e: any) {
+      toast.error(e.message ?? "Vision failed");
+    } finally { setAnalyzing(null); }
+  }
+
 
   const key = (stage: string, forReport = false) =>
     stage + (!forReport && selected?.id ? `:${selected.id}` : "");
@@ -380,30 +407,221 @@ export default function ExtensionIntelligence() {
               </TabsContent>
 
               <TabsContent value="analyze" className="mt-4 space-y-3">
-                {PHASE2.map((m) => (
-                  <Card key={m}>
-                    <CardHeader className="flex flex-row items-center justify-between py-3">
-                      <CardTitle className="text-sm">{m}</CardTitle>
-                      <Badge variant="secondary" className="text-[10px]">Phase 2</Badge>
-                    </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground pb-4">
-                      Coming next — click to enable once Phase 1 is validated.
-                    </CardContent>
-                  </Card>
-                ))}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Screenshot Intelligence</CardTitle>
+                    <Button size="sm" onClick={runVision} disabled={analyzing === "screenshots" || !selected?.raw?.screenshot_url}>
+                      {analyzing === "screenshots" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Analyze UI
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-3">
+                    {selected?.raw?.screenshot_url && (
+                      <img src={selected.raw.screenshot_url} alt="listing screenshot" className="w-full max-h-64 object-contain rounded border border-border bg-black/20" />
+                    )}
+                    {a("screenshots") ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div><strong>Layout:</strong> {a("screenshots").uiLayout}</div>
+                          <div><strong>Navigation:</strong> {a("screenshots").navigation}</div>
+                          <div><strong>Typography:</strong> {a("screenshots").typography}</div>
+                          <div><strong>Dark mode:</strong> {String(a("screenshots").darkMode)}</div>
+                        </div>
+                        {a("screenshots").colorPalette?.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <strong>Palette:</strong>
+                            {a("screenshots").colorPalette.map((c: string, i: number) => (
+                              <div key={i} className="flex items-center gap-1">
+                                <div className="h-4 w-4 rounded border border-border" style={{ background: c }} />
+                                <span className="text-[10px] font-mono">{c}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div><strong>Wireframe:</strong> {a("screenshots").wireframeDescription}</div>
+                        <div>
+                          <strong>Modernization ideas:</strong>
+                          <ul className="list-disc pl-4 mt-1">
+                            {(a("screenshots").modernizationIdeas ?? []).map((s: string, i: number) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : <p className="text-muted-foreground">Scrape metadata (captures screenshot) then click Analyze UI.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><ListChecks className="h-4 w-4" />Review Intelligence</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("reviews")} disabled={analyzing === "reviews" || !selected?.raw?.description}>
+                      {analyzing === "reviews" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Cluster
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2">
+                    <p className="text-muted-foreground text-[10px]">
+                      {selected?.raw?.reviews_raw?.length
+                        ? `${selected.raw.reviews_raw.length} review fragments captured.`
+                        : "Captures publicly visible review fragments from the listing page."}
+                    </p>
+                    {a("reviews") ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(a("reviews")).map(([k, v]) => (
+                          <div key={k} className="rounded border border-border p-2">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                            <ul className="space-y-0.5">
+                              {Array.isArray(v) && v.slice(0, 6).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Flame className="h-4 w-4" />Sentiment AI</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("sentiment")} disabled={analyzing === "sentiment" || !selected?.raw?.description}>
+                      {analyzing === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Score
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("sentiment") ? (
+                      <div className="grid grid-cols-5 gap-2">
+                        <ScorePill label="Satisfaction" value={a("sentiment").satisfaction ?? 0} />
+                        <ScorePill label="Frustration" value={a("sentiment").frustrationIndex ?? 0} />
+                        <ScorePill label="Demand" value={a("sentiment").featureDemandIndex ?? 0} />
+                        <ScorePill label="Bug severity" value={a("sentiment").bugSeverity ?? 0} />
+                        <ScorePill label="Market happy" value={a("sentiment").marketHappiness ?? 0} />
+                      </div>
+                    ) : <p className="text-muted-foreground">Emotion, satisfaction, frustration, demand — from review fragments.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><ShieldAlert className="h-4 w-4" />Security Intelligence</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("security")} disabled={analyzing === "security" || !selected?.raw?.description}>
+                      {analyzing === "security" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Audit
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2">
+                    {a("security") ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          <ScorePill label="Security" value={a("security").securityScore ?? 0} />
+                          <ScorePill label="Privacy" value={a("security").privacyScore ?? 0} />
+                          <ScorePill label="Trust" value={a("security").trustScore ?? 0} />
+                        </div>
+                        {(a("security").riskyPermissions ?? []).map((p: any, i: number) => (
+                          <div key={i} className="rounded border border-border p-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={p.risk === "high" ? "destructive" : "secondary"} className="text-[9px]">{p.risk}</Badge>
+                              <span className="font-mono">{p.name}</span>
+                            </div>
+                            <div className="mt-1">{p.reason}</div>
+                            <div className="text-muted-foreground mt-0.5">→ {p.alternative}</div>
+                          </div>
+                        ))}
+                      </>
+                    ) : <p className="text-muted-foreground">Audit permissions, CSP posture, and privacy risk.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Trophy className="h-4 w-4" />Competitive Scorecard</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("scorecard")} disabled={analyzing === "scorecard" || !selected?.raw?.description}>
+                      {analyzing === "scorecard" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Score
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("scorecard")?.scores ? (
+                      <div className="grid grid-cols-5 gap-2">
+                        {Object.entries(a("scorecard").scores).map(([k, v]) => (
+                          <ScorePill key={k} label={k} value={Number(v) || 0} />
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Rank across 20 dimensions.</p>}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="compete" className="mt-4 space-y-3">
-                {["SWOT", "Feature Gap Finder", "Opportunity Heatmap"].map((m) => (
-                  <Card key={m}>
-                    <CardHeader className="flex flex-row items-center justify-between py-3">
-                      <CardTitle className="text-sm">{m}</CardTitle>
-                      <Badge variant="secondary" className="text-[10px]">Phase 2–3</Badge>
-                    </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground pb-4">Coming after Phase 1 validation.</CardContent>
-                  </Card>
-                ))}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Target className="h-4 w-4" />SWOT Analysis</CardTitle>
+                    <Button size="sm" onClick={() => runAnalysis("swot")} disabled={analyzing === "swot" || !selected?.raw?.description}>
+                      {analyzing === "swot" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Generate
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {a("swot") ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["strengths","weaknesses","opportunities","threats"] as const).map((k) => (
+                          <div key={k} className={`rounded border p-2 ${
+                            k === "strengths" ? "border-emerald-400/40 bg-emerald-400/5" :
+                            k === "weaknesses" ? "border-rose-400/40 bg-rose-400/5" :
+                            k === "opportunities" ? "border-sky-400/40 bg-sky-400/5" :
+                            "border-amber-400/40 bg-amber-400/5"
+                          }`}>
+                            <div className="text-[10px] uppercase tracking-wider mb-1 font-semibold">{k}</div>
+                            <ul className="space-y-0.5">
+                              {(a("swot")[k] ?? []).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-muted-foreground">Strengths, weaknesses, opportunities, threats.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <div>
+                      <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" />Feature Gap Finder</CardTitle>
+                      <CardDescription className="text-[10px]">Cross-competitor diff across the whole report.</CardDescription>
+                    </div>
+                    <Button size="sm" onClick={() => runAnalysis("gaps", "report")} disabled={analyzing === "gaps" || competitors.length === 0}>
+                      {analyzing === "gaps" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      Find gaps
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="text-xs">
+                    {analyses["gaps"] ? (
+                      <div className="space-y-2">
+                        <div className="rounded border border-primary/30 bg-primary/5 p-2">
+                          <strong>Summary:</strong> {analyses["gaps"].summary}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(analyses["gaps"]).filter(([k]) => k !== "summary").map(([k, v]) => (
+                            <div key={k} className="rounded border border-border p-2">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{k}</div>
+                              <ul className="space-y-0.5">
+                                {Array.isArray(v) && v.slice(0, 8).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : <p className="text-muted-foreground">Identify what all competitors are missing — your differentiation opportunities.</p>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between py-3">
+                    <CardTitle className="text-sm">Opportunity Heatmap</CardTitle>
+                    <Badge variant="secondary" className="text-[10px]">Phase 3</Badge>
+                  </CardHeader>
+                  <CardContent className="text-xs text-muted-foreground pb-4">Visualization coming in Phase 3.</CardContent>
+                </Card>
               </TabsContent>
+
 
               <TabsContent value="build" className="mt-4 space-y-3">
                 {PHASE3.map((m) => (
