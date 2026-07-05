@@ -351,6 +351,60 @@ export default function ExtensionIntelligence() {
     } finally { setAnalyzing(null); }
   }
 
+  async function generateIcons() {
+    if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
+    const kit = a("storekit");
+    const iconPrompt = kit?.iconPrompt;
+    const extName = kit?.listing?.title ?? selected.name;
+    setAnalyzing("icons");
+    try {
+      const { data, error } = await supabase.functions.invoke("ext-intel-icon", {
+        body: { prompt: iconPrompt, extension_name: extName },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const b64 = data.image_base64 as string;
+      const src = `data:image/png;base64,${b64}`;
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to decode icon"));
+        img.src = src;
+      });
+
+      async function resize(size: number): Promise<Blob> {
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, size, size);
+        return await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      }
+
+      const zip = new JSZip();
+      const [i16, i48, i128, i512] = await Promise.all([resize(16), resize(48), resize(128), resize(512)]);
+      zip.file("icon16.png", await i16.arrayBuffer());
+      zip.file("icon48.png", await i48.arrayBuffer());
+      zip.file("icon128.png", await i128.arrayBuffer());
+      zip.file("icon512.png", await i512.arrayBuffer());
+      zip.file("README.txt", `AI-generated icons for "${extName}".\nReplace the placeholder icon*.png files in your extension folder with these before publishing.\nAlso use icon512.png as a source for CWS store artwork.`);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      const safe = (extName ?? "extension").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      el.href = url; el.download = `${safe}-icons.zip`; el.click();
+      URL.revokeObjectURL(url);
+
+      setAnalyses((prev) => ({ ...prev, [`icons:${selected.id}`]: { preview: src } }));
+      toast.success("Icons generated (16/48/128/512)");
+    } catch (e: any) {
+      toast.error(e.message ?? "Icon generation failed");
+    } finally { setAnalyzing(null); }
+  }
+
   async function generateStoreKit() {
     if (!reportId || !selected?.id) { toast.error("Select a competitor first"); return; }
     setAnalyzing("storekit");
@@ -1172,6 +1226,35 @@ ${(l.keywords ?? []).join(", ")}`);
                     </CardContent>
                   )}
                 </Card>
+
+                <Card className="border-amber-400/40 bg-amber-400/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-sm flex items-center gap-2"><Palette className="h-4 w-4" />AI Icon Generator</CardTitle>
+                        <CardDescription className="text-[10px]">Generates a real icon via Lovable AI, auto-resizes to 16/48/128/512 PNGs. Uses the icon brief from the Publish Kit when available.</CardDescription>
+                      </div>
+                      <Button size="sm" onClick={generateIcons} disabled={analyzing === "icons" || !selected}>
+                        {analyzing === "icons" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                        Generate Icons
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {a("icons")?.preview && (
+                    <CardContent className="text-xs">
+                      <div className="flex items-end gap-4">
+                        {[128, 48, 16].map((s) => (
+                          <div key={s} className="flex flex-col items-center gap-1">
+                            <img src={a("icons").preview} alt={`icon ${s}`} style={{ width: s, height: s, imageRendering: s <= 48 ? "pixelated" : "auto" }} className="rounded border border-border bg-black/20" />
+                            <span className="text-[9px] text-muted-foreground">{s}px</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
 
 
 
