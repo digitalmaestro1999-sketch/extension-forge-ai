@@ -219,11 +219,21 @@ function summarizeUploadResult(data: any): { code: string; hint: string } | null
   return { code, hint: hintMap[code] ?? detail ?? "See CWS response for details." };
 }
 
+const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB hard cap on request body
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const body = await req.json();
+    const contentLength = Number(req.headers.get("content-length") ?? "0");
+    if (contentLength && contentLength > MAX_BODY_BYTES) {
+      return json({ error: "Payload too large (max 50 MB)" }, 413);
+    }
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) {
+      return json({ error: "Payload too large (max 50 MB)" }, 413);
+    }
+    const body = JSON.parse(raw);
     const op: string = body?.op ?? "full";
 
     if (op === "exchange-code") {
