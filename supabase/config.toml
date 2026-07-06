@@ -1,30 +1,30 @@
 project_id = "nufksbhydjhqaqqfxkdp"
 
 [functions.generate-extension]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-pipeline]
-verify_jwt = false
+verify_jwt = true
 
 [functions.discover-trends]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-icons]
-verify_jwt = false
+verify_jwt = true
 
 [functions.chrome-store-upload]
-verify_jwt = false
+verify_jwt = true
 
 [functions.extension-ingest]
 verify_jwt = false
 
 [functions.extension-edit]
-verify_jwt = false
+verify_jwt = true
 
 [functions.software-intel]
-verify_jwt = false
+verify_jwt = true
 [functions.voice-support]
 verify_jwt = true
