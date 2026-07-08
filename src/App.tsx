@@ -29,6 +29,7 @@ import RevenueTracker from "./pages/RevenueTracker";
 import UserManual from "./pages/UserManual";
 import AdminUsers from "./pages/AdminUsers";
 import AdminOpsConsole from "./pages/AdminOpsConsole";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
 import ManageExtension from "./pages/ManageExtension";
 import LiveControl from "./pages/LiveControl";
 import SoftwareIntelligence from "./pages/SoftwareIntelligence";
@@ -86,6 +87,7 @@ const App = () => (
                       <Route path="/control" element={<LiveControl />} />
                       <Route path="/intelligence" element={<ExtensionIntelligence />} />
                       <Route path="/intelligence/codebase" element={<SoftwareIntelligence />} />
+                      <Route path="/audit-logs" element={<AdminAuditLogs />} />
 
 
 

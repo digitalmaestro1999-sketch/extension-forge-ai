@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Wand2, Code2, Plug, TestTube2, Package,
   Upload, Settings, Blocks, Zap, TrendingUp, Layers, FolderOpen, LogOut, User,
   Briefcase, DollarSign, Search, BarChart3, BookOpen, Crown, ShieldCheck, SlidersHorizontal,
-  Radio, Brain, Server,
+  Radio, Brain, Server, FileClock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -49,6 +49,7 @@ const toolItems: NavItem[] = [
 ];
 
 const settingsItems = [
+  { title: "Audit Logs", url: "/audit-logs", icon: FileClock },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "User Manual", url: "/manual", icon: BookOpen },
 ];
