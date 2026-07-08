@@ -7,7 +7,6 @@ import { scanPolicy, type PolicyIssue } from "./policyScanner";
 import { validateSyntax, type SyntaxIssue } from "./syntaxValidator";
 import { scanSecurity, type SecurityIssue } from "./securityScanner";
 import { checkAccessibility, type A11yIssue } from "./a11y";
-import { simulateRuntime, type RuntimeResult } from "./runtime-simulator";
 import { runPackageQA } from "@/lib/package-qa";
 
 export { simulateRuntime } from "./runtime-simulator";
