@@ -331,7 +331,18 @@ export default function AdminAuditLogs() {
     const md = buildComplianceReport(filtered);
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
     saveAs(blob, `compliance-report-${new Date().toISOString().slice(0, 10)}.md`);
-    toast.success("Compliance report exported");
+    toast.success("Compliance report exported (Markdown)");
+  };
+
+  const exportPdf = () => {
+    if (filtered.length === 0) { toast.info("No data for report"); return; }
+    try {
+      const doc = buildCompliancePdf(filtered);
+      doc.save(`compliance-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success("Compliance report exported (PDF)");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PDF export failed");
+    }
   };
 
   return (
