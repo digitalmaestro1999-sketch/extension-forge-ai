@@ -12,26 +12,40 @@ const buildFallbackResults = (niche: string) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  return [
-    {
-      opportunity: `${titleBase} Workflow Copilot`,
-      description: `Guided daily workflows and automation suggestions for ${normalized} users.`,
-      demand_score: 72,
-      competition_score: 46,
-      revenue_potential: "medium",
-      category: normalized,
-      features: ["Workflow templates", "Usage analytics", "One-click automations"],
-    },
-    {
-      opportunity: `${titleBase} Insight Tracker`,
-      description: `Tracks key signals, trends, and performance benchmarks in the ${normalized} space.`,
-      demand_score: 78,
-      competition_score: 41,
-      revenue_potential: "high",
-      category: normalized,
-      features: ["Trend alerts", "Competitor snapshots", "Weekly digest"],
-    },
+  const concepts = [
+    { suffix: "Workflow Copilot", desc: "Guided daily workflows and automation suggestions", features: ["Workflow templates", "Usage analytics", "One-click automations"], demand: 72, comp: 46, rev: "medium" },
+    { suffix: "Insight Tracker", desc: "Tracks key signals, trends, and performance benchmarks", features: ["Trend alerts", "Competitor snapshots", "Weekly digest"], demand: 78, comp: 41, rev: "high" },
+    { suffix: "Focus Guardian", desc: "Blocks distractions and enforces deep-work sessions", features: ["Site blocking", "Pomodoro timer", "Focus reports"], demand: 74, comp: 55, rev: "medium" },
+    { suffix: "Smart Clipper", desc: "Save, tag, and organise web snippets with AI summaries", features: ["AI tagging", "Full-text search", "Cross-device sync"], demand: 76, comp: 48, rev: "medium" },
+    { suffix: "Price Sentinel", desc: "Monitors price changes and alerts on drops or deals", features: ["Price history", "Deal alerts", "Wishlist sync"], demand: 82, comp: 60, rev: "high" },
+    { suffix: "Meeting Coach", desc: "Live prompts and post-call summaries for online meetings", features: ["Live cues", "Auto summary", "Action items"], demand: 80, comp: 52, rev: "high" },
+    { suffix: "Tab Marshal", desc: "Auto-groups, hibernates, and restores tabs by project", features: ["Auto grouping", "Session save", "Memory saver"], demand: 70, comp: 58, rev: "low" },
+    { suffix: "Privacy Shield", desc: "One-click permission audit and tracker blocker", features: ["Tracker report", "Permission audit", "Site rules"], demand: 77, comp: 50, rev: "medium" },
+    { suffix: "Writing Refiner", desc: "Context-aware rewrite, tone, and clarity assistant", features: ["Tone shift", "Grammar fix", "Style presets"], demand: 84, comp: 62, rev: "high" },
+    { suffix: "Research Ledger", desc: "Auto-cite sources and build a research log as you browse", features: ["Auto citations", "Source ledger", "Export to Notion"], demand: 68, comp: 40, rev: "medium" },
   ];
+
+  return concepts.map((c) => ({
+    opportunity: `${titleBase} ${c.suffix}`,
+    description: `${c.desc} for ${normalized} users.`,
+    demand_score: c.demand,
+    competition_score: c.comp,
+    revenue_potential: c.rev,
+    category: normalized,
+    features: c.features,
+  }));
+};
+
+const clampToRange = (arr: unknown, niche: string): unknown[] => {
+  const list = Array.isArray(arr) ? arr.slice(0, 15) : [];
+  if (list.length >= 10) return list;
+  const filler = buildFallbackResults(niche);
+  const seen = new Set(list.map((x) => (x as { opportunity?: string })?.opportunity));
+  for (const f of filler) {
+    if (list.length >= 10) break;
+    if (!seen.has(f.opportunity)) list.push(f);
+  }
+  return list;
 };
 
 serve(async (req) => {
