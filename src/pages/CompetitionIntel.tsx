@@ -151,6 +151,40 @@ export default function CompetitionIntel() {
     URL.revokeObjectURL(url);
   };
 
+  const exportPdf = () => {
+    if (!activeReport) return;
+    try {
+      exportGapReportPdf(activeReport, listings);
+      toast.success("PDF exported");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PDF export failed");
+    }
+  };
+
+  const cadenceStats = useMemo(() => {
+    const buckets = { fresh: 0, aging: 0, stale: 0, unknown: 0 };
+    const days: number[] = [];
+    for (const l of listings) {
+      const f = l.update_cadence?.freshness;
+      if (f === "fresh") buckets.fresh++;
+      else if (f === "aging") buckets.aging++;
+      else if (f === "stale") buckets.stale++;
+      else buckets.unknown++;
+      const d = l.update_cadence?.daysSinceUpdate;
+      if (typeof d === "number") days.push(d);
+    }
+    const sorted = [...days].sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
+    const avg = days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : null;
+    const chartData = [
+      { bucket: "Fresh (<90d)", count: buckets.fresh, fill: "hsl(142 71% 45%)" },
+      { bucket: "Aging (90-180d)", count: buckets.aging, fill: "hsl(38 92% 50%)" },
+      { bucket: "Stale (>180d)", count: buckets.stale, fill: "hsl(0 84% 60%)" },
+      { bucket: "Unknown", count: buckets.unknown, fill: "hsl(240 5% 50%)" },
+    ];
+    return { buckets, median, avg, chartData, total: listings.length };
+  }, [listings]);
+
   const selectedCount = Object.values(selected).filter(Boolean).length;
 
   return (
