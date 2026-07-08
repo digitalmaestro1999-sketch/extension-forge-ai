@@ -11,6 +11,8 @@ import { certifyExtension, type CertificationReport } from "@/lib/quality-suite"
 import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, checkAutoFixSafety, type PermissionRiskReport, type RiskLevel, type PermissionFinding } from "@/lib/permission-risk";
 import { BrowserCompatPanel, CompatScoreBadge } from "@/components/BrowserCompatPanel";
 import { analyzeBrowserCompatibility, compatReportMarkdown } from "@/lib/browser-compat";
+import { runPreflight, type PreflightResult } from "@/lib/preflight-manifest";
+import { logSecurityEvent } from "@/lib/security-audit-log";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
