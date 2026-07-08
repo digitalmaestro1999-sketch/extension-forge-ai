@@ -320,7 +320,7 @@ export default function PackageExtension() {
       description: applied.join(" · "),
     });
     void logSecurityEvent({
-      eventType: "preflight_autofix",
+      eventType: "autofix_applied",
       severity: "info",
       resource: "manifest.json",
       details: { applied },
