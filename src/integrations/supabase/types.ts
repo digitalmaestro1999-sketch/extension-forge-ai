@@ -337,6 +337,141 @@ export type Database = {
           },
         ]
       }
+      intel_cws_listings: {
+        Row: {
+          category: string | null
+          created_at: string
+          cws_id: string | null
+          cws_url: string
+          detailed_description: string | null
+          developer: string | null
+          features: Json | null
+          id: string
+          last_updated: string | null
+          name: string | null
+          permissions: Json | null
+          rating: number | null
+          rating_count: number | null
+          raw_markdown: string | null
+          review_sentiment: Json | null
+          reviews: Json | null
+          scraped_at: string
+          short_description: string | null
+          update_cadence: Json | null
+          updated_at: string
+          user_count: string | null
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          cws_id?: string | null
+          cws_url: string
+          detailed_description?: string | null
+          developer?: string | null
+          features?: Json | null
+          id?: string
+          last_updated?: string | null
+          name?: string | null
+          permissions?: Json | null
+          rating?: number | null
+          rating_count?: number | null
+          raw_markdown?: string | null
+          review_sentiment?: Json | null
+          reviews?: Json | null
+          scraped_at?: string
+          short_description?: string | null
+          update_cadence?: Json | null
+          updated_at?: string
+          user_count?: string | null
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          cws_id?: string | null
+          cws_url?: string
+          detailed_description?: string | null
+          developer?: string | null
+          features?: Json | null
+          id?: string
+          last_updated?: string | null
+          name?: string | null
+          permissions?: Json | null
+          rating?: number | null
+          rating_count?: number | null
+          raw_markdown?: string | null
+          review_sentiment?: Json | null
+          reviews?: Json | null
+          scraped_at?: string
+          short_description?: string | null
+          update_cadence?: Json | null
+          updated_at?: string
+          user_count?: string | null
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      intel_gap_reports: {
+        Row: {
+          category: string | null
+          competitor_ids: string[] | null
+          created_at: string
+          differentiators: Json | null
+          extension_name: string | null
+          id: string
+          keywords: Json | null
+          missing_features: Json | null
+          opportunities: Json | null
+          overall_score: number | null
+          project_id: string | null
+          raw: Json | null
+          summary: string | null
+          threats: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          competitor_ids?: string[] | null
+          created_at?: string
+          differentiators?: Json | null
+          extension_name?: string | null
+          id?: string
+          keywords?: Json | null
+          missing_features?: Json | null
+          opportunities?: Json | null
+          overall_score?: number | null
+          project_id?: string | null
+          raw?: Json | null
+          summary?: string | null
+          threats?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          competitor_ids?: string[] | null
+          created_at?: string
+          differentiators?: Json | null
+          extension_name?: string | null
+          id?: string
+          keywords?: Json | null
+          missing_features?: Json | null
+          opportunities?: Json | null
+          overall_score?: number | null
+          project_id?: string | null
+          raw?: Json | null
+          summary?: string | null
+          threats?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       intel_reports: {
         Row: {
           created_at: string
