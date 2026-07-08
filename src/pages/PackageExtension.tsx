@@ -290,6 +290,43 @@ export default function PackageExtension() {
     }
   };
 
+  const handlePreflightAutoFix = () => {
+    if (Object.keys(files).length === 0) return;
+    let current = files;
+    const applied: string[] = [];
+    // Iterate up to 3 passes so cascading checks stabilize.
+    for (let i = 0; i < 3; i++) {
+      const policy = runPolicyCheck({ files: current });
+      const failing = policy.checks.filter(c => !c.passed && c.autoFix?.mode === "deterministic");
+      if (failing.length === 0) break;
+      let progressed = false;
+      for (const check of failing) {
+        const res = applyDeterministicPolicyFix(check, current);
+        if (res?.files) {
+          current = res.files;
+          applied.push(res.applied);
+          progressed = true;
+        }
+      }
+      if (!progressed) break;
+    }
+    if (applied.length === 0) {
+      toast.info("No deterministic manifest fixes available — edit manually or use AI rewrite.");
+      return;
+    }
+    setFiles(current);
+    sessionStorage.setItem("extension-files", JSON.stringify(current));
+    toast.success(`Applied ${applied.length} manifest fix${applied.length === 1 ? "" : "es"}`, {
+      description: applied.join(" · "),
+    });
+    void logSecurityEvent({
+      eventType: "preflight_autofix",
+      severity: "info",
+      resource: "manifest.json",
+      details: { applied },
+    });
+  };
+
   const handleAutoFix = () => {
     if (Object.keys(files).length === 0) return;
     setAutoFixing(true);
