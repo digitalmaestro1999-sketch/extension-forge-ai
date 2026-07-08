@@ -51,7 +51,10 @@ export default function CertifyExtension() {
       await logSecurityEvent({
         eventType: r.criticals === 0 ? "preflight_pass" : "preflight_block",
         severity: r.criticals === 0 ? "info" : "warning",
-        metadata: { overall: r.overall, criticals: r.criticals, warnings: r.warnings, passBand: r.passProbability, source: "certify" },
+        passed: r.criticals === 0,
+        blockers: r.criticals,
+        warnings: r.warnings,
+        details: { overall: r.overall, passBand: r.passProbability, source: "certify" },
       });
     } finally {
       setRunning(false);
