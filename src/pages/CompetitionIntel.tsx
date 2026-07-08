@@ -83,9 +83,9 @@ export default function CompetitionIntel() {
       supabase.from("intel_cws_listings").select("*").order("scraped_at", { ascending: false }).limit(100),
       supabase.from("intel_gap_reports").select("*").order("created_at", { ascending: false }).limit(20),
     ]);
-    setListings((l as Listing[]) ?? []);
-    setReports((r as GapReport[]) ?? []);
-    if (r && r.length && !activeReport) setActiveReport(r[0] as GapReport);
+    setListings((l as unknown as Listing[]) ?? []);
+    setReports((r as unknown as GapReport[]) ?? []);
+    if (r && r.length && !activeReport) setActiveReport(r[0] as unknown as GapReport);
   };
 
   const discover = async () => {
