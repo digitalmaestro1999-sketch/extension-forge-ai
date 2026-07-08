@@ -7,8 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { runCertification, renderCertMarkdown, simulateRuntime, type CertReport, type CertIssue, type RuntimeResult } from "@/lib/certification";
+import { mergeIntel, type IntelGapReportLike } from "@/lib/certification/intel-scoring";
 import { runAutoFixLoop, type AutoFixStep } from "@/lib/certification/autofix-loop";
 import { logSecurityEvent } from "@/lib/security-audit-log";
+import { supabase } from "@/integrations/supabase/client";
 
 function loadFiles(): Record<string, string> {
   try {
