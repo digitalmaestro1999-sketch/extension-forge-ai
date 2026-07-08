@@ -15,7 +15,7 @@ export { checkAccessibility } from "./a11y";
 export type { A11yIssue } from "./a11y";
 
 export type Category =
-  | "manifest" | "policy" | "security" | "syntax" | "packaging" | "perfA11y";
+  | "manifest" | "policy" | "security" | "syntax" | "packaging" | "perfA11y" | "market";
 
 export type IssueSeverity = "critical" | "warning" | "info";
 
