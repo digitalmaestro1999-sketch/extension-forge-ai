@@ -58,6 +58,7 @@ const WEIGHTS: Record<Category, { label: string; weight: number }> = {
   syntax:    { label: "Syntax",            weight: 15 },
   packaging: { label: "Packaging",         weight: 10 },
   perfA11y:  { label: "Perf & A11y",       weight: 15 },
+  market:    { label: "Market Fit",        weight: 10 },
 };
 
 function categoryScore(issues: CertIssue[], key: Category): CategoryScore {
