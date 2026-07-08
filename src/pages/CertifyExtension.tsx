@@ -160,11 +160,15 @@ export default function CertifyExtension() {
           <Button variant="outline" size="sm" onClick={() => run()} disabled={running || empty}>
             <RefreshCw className={`h-4 w-4 mr-2 ${running ? "animate-spin" : ""}`} />Re-run
           </Button>
+          <Button variant="outline" size="sm" onClick={runSimulator} disabled={simulating || empty}>
+            <PlayCircle className={`h-4 w-4 mr-2 ${simulating ? "animate-pulse" : ""}`} />Simulate
+          </Button>
           <Button variant="outline" size="sm" onClick={exportMarkdown} disabled={!report}>
             <Download className="h-4 w-4 mr-2" />Export Report
           </Button>
-          <Button size="sm" onClick={autoFixStub} disabled={!report || report.criticals + report.warnings === 0}>
-            <Wand2 className="h-4 w-4 mr-2" />AI Auto-Fix
+          <Button size="sm" onClick={runAutoFix} disabled={autoFixing || !report || report.criticals + report.warnings === 0}>
+            {autoFixing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
+            {autoFixing ? "Fixing…" : "AI Auto-Fix"}
           </Button>
         </div>
       </div>
