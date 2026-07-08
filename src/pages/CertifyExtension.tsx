@@ -89,8 +89,57 @@ export default function CertifyExtension() {
     URL.revokeObjectURL(url);
   };
 
-  const autoFixStub = () => {
-    toast.info("AI Auto-Fix ships in Phase 2 — it will rewrite offending files with an AI loop and re-run all checks.");
+  const persistFiles = (next: Record<string, string>) => {
+    setFiles(next);
+    try { sessionStorage.setItem("extension-files", JSON.stringify(next)); } catch { /* quota */ }
+  };
+
+  const runAutoFix = async () => {
+    if (!report || !Object.keys(files).length) return;
+    setAutoFixing(true);
+    setAutoFixSteps([]);
+    try {
+      const result = await runAutoFixLoop(files, {
+        maxIterations: 3,
+        targetScore: 95,
+        onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
+      });
+      persistFiles(result.files);
+      setReport(result.after);
+      const delta = result.after.overall - result.before.overall;
+      const fixed = result.before.criticals - result.after.criticals;
+      toast.success(`Auto-fix complete · ${delta >= 0 ? "+" : ""}${delta} score · ${fixed} critical resolved`);
+      await logSecurityEvent({
+        eventType: "autofix_applied",
+        severity: "info",
+        blockers: result.after.criticals,
+        warnings: result.after.warnings,
+        details: {
+          before: { overall: result.before.overall, criticals: result.before.criticals },
+          after: { overall: result.after.overall, criticals: result.after.criticals },
+          iterations: Math.max(...result.steps.map(s => s.iteration), 0),
+          filesTouched: result.steps.filter(s => s.changed).length,
+        },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Auto-fix failed";
+      toast.error(msg);
+    } finally {
+      setAutoFixing(false);
+    }
+  };
+
+  const runSimulator = () => {
+    if (!Object.keys(files).length) return;
+    setSimulating(true);
+    try {
+      const r = simulateRuntime(files);
+      setRuntime(r);
+      if (r.issues.length === 0) toast.success(`Simulated ${r.scopes.length} scope(s) — clean`);
+      else toast.warning(`Simulator found ${r.issues.length} runtime issue(s)`);
+    } finally {
+      setSimulating(false);
+    }
   };
 
   const empty = !Object.keys(files).length;
