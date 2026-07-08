@@ -322,8 +322,7 @@ export default function PackageExtension() {
     void logSecurityEvent({
       eventType: "autofix_applied",
       severity: "info",
-      resource: "manifest.json",
-      details: { applied },
+      details: { applied, resource: "manifest.json" },
     });
   };
 
