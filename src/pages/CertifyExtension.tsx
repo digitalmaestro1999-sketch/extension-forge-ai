@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ShieldCheck, AlertTriangle, XCircle, Info, Download, RefreshCw, Wand2, FileWarning } from "lucide-react";
+import { ShieldCheck, AlertTriangle, XCircle, Info, Download, RefreshCw, Wand2, FileWarning, PlayCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { runCertification, renderCertMarkdown, type CertReport, type CertIssue } from "@/lib/certification";
+import { runCertification, renderCertMarkdown, simulateRuntime, type CertReport, type CertIssue, type RuntimeResult } from "@/lib/certification";
+import { runAutoFixLoop, type AutoFixStep } from "@/lib/certification/autofix-loop";
 import { logSecurityEvent } from "@/lib/security-audit-log";
 
 function loadFiles(): Record<string, string> {
@@ -31,6 +32,10 @@ export default function CertifyExtension() {
   const [report, setReport] = useState<CertReport | null>(null);
   const [query, setQuery] = useState("");
   const [running, setRunning] = useState(false);
+  const [autoFixing, setAutoFixing] = useState(false);
+  const [autoFixSteps, setAutoFixSteps] = useState<AutoFixStep[]>([]);
+  const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     const f = loadFiles();
@@ -84,8 +89,57 @@ export default function CertifyExtension() {
     URL.revokeObjectURL(url);
   };
 
-  const autoFixStub = () => {
-    toast.info("AI Auto-Fix ships in Phase 2 — it will rewrite offending files with an AI loop and re-run all checks.");
+  const persistFiles = (next: Record<string, string>) => {
+    setFiles(next);
+    try { sessionStorage.setItem("extension-files", JSON.stringify(next)); } catch { /* quota */ }
+  };
+
+  const runAutoFix = async () => {
+    if (!report || !Object.keys(files).length) return;
+    setAutoFixing(true);
+    setAutoFixSteps([]);
+    try {
+      const result = await runAutoFixLoop(files, {
+        maxIterations: 3,
+        targetScore: 95,
+        onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
+      });
+      persistFiles(result.files);
+      setReport(result.after);
+      const delta = result.after.overall - result.before.overall;
+      const fixed = result.before.criticals - result.after.criticals;
+      toast.success(`Auto-fix complete · ${delta >= 0 ? "+" : ""}${delta} score · ${fixed} critical resolved`);
+      await logSecurityEvent({
+        eventType: "autofix_applied",
+        severity: "info",
+        blockers: result.after.criticals,
+        warnings: result.after.warnings,
+        details: {
+          before: { overall: result.before.overall, criticals: result.before.criticals },
+          after: { overall: result.after.overall, criticals: result.after.criticals },
+          iterations: Math.max(...result.steps.map(s => s.iteration), 0),
+          filesTouched: result.steps.filter(s => s.changed).length,
+        },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Auto-fix failed";
+      toast.error(msg);
+    } finally {
+      setAutoFixing(false);
+    }
+  };
+
+  const runSimulator = () => {
+    if (!Object.keys(files).length) return;
+    setSimulating(true);
+    try {
+      const r = simulateRuntime(files);
+      setRuntime(r);
+      if (r.issues.length === 0) toast.success(`Simulated ${r.scopes.length} scope(s) — clean`);
+      else toast.warning(`Simulator found ${r.issues.length} runtime issue(s)`);
+    } finally {
+      setSimulating(false);
+    }
   };
 
   const empty = !Object.keys(files).length;
@@ -106,11 +160,15 @@ export default function CertifyExtension() {
           <Button variant="outline" size="sm" onClick={() => run()} disabled={running || empty}>
             <RefreshCw className={`h-4 w-4 mr-2 ${running ? "animate-spin" : ""}`} />Re-run
           </Button>
+          <Button variant="outline" size="sm" onClick={runSimulator} disabled={simulating || empty}>
+            <PlayCircle className={`h-4 w-4 mr-2 ${simulating ? "animate-pulse" : ""}`} />Simulate
+          </Button>
           <Button variant="outline" size="sm" onClick={exportMarkdown} disabled={!report}>
             <Download className="h-4 w-4 mr-2" />Export Report
           </Button>
-          <Button size="sm" onClick={autoFixStub} disabled={!report || report.criticals + report.warnings === 0}>
-            <Wand2 className="h-4 w-4 mr-2" />AI Auto-Fix
+          <Button size="sm" onClick={runAutoFix} disabled={autoFixing || !report || report.criticals + report.warnings === 0}>
+            {autoFixing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
+            {autoFixing ? "Fixing…" : "AI Auto-Fix"}
           </Button>
         </div>
       </div>
@@ -205,6 +263,84 @@ export default function CertifyExtension() {
               )}
             </CardContent>
           </Card>
+
+          {/* Runtime simulator */}
+          {runtime && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5" />
+                  Runtime Simulator
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {runtime.scopes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No popup or background service worker found in the manifest.</p>
+                )}
+                {runtime.scopes.map((s, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-sm">
+                    {s.ok
+                      ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      : <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />}
+                    <div className="flex-1">
+                      <code className="text-xs">{s.file}</code>
+                      <Badge variant="outline" className="ml-2 text-xs">{s.scope}</Badge>
+                    </div>
+                  </div>
+                ))}
+                {runtime.issues.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm font-medium">Runtime errors captured:</p>
+                    {runtime.issues.map((i, idx) => (
+                      <div key={idx} className="flex items-start gap-2 p-2 rounded border border-red-500/30 bg-red-500/5">
+                        <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <code className="text-xs text-muted-foreground">{i.file} · {i.scope}</code>
+                          <p className="text-sm mt-1">{i.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                  Best-effort JS sandbox with mocked chrome.* APIs. Real Chrome behavior can differ; use as a smoke test.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Auto-fix log */}
+          {autoFixSteps.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wand2 className="h-5 w-5" />
+                  AI Auto-Fix Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {autoFixSteps.map((s, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      {s.error
+                        ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        : s.changed
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                          : <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                      <div className="flex-1">
+                        <Badge variant="outline" className="text-xs mr-2">iter {s.iteration}</Badge>
+                        <code className="text-xs">{s.file}</code>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {s.beforeIssues} → {s.afterIssues} issues
+                          {s.changed ? " · rewritten" : s.error ? ` · ${s.error}` : " · unchanged"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
