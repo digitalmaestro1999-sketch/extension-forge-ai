@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Radar, Loader2, Search, Trash2, Plus, RefreshCw, Sparkles, Download, ExternalLink, TrendingUp, AlertTriangle, Target, Star } from "lucide-react";
+import { Radar, Loader2, Search, Trash2, Plus, RefreshCw, Sparkles, Download, ExternalLink, TrendingUp, AlertTriangle, Target, Star, FileText, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { exportGapReportPdf } from "@/lib/store-assets/gap-report-pdf";
 
 interface Listing {
   id: string;
