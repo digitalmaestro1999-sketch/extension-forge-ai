@@ -580,6 +580,59 @@ export default function PackageExtension() {
             </div>
           )}
 
+          {/* Preflight Manifest Compliance Gate */}
+          {preflight && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-xl border overflow-hidden ${preflight.passed ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/5"}`}
+            >
+              <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  {preflight.passed
+                    ? <ShieldCheck className="h-5 w-5 text-success" />
+                    : <XCircle className="h-5 w-5 text-destructive" />}
+                  <div>
+                    <h3 className="text-sm font-semibold">Preflight Manifest Compliance</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {preflight.summary} · {preflight.warnings.length} warning{preflight.warnings.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant={preflight.passed ? "default" : "destructive"}
+                  className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
+                >
+                  {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
+                </Badge>
+              </div>
+              {(preflight.blockers.length > 0 || preflight.warnings.length > 0) && (
+                <div className="px-5 pb-4 pt-1 space-y-1.5 border-t border-border/60">
+                  {preflight.blockers.map(b => (
+                    <div key={b.id} className="flex items-start gap-2 text-xs">
+                      <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{b.label}</span>
+                        {b.detail && <span className="text-muted-foreground font-mono ml-1.5 break-all">— {b.detail}</span>}
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase shrink-0">{b.source}</Badge>
+                    </div>
+                  ))}
+                  {preflight.warnings.map(w => (
+                    <div key={w.id} className="flex items-start gap-2 text-xs">
+                      <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{w.label}</span>
+                        {w.detail && <span className="text-muted-foreground font-mono ml-1.5 break-all">— {w.detail}</span>}
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase shrink-0">{w.source}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {qaReport && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
