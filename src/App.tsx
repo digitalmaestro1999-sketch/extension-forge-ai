@@ -31,6 +31,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminOpsConsole from "./pages/AdminOpsConsole";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
 import CertifyExtension from "./pages/CertifyExtension";
+import StoreAssets from "./pages/StoreAssets";
 import ManageExtension from "./pages/ManageExtension";
 import LiveControl from "./pages/LiveControl";
 import SoftwareIntelligence from "./pages/SoftwareIntelligence";
