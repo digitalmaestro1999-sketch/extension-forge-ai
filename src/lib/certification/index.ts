@@ -15,7 +15,7 @@ export { checkAccessibility } from "./a11y";
 export type { A11yIssue } from "./a11y";
 
 export type Category =
-  | "manifest" | "policy" | "security" | "syntax" | "packaging" | "perfA11y";
+  | "manifest" | "policy" | "security" | "syntax" | "packaging" | "perfA11y" | "market";
 
 export type IssueSeverity = "critical" | "warning" | "info";
 
@@ -58,6 +58,7 @@ const WEIGHTS: Record<Category, { label: string; weight: number }> = {
   syntax:    { label: "Syntax",            weight: 15 },
   packaging: { label: "Packaging",         weight: 10 },
   perfA11y:  { label: "Perf & A11y",       weight: 15 },
+  market:    { label: "Market Fit",        weight: 10 },
 };
 
 function categoryScore(issues: CertIssue[], key: Category): CategoryScore {

@@ -7,8 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { runCertification, renderCertMarkdown, simulateRuntime, type CertReport, type CertIssue, type RuntimeResult } from "@/lib/certification";
+import { mergeIntel, type IntelGapReportLike } from "@/lib/certification/intel-scoring";
 import { runAutoFixLoop, type AutoFixStep } from "@/lib/certification/autofix-loop";
 import { logSecurityEvent } from "@/lib/security-audit-log";
+import { supabase } from "@/integrations/supabase/client";
 
 function loadFiles(): Record<string, string> {
   try {
@@ -36,13 +38,30 @@ export default function CertifyExtension() {
   const [autoFixSteps, setAutoFixSteps] = useState<AutoFixStep[]>([]);
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [intel, setIntel] = useState<IntelGapReportLike | null>(null);
 
   useEffect(() => {
     const f = loadFiles();
     setFiles(f);
+    // Load the most recent gap report so market fit is scored automatically.
+    supabase
+      .from("intel_gap_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setIntel((data as unknown as IntelGapReportLike) ?? null));
     if (Object.keys(f).length) run(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When intel loads (async), re-merge into the current report from base data.
+  useEffect(() => {
+    if (!intel || !Object.keys(files).length) return;
+    const base = runCertification(files);
+    setReport(mergeIntel(base, intel));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intel]);
 
   const run = async (f: Record<string, string> = files) => {
     if (!Object.keys(f).length) {
@@ -51,7 +70,8 @@ export default function CertifyExtension() {
     }
     setRunning(true);
     try {
-      const r = runCertification(f);
+      const base = runCertification(f);
+      const r = mergeIntel(base, intel);
       setReport(r);
       await logSecurityEvent({
         eventType: r.criticals === 0 ? "preflight_pass" : "preflight_block",
@@ -59,7 +79,7 @@ export default function CertifyExtension() {
         passed: r.criticals === 0,
         blockers: r.criticals,
         warnings: r.warnings,
-        details: { overall: r.overall, passBand: r.passProbability, source: "certify" },
+        details: { overall: r.overall, passBand: r.passProbability, source: "certify", intel: !!intel },
       });
     } finally {
       setRunning(false);
@@ -105,7 +125,7 @@ export default function CertifyExtension() {
         onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
       });
       persistFiles(result.files);
-      setReport(result.after);
+      setReport(mergeIntel(result.after, intel));
       const delta = result.after.overall - result.before.overall;
       const fixed = result.before.criticals - result.after.criticals;
       toast.success(`Auto-fix complete · ${delta >= 0 ? "+" : ""}${delta} score · ${fixed} critical resolved`);
