@@ -52,7 +52,28 @@ function toCsv(rows: AuditLog[]): string {
   return header + "\n" + body;
 }
 
-function buildComplianceReport(rows: AuditLog[]): string {
+interface ComplianceSummary {
+  total: number;
+  extensions: number;
+  users: number;
+  blocks: number;
+  overrides: number;
+  downloads: number;
+  uploads: number;
+  uploadFails: number;
+  totalBlockers: number;
+  totalWarnings: number;
+  bySeverity: Record<string, number>;
+  byEvent: Record<string, number>;
+  first?: string;
+  last?: string;
+  gatePassRate: number;
+  overrideRate: number;
+  uploadSuccessRate: number;
+  recentBlocks: AuditLog[];
+}
+
+function computeSummary(rows: AuditLog[]): ComplianceSummary {
   const total = rows.length;
   const byEvent: Record<string, number> = {};
   const bySeverity: Record<string, number> = { info: 0, warning: 0, error: 0 };
@@ -75,50 +96,181 @@ function buildComplianceReport(rows: AuditLog[]): string {
     if (r.user_id) users.add(r.user_id);
   }
 
-  const first = rows[rows.length - 1]?.created_at;
-  const last = rows[0]?.created_at;
+  return {
+    total,
+    extensions: extensions.size,
+    users: users.size,
+    blocks, overrides, downloads, uploads, uploadFails,
+    totalBlockers, totalWarnings,
+    bySeverity, byEvent,
+    first: rows[rows.length - 1]?.created_at,
+    last: rows[0]?.created_at,
+    gatePassRate: total > 0 ? Math.round(((total - blocks - overrides) / total) * 100) : 100,
+    overrideRate: total > 0 ? Math.round((overrides / total) * 100) : 0,
+    uploadSuccessRate: uploads + uploadFails > 0 ? Math.round((uploads / (uploads + uploadFails)) * 100) : 100,
+    recentBlocks: rows.filter(r => r.event_type === "preflight_block").slice(0, 20),
+  };
+}
 
+function buildComplianceReport(rows: AuditLog[]): string {
+  const s = computeSummary(rows);
   const lines: string[] = [];
   lines.push("# Security Compliance Report");
   lines.push(`Generated: ${new Date().toISOString()}`);
-  if (first && last) lines.push(`Window: ${first} → ${last}`);
+  if (s.first && s.last) lines.push(`Window: ${s.first} → ${s.last}`);
   lines.push("");
   lines.push("## Executive Summary");
-  lines.push(`- Total audit events: **${total}**`);
-  lines.push(`- Unique extensions: **${extensions.size}**`);
-  lines.push(`- Unique users: **${users.size}**`);
-  lines.push(`- Preflight blocks: **${blocks}**`);
-  lines.push(`- Manual overrides: **${overrides}**`);
-  lines.push(`- Successful downloads: **${downloads}**`);
-  lines.push(`- CWS uploads: **${uploads}** (failures: ${uploadFails})`);
-  lines.push(`- Aggregate blockers logged: **${totalBlockers}**`);
-  lines.push(`- Aggregate warnings logged: **${totalWarnings}**`);
+  lines.push(`- Total audit events: **${s.total}**`);
+  lines.push(`- Unique extensions: **${s.extensions}**`);
+  lines.push(`- Unique users: **${s.users}**`);
+  lines.push(`- Preflight blocks: **${s.blocks}**`);
+  lines.push(`- Manual overrides: **${s.overrides}**`);
+  lines.push(`- Successful downloads: **${s.downloads}**`);
+  lines.push(`- CWS uploads: **${s.uploads}** (failures: ${s.uploadFails})`);
+  lines.push(`- Aggregate blockers logged: **${s.totalBlockers}**`);
+  lines.push(`- Aggregate warnings logged: **${s.totalWarnings}**`);
   lines.push("");
   lines.push("## Severity Breakdown");
-  for (const s of ["error", "warning", "info"]) {
-    lines.push(`- ${s}: ${bySeverity[s] ?? 0}`);
-  }
+  for (const sev of ["error", "warning", "info"]) lines.push(`- ${sev}: ${s.bySeverity[sev] ?? 0}`);
   lines.push("");
   lines.push("## Events by Type");
-  for (const [k, v] of Object.entries(byEvent).sort((a, b) => b[1] - a[1])) {
-    lines.push(`- \`${k}\`: ${v}`);
-  }
+  for (const [k, v] of Object.entries(s.byEvent).sort((a, b) => b[1] - a[1])) lines.push(`- \`${k}\`: ${v}`);
   lines.push("");
   lines.push("## Compliance Posture");
-  const gatePassRate = total > 0
-    ? Math.round(((total - blocks - overrides) / Math.max(1, total)) * 100)
-    : 100;
-  lines.push(`- Gate pass rate: **${gatePassRate}%**`);
-  lines.push(`- Override rate: **${total > 0 ? Math.round((overrides / total) * 100) : 0}%**`);
-  lines.push(`- Upload success rate: **${uploads + uploadFails > 0 ? Math.round((uploads / (uploads + uploadFails)) * 100) : 100}%**`);
+  lines.push(`- Gate pass rate: **${s.gatePassRate}%**`);
+  lines.push(`- Override rate: **${s.overrideRate}%**`);
+  lines.push(`- Upload success rate: **${s.uploadSuccessRate}%**`);
   lines.push("");
   lines.push("## Recent Blocking Events (last 20)");
-  const recentBlocks = rows.filter(r => r.event_type === "preflight_block").slice(0, 20);
-  if (recentBlocks.length === 0) {
+  if (s.recentBlocks.length === 0) {
     lines.push("_No blocking events in the selected window._");
   } else {
-    for (const r of recentBlocks) {
+    for (const r of s.recentBlocks) {
       const ids = (r.details as { blockers?: string[] })?.blockers?.join(", ") ?? "";
+      lines.push(`- ${r.created_at} · ${r.extension_name ?? "(unnamed)"} · ${r.blockers} blocker(s) · ${ids}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function buildCompliancePdf(rows: AuditLog[]): jsPDF {
+  const s = computeSummary(rows);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 48;
+  const marginBottom = 56;
+  let y = 56;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageH - marginBottom) {
+      doc.addPage();
+      y = 56;
+    }
+  };
+  const heading = (text: string, size = 14) => {
+    ensureSpace(size + 12);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(size);
+    doc.setTextColor(20, 20, 30);
+    doc.text(text, marginX, y);
+    y += size + 8;
+  };
+  const line = (text: string, opts?: { indent?: number; muted?: boolean }) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(opts?.muted ? 110 : 40, opts?.muted ? 110 : 40, opts?.muted ? 120 : 50);
+    const wrapped = doc.splitTextToSize(text, pageW - marginX * 2 - (opts?.indent ?? 0));
+    for (const w of wrapped as string[]) {
+      ensureSpace(14);
+      doc.text(w, marginX + (opts?.indent ?? 0), y);
+      y += 14;
+    }
+  };
+  const kv = (label: string, value: string | number) => {
+    ensureSpace(16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 100);
+    doc.text(label, marginX, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 20, 30);
+    doc.text(String(value), pageW - marginX, y, { align: "right" });
+    y += 16;
+  };
+  const rule = () => {
+    ensureSpace(10);
+    doc.setDrawColor(220, 220, 228);
+    doc.line(marginX, y, pageW - marginX, y);
+    y += 12;
+  };
+
+  // Title block
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, 40, "F");
+  doc.setTextColor(240, 244, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Security Compliance Report", marginX, 26);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(new Date().toLocaleString(), pageW - marginX, 26, { align: "right" });
+  y = 68;
+
+  if (s.first && s.last) {
+    line(`Reporting window: ${new Date(s.first).toLocaleString()} → ${new Date(s.last).toLocaleString()}`, { muted: true });
+    y += 4;
+  }
+
+  heading("Executive Summary");
+  kv("Total audit events", s.total);
+  kv("Unique extensions", s.extensions);
+  kv("Unique users", s.users);
+  kv("Preflight blocks", s.blocks);
+  kv("Manual overrides", s.overrides);
+  kv("Successful downloads", s.downloads);
+  kv("CWS uploads", `${s.uploads}  (failed: ${s.uploadFails})`);
+  kv("Blockers logged (sum)", s.totalBlockers);
+  kv("Warnings logged (sum)", s.totalWarnings);
+  rule();
+
+  heading("Compliance Posture");
+  kv("Gate pass rate", `${s.gatePassRate}%`);
+  kv("Override rate", `${s.overrideRate}%`);
+  kv("Upload success rate", `${s.uploadSuccessRate}%`);
+  rule();
+
+  heading("Severity Breakdown");
+  for (const sev of ["error", "warning", "info"]) kv(sev, s.bySeverity[sev] ?? 0);
+  rule();
+
+  heading("Events by Type");
+  for (const [k, v] of Object.entries(s.byEvent).sort((a, b) => b[1] - a[1])) kv(k, v);
+  rule();
+
+  heading("Recent Blocking Events (last 20)");
+  if (s.recentBlocks.length === 0) {
+    line("No blocking events in the selected window.", { muted: true });
+  } else {
+    for (const r of s.recentBlocks) {
+      const ids = (r.details as { blockers?: string[] })?.blockers?.join(", ") ?? "";
+      line(`• ${new Date(r.created_at).toLocaleString()} — ${r.extension_name ?? "(unnamed)"} — ${r.blockers} blocker(s)`);
+      if (ids) line(ids, { indent: 12, muted: true });
+    }
+  }
+
+  // Footer with page numbers
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 150);
+    doc.text(`Page ${i} of ${pageCount}`, pageW - marginX, pageH - 24, { align: "right" });
+    doc.text("Generated by Extension Forge AI · Security Compliance", marginX, pageH - 24);
+  }
+  return doc;
+}
       lines.push(`- ${r.created_at} · ${r.extension_name ?? "(unnamed)"} · ${r.blockers} blocker(s) · ${ids}`);
     }
   }
