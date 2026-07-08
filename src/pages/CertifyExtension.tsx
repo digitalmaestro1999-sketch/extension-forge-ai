@@ -32,6 +32,10 @@ export default function CertifyExtension() {
   const [report, setReport] = useState<CertReport | null>(null);
   const [query, setQuery] = useState("");
   const [running, setRunning] = useState(false);
+  const [autoFixing, setAutoFixing] = useState(false);
+  const [autoFixSteps, setAutoFixSteps] = useState<AutoFixStep[]>([]);
+  const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     const f = loadFiles();
