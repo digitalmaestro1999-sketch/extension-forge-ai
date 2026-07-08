@@ -41,6 +41,7 @@ const toolItems: NavItem[] = [
   { title: "API Manager", url: "/api-manager", icon: Plug },
   { title: "Test Extension", url: "/test", icon: TestTube2 },
   { title: "Package", url: "/package", icon: Package },
+  { title: "Certify", url: "/certify", icon: ShieldCheck },
   { title: "Publish", url: "/publish", icon: Upload },
   { title: "Manage Extension", url: "/manage", icon: SlidersHorizontal },
   { title: "Live Control", url: "/control", icon: Radio },
