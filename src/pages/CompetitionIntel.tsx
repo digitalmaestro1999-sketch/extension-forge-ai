@@ -17,6 +17,7 @@ interface Listing {
   name: string | null;
   developer: string | null;
   category: string | null;
+  short_description: string | null;
   rating: number | null;
   rating_count: number | null;
   user_count: string | null;
