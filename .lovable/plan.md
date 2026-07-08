@@ -1,104 +1,50 @@
+# Extension Certification & CWS Readiness Engine
 
-# AI Chrome Extension Intelligence Engine — Implementation Plan
+Build a scoring gate that runs before ZIP export, proving the generated extension is production-ready. Phased delivery; Phase 1 ships this turn.
 
-Replaces the current Software Intelligence page with a full competitive intelligence platform for Chrome extensions. Uses Firecrawl (scraping) + Lovable AI (Gemini) for analysis. Nothing scraped is copied verbatim — outputs are differentiated blueprints.
+## Phase 1 — Core validators + Readiness Dashboard (this turn)
 
-## Legal & IP guardrails (baked into every module)
+New page `/certify` (linked from sidebar and from Package flow). Runs on the current extension in state and produces a scored report.
 
-- Never emit competitor code, copy, screenshots, or logos into user deliverables.
-- AI prompts include: "Produce original, non-infringing recommendations. Do not reproduce competitor text, branding, or proprietary implementation."
-- Store raw scraped data server-side (analysis input only), surface only derived insights.
-- "Build Better Than This" outputs a differentiated PRD, not a clone.
+Modules implemented in `src/lib/certification/`:
+1. **manifestValidator** — MV3 fields, icons (16/32/48/128), permissions sanity, action, background service_worker, CSP, web_accessible_resources, version format, update_url absent, default_locale.
+2. **policyScanner** — regex + AST-light scan for: remote script URLs, `eval(`, `new Function(`, inline `on*=` handlers in HTML, `<script src="http…">`, obfuscation heuristics (avg identifier length, base64 blobs), tracking pixels, crypto miner strings, hidden iframes.
+3. **syntaxValidator** — JSON.parse for manifest/locales, quick JS parse via `new Function` in a worker-safe try/catch (report throw msg), HTML/CSS balanced-tag/brace check.
+4. **securityScanner** — `innerHTML=`, `document.write`, unsafe CSP directives, leaked keys (regex for `sk-`, `AIza`, `xox[baprs]-`, JWT-ish), `chrome.tabs.executeScript` w/ remote code.
+5. **packagingValidator** — required files present (manifest, icons, at least one HTML if action.default_popup set), no `.DS_Store`/`node_modules`, ZIP flat structure.
+6. **readinessScore** — weighted composite → `overall`, per-category %, PASS probability band (Low/Med/High), critical count, warning count.
 
-## Architecture
+UI: `src/pages/CertifyExtension.tsx`
+- Category cards with % + status ring
+- Overall Readiness gauge + PASS probability
+- Issues table (severity, file, line-ish, message, fix hint)
+- "Run AI Auto-Fix" button (calls Phase 2 loop — stub button now, wired in Phase 2)
+- "Export Report (MD)" button
+- Audit-logged: `preflight_pass` / `preflight_block` events
 
-```text
-User input (keyword | category | Store URL | Chrome ID)
-        │
-        ▼
-┌─────────────────────────────────────────────┐
-│ Page: /intelligence  (tabs = 20 modules)    │
-└─────────────────────────────────────────────┘
-        │ invoke
-        ▼
-┌─────────────────────────────────────────────┐
-│ Edge functions                              │
-│  • ext-intel-discover  (Firecrawl search)   │
-│  • ext-intel-scrape    (Firecrawl scrape)   │
-│  • ext-intel-analyze   (Gemini, stage-based)│
-│  • ext-intel-export    (PDF/CSV/MD/JSON)    │
-└─────────────────────────────────────────────┘
-        │
-        ▼
-┌─────────────────────────────────────────────┐
-│ DB: intel_reports, intel_competitors,       │
-│     intel_analyses (jsonb per module)       │
-└─────────────────────────────────────────────┘
-```
+Integration: Package page's preflight gate calls the same `runCertification()` so scores match.
 
-Reuse: existing `agent-pipeline` stage pattern, Firecrawl client shape from knowledge, Lovable AI gateway helper.
+## Phase 2 — AI Auto-Fix loop + Runtime Simulator
+- Edge function `certify-autofix` (Lovable AI, `openai/gpt-5.5`): given issues + offending file, returns rewritten file. Loop: fix → re-run validators → stop when score ≥ target or 3 iterations.
+- Runtime Simulator: jsdom-in-browser mock of chrome.* APIs; boot popup + background, capture errors.
+- Accessibility check (axe-core static rules on popup HTML).
 
-## Data model (new tables, RLS by owner)
+## Phase 3 — Store Listing & Assets
+- Store Listing Optimizer (title/desc/keywords/FAQ) via AI.
+- Icon Generator (Gemini image) for 16/32/48/128 + 440×280 promo.
+- Screenshot Generator (renders popup to canvas at 1280×800).
+- Privacy Policy generator from permissions.
 
-- `intel_reports` — id, user_id, input_type, input_value, status, created_at
-- `intel_competitors` — id, report_id, chrome_id, name, developer, rating, users, url, raw jsonb (metadata + screenshots urls)
-- `intel_analyses` — id, report_id, competitor_id nullable, module_key (e.g. `swot`, `features`, `gaps`), payload jsonb, created_at
-
-All with `authenticated` GRANTs + owner-scoped RLS using `report.user_id = auth.uid()`.
-
-## Delivery phases
-
-### Phase 1 — Foundation & Discovery (Modules 1, 2, 4)
-- New page shell at `/intelligence` with tabbed layout (all 20 tabs stubbed, first 3 functional).
-- Input bar: keyword | category | URL | Chrome ID.
-- `ext-intel-discover`: Firecrawl `search` on `site:chromewebstore.google.com <query>`, return top 10/25/50 with metadata.
-- `ext-intel-scrape`: Firecrawl `scrape` each listing (markdown + screenshot + links) → metadata extraction.
-- Module 2 (Feature Extractor) + Module 4 (Listing Analyzer) run via `ext-intel-analyze` stages `features`, `listing`.
-- Results persisted to `intel_reports/competitors/analyses`.
-
-### Phase 2 — Deep Analysis (Modules 3, 5, 6, 7, 8, 11, 17)
-- Screenshot Intelligence (Gemini vision on scraped image URLs).
-- Review Intelligence — Firecrawl paginated scrape of reviews tab; Gemini clusters into categories.
-- Sentiment AI, SWOT, Feature Gap Finder (cross-competitor diff), Security Intelligence, Competitive Scorecard.
-- Each is a stage in `ext-intel-analyze` returning strict JSON, stored in `intel_analyses`.
-
-### Phase 3 — Strategy & Blueprint (Modules 9, 10, 12, 13, 14, 15, 16, 18)
-- Innovation Engine (30/50/100 ideas), Architecture Generator, Monetization, UX Redesign, RICE/MoSCoW/ICE prioritizer, Blueprint (PRD/roadmap/sprint), "Build Better Than This", Opportunity Heatmap (recharts scatter/heatmap).
-
-### Phase 4 — Distribution (Modules 19, 20)
-- AI Development Prompt Generator (Lovable / Cursor / Windsurf / Claude Code / Gemini CLI / Copilot / Bolt / Replit) — templated prompt built from the blueprint.
-- Export Center: PDF (jspdf), Excel (xlsx), CSV, Markdown, JSON, Jira/ClickUp/Trello import formats. Existing `xlsxwriter`/pptx not applicable client-side — use `jspdf` + `xlsx` npm libs.
-
-## UI structure (single page, 20 tabs grouped)
-
-- **Discover**: Modules 1, 2
-- **Analyze**: Modules 3, 4, 5, 6, 11, 17
-- **Compete**: Modules 7, 8, 18
-- **Build**: Modules 9, 10, 12, 13, 14, 15, 16
-- **Ship**: Modules 19, 20
-
-Left rail shows report history; main area shows the active competitor + module.
-
-## Prerequisites (user actions)
-
-1. **Link Firecrawl connector** — required for scraping. I'll prompt via `standard_connectors--connect` at Phase 1 start.
-2. Lovable AI already available (`LOVABLE_API_KEY` present ✓).
+## Phase 4 — Competition Intelligence
+- Firecrawl scraper of CWS category pages + individual listings.
+- Extract: features, permissions, ratings, review sentiment (AI), update cadence.
+- Gap analysis vs current extension; opportunities report.
+- New tables: `intel_cws_listings`, `intel_gap_reports`.
 
 ## Technical notes
+- All validators pure-TS, sync, no network — runnable both in `/certify` UI and inside Package preflight.
+- Scoring weights: Manifest 20, Policy 20, Security 20, Syntax 15, Packaging 10, Perf/A11y 15 (Perf/A11y stub 100 until Phase 2).
+- Audit events written via existing `security-audit-log.ts`.
+- No DB migration required for Phase 1.
 
-- Firecrawl calls go through Supabase edge functions (never expose `FIRECRAWL_API_KEY` client-side).
-- Chrome Web Store aggressively rate-limits — cache scraped competitor data in DB, refresh only on demand.
-- Long-running analyses (reviews mining, 100-idea innovation) run one module at a time from the UI to stay under edge-function timeouts; each returns strict JSON and streams results into the tab as they complete.
-- Review scraping is limited to publicly visible pages; respect robots and Firecrawl ToS.
-- Screenshot analysis uses `google/gemini-2.5-pro` (multimodal); text modules use `google/gemini-3-flash-preview` for cost.
-- Existing `/intelligence` (codebase analysis via `software-intel`) moves to `/intelligence/codebase` as a sub-tab so nothing is lost.
-
-## What I'll ship first if you approve
-
-Phase 1 only:
-- Firecrawl connector prompt
-- Migration for `intel_*` tables
-- `ext-intel-discover` + `ext-intel-scrape` + `ext-intel-analyze` edge functions
-- Rewritten `/intelligence` page with tabbed shell, working Discover + Feature Extractor + Listing Analyzer tabs, and stubs for the remaining 17 tabs (each showing "coming in Phase N")
-
-Then we iterate phase-by-phase based on what you see working.
+Phase 1 ships now; I'll ask before starting Phase 2.
