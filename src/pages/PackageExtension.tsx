@@ -225,10 +225,37 @@ export default function PackageExtension() {
   };
 
   const handleDownload = async () => {
+    // Preflight gate — block the download if the manifest fails compliance,
+    // unless the user has ticked "Download anyway".
+    const pre = preflight;
+    if (pre && !pre.passed && !ackWarnings) {
+      toast.error(`Preflight blocked · ${pre.blockers.length} issue${pre.blockers.length === 1 ? "" : "s"}`, {
+        description: "Fix critical manifest issues or acknowledge to download anyway.",
+      });
+      void logSecurityEvent({
+        eventType: "preflight_block",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        blockers: pre.blockers.length,
+        warnings: pre.warnings.length,
+        details: { blockers: pre.blockers.map(b => b.id), stage: "download" },
+      });
+      return;
+    }
     const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
     toast.success(cert?.productionReady ? "Production-ready package downloaded ✓" : "Extension package downloaded");
+    void logSecurityEvent({
+      eventType: pre?.passed ? "download" : "preflight_override",
+      severity: pre?.passed ? "info" : "warning",
+      extensionName: spec?.name ?? null,
+      passed: pre?.passed ?? true,
+      blockers: pre?.blockers.length ?? 0,
+      warnings: pre?.warnings.length ?? 0,
+      details: { sizeBytes: blob.size },
+    });
   };
 
   const handleCertify = () => {
@@ -242,6 +269,18 @@ export default function PackageExtension() {
       toast.success(
         `Certified · Grade ${report.grade} (${report.score}/100) · ${report.hardening.autoFixesApplied.length} fixes, shield in ${report.hardening.errorShieldInjected.length} files`,
       );
+      void logSecurityEvent({
+        eventType: "certify",
+        severity: report.productionReady ? "info" : "warning",
+        extensionName: spec?.name ?? null,
+        passed: report.productionReady,
+        details: {
+          grade: report.grade,
+          score: report.score,
+          autoFixes: report.hardening.autoFixesApplied.length,
+          errorShields: report.hardening.errorShieldInjected.length,
+        },
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Certification failed");
     } finally {
@@ -271,6 +310,19 @@ export default function PackageExtension() {
       toast.success(
         `Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"} · ${report.errors} errors remaining`,
       );
+      void logSecurityEvent({
+        eventType: "autofix_applied",
+        severity: "info",
+        extensionName: spec?.name ?? null,
+        blockers: report.errors,
+        warnings: report.warnings,
+        details: {
+          fixesApplied: fixes.length,
+          fixIds: Array.from(new Set(fixes.map(f => f.id))),
+          before,
+          after: { errors: report.errors, warnings: report.warnings },
+        },
+      });
     } finally {
       setAutoFixing(false);
     }
