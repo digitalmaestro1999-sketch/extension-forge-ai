@@ -176,9 +176,21 @@ export function analyzePermissionRisk(manifest: unknown): PermissionRiskReport {
 
   const asArray = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
+  const allHostPatterns = [
+    ...asArray(m.host_permissions),
+    ...asArray(m.optional_host_permissions),
+    ...(Array.isArray(m.content_scripts) ? m.content_scripts : []).flatMap((cs) => asArray(cs?.matches)),
+  ];
+  const hasBroadHost = allHostPatterns.some(
+    (h) => h === "<all_urls>" || h === "*://*/*" || h === "http://*/*" || h === "https://*/*",
+  );
+
   for (const p of asArray(m.permissions)) {
     const info = PERMISSION_RISKS[p];
-    if (info) findings.push({ permission: p, kind: "permission", ...info, autoFix: autoFixForPermission(p) });
+    if (!info) continue;
+    // `scripting` is only risky when paired with broad host access.
+    if (p === "scripting" && !hasBroadHost) continue;
+    findings.push({ permission: p, kind: "permission", ...info, autoFix: autoFixForPermission(p) });
   }
   for (const p of asArray(m.optional_permissions)) {
     const info = PERMISSION_RISKS[p];
