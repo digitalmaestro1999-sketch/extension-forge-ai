@@ -49,6 +49,7 @@ const toolItems: NavItem[] = [
 ];
 
 const settingsItems = [
+  { title: "Audit Logs", url: "/audit-logs", icon: FileClock },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "User Manual", url: "/manual", icon: BookOpen },
 ];
