@@ -49,6 +49,11 @@ export function applyDeterministicPolicyFix(
         m.name = String(m.name ?? "").slice(0, 75);
         return { files: writeManifest(files, m), applied: "Trimmed manifest.name to 75 chars" };
 
+      case "trim-manifest-description":
+        m.description = String(m.description ?? "").slice(0, 132);
+        return { files: writeManifest(files, m), applied: "Trimmed manifest.description to 132 chars" };
+
+
       case "normalize-version":
         m.version = "1.0.0";
         return { files: writeManifest(files, m), applied: "Set manifest.version to 1.0.0" };
