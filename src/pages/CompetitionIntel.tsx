@@ -379,6 +379,7 @@ export default function CompetitionIntel() {
                 ))}
               </select>
               <Button size="sm" variant="outline" onClick={exportReport} disabled={!activeReport}><Download className="h-4 w-4 mr-2" />Export MD</Button>
+              <Button size="sm" onClick={exportPdf} disabled={!activeReport}><FileText className="h-4 w-4 mr-2" />Export PDF</Button>
             </div>
           )}
 
