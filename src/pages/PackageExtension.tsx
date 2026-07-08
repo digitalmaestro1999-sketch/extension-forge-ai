@@ -601,12 +601,20 @@ export default function PackageExtension() {
                     </p>
                   </div>
                 </div>
-                <Badge
-                  variant={preflight.passed ? "default" : "destructive"}
-                  className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
-                >
-                  {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {!preflight.passed && (
+                    <Button size="sm" variant="outline" onClick={handlePreflightAutoFix}>
+                      <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                      Auto-Fix Manifest
+                    </Button>
+                  )}
+                  <Badge
+                    variant={preflight.passed ? "default" : "destructive"}
+                    className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
+                  >
+                    {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
+                  </Badge>
+                </div>
               </div>
               {(preflight.blockers.length > 0 || preflight.warnings.length > 0) && (
                 <div className="px-5 pb-4 pt-1 space-y-1.5 border-t border-border/60">
