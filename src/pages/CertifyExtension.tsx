@@ -126,7 +126,7 @@ export default function CertifyExtension() {
         onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
       });
       persistFiles(result.files);
-      setReport(result.after);
+      setReport(mergeIntel(result.after, intel));
       const delta = result.after.overall - result.before.overall;
       const fixed = result.before.criticals - result.after.criticals;
       toast.success(`Auto-fix complete · ${delta >= 0 ? "+" : ""}${delta} score · ${fixed} critical resolved`);
