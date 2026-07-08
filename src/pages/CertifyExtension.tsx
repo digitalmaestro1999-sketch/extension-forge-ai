@@ -263,6 +263,84 @@ export default function CertifyExtension() {
               )}
             </CardContent>
           </Card>
+
+          {/* Runtime simulator */}
+          {runtime && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5" />
+                  Runtime Simulator
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {runtime.scopes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No popup or background service worker found in the manifest.</p>
+                )}
+                {runtime.scopes.map((s, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-sm">
+                    {s.ok
+                      ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      : <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />}
+                    <div className="flex-1">
+                      <code className="text-xs">{s.file}</code>
+                      <Badge variant="outline" className="ml-2 text-xs">{s.scope}</Badge>
+                    </div>
+                  </div>
+                ))}
+                {runtime.issues.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm font-medium">Runtime errors captured:</p>
+                    {runtime.issues.map((i, idx) => (
+                      <div key={idx} className="flex items-start gap-2 p-2 rounded border border-red-500/30 bg-red-500/5">
+                        <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <code className="text-xs text-muted-foreground">{i.file} · {i.scope}</code>
+                          <p className="text-sm mt-1">{i.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                  Best-effort JS sandbox with mocked chrome.* APIs. Real Chrome behavior can differ; use as a smoke test.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Auto-fix log */}
+          {autoFixSteps.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wand2 className="h-5 w-5" />
+                  AI Auto-Fix Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {autoFixSteps.map((s, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      {s.error
+                        ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        : s.changed
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                          : <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                      <div className="flex-1">
+                        <Badge variant="outline" className="text-xs mr-2">iter {s.iteration}</Badge>
+                        <code className="text-xs">{s.file}</code>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {s.beforeIssues} → {s.afterIssues} issues
+                          {s.changed ? " · rewritten" : s.error ? ` · ${s.error}` : " · unchanged"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
