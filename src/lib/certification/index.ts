@@ -6,7 +6,14 @@ import { validateManifest, type ManifestIssue } from "./manifestValidator";
 import { scanPolicy, type PolicyIssue } from "./policyScanner";
 import { validateSyntax, type SyntaxIssue } from "./syntaxValidator";
 import { scanSecurity, type SecurityIssue } from "./securityScanner";
+import { checkAccessibility, type A11yIssue } from "./a11y";
+import { simulateRuntime, type RuntimeResult } from "./runtime-simulator";
 import { runPackageQA } from "@/lib/package-qa";
+
+export { simulateRuntime } from "./runtime-simulator";
+export type { RuntimeResult, RuntimeIssue } from "./runtime-simulator";
+export { checkAccessibility } from "./a11y";
+export type { A11yIssue } from "./a11y";
 
 export type Category =
   | "manifest" | "policy" | "security" | "syntax" | "packaging" | "perfA11y";
