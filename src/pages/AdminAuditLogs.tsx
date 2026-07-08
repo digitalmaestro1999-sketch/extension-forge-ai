@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { FileClock, Download, RefreshCw, ShieldCheck, AlertTriangle, XCircle, Info, Search, FileText } from "lucide-react";
+import { FileClock, Download, RefreshCw, ShieldCheck, AlertTriangle, XCircle, Info, Search, FileText, FileDown } from "lucide-react";
+import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
