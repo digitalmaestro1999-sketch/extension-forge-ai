@@ -127,7 +127,9 @@ export function runPolicyCheck(input: PolicyInputs): PolicyReport {
     policy: "manifest.description: 25-132 characters.",
     detail: `Current: ${desc.length} chars`,
     fix: "Edit manifest.json `description` to 25-132 characters.",
-    autoFix: { mode: "ai", kind: "rewrite-manifest-description", target: "manifest" },
+    autoFix: desc.length > 132
+      ? { mode: "deterministic", kind: "trim-manifest-description", target: "manifest" }
+      : { mode: "ai", kind: "rewrite-manifest-description", target: "manifest" },
   });
 
   const versionStr = getString(manifest, "version");

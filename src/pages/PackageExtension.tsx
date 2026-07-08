@@ -12,6 +12,8 @@ import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, checkAutoFixSaf
 import { BrowserCompatPanel, CompatScoreBadge } from "@/components/BrowserCompatPanel";
 import { analyzeBrowserCompatibility, compatReportMarkdown } from "@/lib/browser-compat";
 import { runPreflight, type PreflightResult } from "@/lib/preflight-manifest";
+import { runPolicyCheck } from "@/lib/cws-policy-check";
+import { applyDeterministicPolicyFix } from "@/lib/cws-policy-autofix";
 import { logSecurityEvent } from "@/lib/security-audit-log";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -286,6 +288,42 @@ export default function PackageExtension() {
     } finally {
       setCertifying(false);
     }
+  };
+
+  const handlePreflightAutoFix = () => {
+    if (Object.keys(files).length === 0) return;
+    let current = files;
+    const applied: string[] = [];
+    // Iterate up to 3 passes so cascading checks stabilize.
+    for (let i = 0; i < 3; i++) {
+      const policy = runPolicyCheck({ files: current });
+      const failing = policy.checks.filter(c => !c.passed && c.autoFix?.mode === "deterministic");
+      if (failing.length === 0) break;
+      let progressed = false;
+      for (const check of failing) {
+        const res = applyDeterministicPolicyFix(check, current);
+        if (res?.files) {
+          current = res.files;
+          applied.push(res.applied);
+          progressed = true;
+        }
+      }
+      if (!progressed) break;
+    }
+    if (applied.length === 0) {
+      toast.info("No deterministic manifest fixes available — edit manually or use AI rewrite.");
+      return;
+    }
+    setFiles(current);
+    sessionStorage.setItem("extension-files", JSON.stringify(current));
+    toast.success(`Applied ${applied.length} manifest fix${applied.length === 1 ? "" : "es"}`, {
+      description: applied.join(" · "),
+    });
+    void logSecurityEvent({
+      eventType: "autofix_applied",
+      severity: "info",
+      details: { applied, resource: "manifest.json" },
+    });
   };
 
   const handleAutoFix = () => {
@@ -599,12 +637,20 @@ export default function PackageExtension() {
                     </p>
                   </div>
                 </div>
-                <Badge
-                  variant={preflight.passed ? "default" : "destructive"}
-                  className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
-                >
-                  {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {!preflight.passed && (
+                    <Button size="sm" variant="outline" onClick={handlePreflightAutoFix}>
+                      <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                      Auto-Fix Manifest
+                    </Button>
+                  )}
+                  <Badge
+                    variant={preflight.passed ? "default" : "destructive"}
+                    className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
+                  >
+                    {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
+                  </Badge>
+                </div>
               </div>
               {(preflight.blockers.length > 0 || preflight.warnings.length > 0) && (
                 <div className="px-5 pb-4 pt-1 space-y-1.5 border-t border-border/60">
