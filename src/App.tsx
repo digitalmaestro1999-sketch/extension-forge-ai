@@ -91,6 +91,7 @@ const App = () => (
                       <Route path="/intelligence/codebase" element={<SoftwareIntelligence />} />
                       <Route path="/audit-logs" element={<AdminAuditLogs />} />
                       <Route path="/certify" element={<CertifyExtension />} />
+                      <Route path="/store-assets" element={<StoreAssets />} />
 
 
 
