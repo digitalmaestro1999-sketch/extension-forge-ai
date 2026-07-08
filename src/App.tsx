@@ -93,6 +93,7 @@ const App = () => (
                       <Route path="/audit-logs" element={<AdminAuditLogs />} />
                       <Route path="/certify" element={<CertifyExtension />} />
                       <Route path="/store-assets" element={<StoreAssets />} />
+                      <Route path="/competition" element={<CompetitionIntel />} />
 
 
 
