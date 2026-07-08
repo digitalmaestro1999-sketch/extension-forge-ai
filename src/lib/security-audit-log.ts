@@ -16,7 +16,10 @@ export type AuditEventType =
   | "cws_upload_failed"
   | "autofix_applied"
   | "certify"
-  | "manifest_edit";
+  | "manifest_edit"
+  | "store_listing_generated"
+  | "privacy_policy_generated"
+  | "icon_set_generated";
 
 export interface AuditPayload {
   eventType: AuditEventType;
