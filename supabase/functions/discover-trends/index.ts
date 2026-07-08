@@ -42,7 +42,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `You are a Chrome extension market analyst. Analyze the "${niche}" market and discover 5 profitable Chrome extension opportunities that don't exist yet or have weak competition.
+    const prompt = `You are a Chrome extension market analyst. Analyze the "${niche}" market and discover between 10 and 15 profitable Chrome extension opportunities that don't exist yet or have weak competition. Return at least 10 distinct opportunities and no more than 15.
 
 For each opportunity, provide:
 - opportunity: catchy extension name/concept
