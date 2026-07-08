@@ -408,6 +408,18 @@ export default function PackageExtension() {
     return runPackageQA(withIcons);
   }, [files, fileList.length]);
 
+  // Combined preflight compliance gate (structural QA + CWS manifest policy)
+  const preflight = useMemo<PreflightResult | null>(() => {
+    if (fileList.length === 0) return null;
+    const withIcons: Record<string, string> = {
+      ...files,
+      "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
+      "icons/icon48.png": files["icons/icon48.png"] ?? "<binary>",
+      "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
+    };
+    return runPreflight(withIcons);
+  }, [files, fileList.length]);
+
   const permissionRisk = useMemo<PermissionRiskReport | null>(() => {
     if (!files["manifest.json"]) return null;
     try { return analyzePermissionRisk(JSON.parse(files["manifest.json"])); }
