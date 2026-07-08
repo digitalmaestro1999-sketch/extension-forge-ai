@@ -11,6 +11,8 @@ import { certifyExtension, type CertificationReport } from "@/lib/quality-suite"
 import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, checkAutoFixSafety, type PermissionRiskReport, type RiskLevel, type PermissionFinding } from "@/lib/permission-risk";
 import { BrowserCompatPanel, CompatScoreBadge } from "@/components/BrowserCompatPanel";
 import { analyzeBrowserCompatibility, compatReportMarkdown } from "@/lib/browser-compat";
+import { runPreflight, type PreflightResult } from "@/lib/preflight-manifest";
+import { logSecurityEvent } from "@/lib/security-audit-log";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -223,10 +225,37 @@ export default function PackageExtension() {
   };
 
   const handleDownload = async () => {
+    // Preflight gate — block the download if the manifest fails compliance,
+    // unless the user has ticked "Download anyway".
+    const pre = preflight;
+    if (pre && !pre.passed && !ackWarnings) {
+      toast.error(`Preflight blocked · ${pre.blockers.length} issue${pre.blockers.length === 1 ? "" : "s"}`, {
+        description: "Fix critical manifest issues or acknowledge to download anyway.",
+      });
+      void logSecurityEvent({
+        eventType: "preflight_block",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        blockers: pre.blockers.length,
+        warnings: pre.warnings.length,
+        details: { blockers: pre.blockers.map(b => b.id), stage: "download" },
+      });
+      return;
+    }
     const blob = await buildZipBlob();
     const zipName = spec?.name?.toLowerCase().replace(/\s+/g, "-") || "extension";
     saveAs(blob, `${zipName}.zip`);
     toast.success(cert?.productionReady ? "Production-ready package downloaded ✓" : "Extension package downloaded");
+    void logSecurityEvent({
+      eventType: pre?.passed ? "download" : "preflight_override",
+      severity: pre?.passed ? "info" : "warning",
+      extensionName: spec?.name ?? null,
+      passed: pre?.passed ?? true,
+      blockers: pre?.blockers.length ?? 0,
+      warnings: pre?.warnings.length ?? 0,
+      details: { sizeBytes: blob.size },
+    });
   };
 
   const handleCertify = () => {
@@ -240,6 +269,18 @@ export default function PackageExtension() {
       toast.success(
         `Certified · Grade ${report.grade} (${report.score}/100) · ${report.hardening.autoFixesApplied.length} fixes, shield in ${report.hardening.errorShieldInjected.length} files`,
       );
+      void logSecurityEvent({
+        eventType: "certify",
+        severity: report.productionReady ? "info" : "warning",
+        extensionName: spec?.name ?? null,
+        passed: report.productionReady,
+        details: {
+          grade: report.grade,
+          score: report.score,
+          autoFixes: report.hardening.autoFixesApplied.length,
+          errorShields: report.hardening.errorShieldInjected.length,
+        },
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Certification failed");
     } finally {
@@ -269,6 +310,19 @@ export default function PackageExtension() {
       toast.success(
         `Applied ${fixes.length} fix${fixes.length === 1 ? "" : "es"} · ${report.errors} errors remaining`,
       );
+      void logSecurityEvent({
+        eventType: "autofix_applied",
+        severity: "info",
+        extensionName: spec?.name ?? null,
+        blockers: report.errors,
+        warnings: report.warnings,
+        details: {
+          fixesApplied: fixes.length,
+          fixIds: Array.from(new Set(fixes.map(f => f.id))),
+          before,
+          after: { errors: report.errors, warnings: report.warnings },
+        },
+      });
     } finally {
       setAutoFixing(false);
     }
@@ -288,6 +342,23 @@ export default function PackageExtension() {
   const handleCwsUpload = async () => {
     if (!cwsClientId || !cwsClientSecret || !cwsRefreshToken) {
       toast.error("Client ID, secret and refresh token are required");
+      return;
+    }
+    // Preflight is mandatory for CWS uploads — the store will reject a
+    // non-compliant manifest anyway, so block early and log the attempt.
+    if (preflight && !preflight.passed) {
+      toast.error(`Preflight blocked upload · ${preflight.blockers.length} manifest issue${preflight.blockers.length === 1 ? "" : "s"}`, {
+        description: "Fix critical compliance issues before uploading to the Chrome Web Store.",
+      });
+      void logSecurityEvent({
+        eventType: "preflight_block",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        blockers: preflight.blockers.length,
+        warnings: preflight.warnings.length,
+        details: { blockers: preflight.blockers.map(b => b.id), stage: "cws_upload" },
+      });
       return;
     }
     setCwsUploading(true);
@@ -327,11 +398,26 @@ export default function PackageExtension() {
           : "Uploaded to the Chrome Web Store as a draft.",
       );
       if (data?.dashboardUrl) window.open(data.dashboardUrl, "_blank", "noopener");
+      void logSecurityEvent({
+        eventType: "cws_upload",
+        severity: "info",
+        extensionName: spec?.name ?? null,
+        passed: true,
+        warnings: preflight?.warnings.length ?? 0,
+        details: { publish: cwsPublish, hasExtensionId: !!cwsExtensionId },
+      });
     } catch (e: unknown) {
       console.error("CWS upload error:", e);
       const msg = e instanceof Error ? e.message : "Chrome Web Store upload failed";
       setUploadStage({ step: "error", pct: 0, label: msg });
       toast.error(msg);
+      void logSecurityEvent({
+        eventType: "cws_upload_failed",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        details: { message: msg, publish: cwsPublish },
+      });
     } finally {
       setCwsUploading(false);
       // Auto-hide the bar a few seconds after completion
@@ -352,6 +438,18 @@ export default function PackageExtension() {
       "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
     };
     return runPackageQA(withIcons);
+  }, [files, fileList.length]);
+
+  // Combined preflight compliance gate (structural QA + CWS manifest policy)
+  const preflight = useMemo<PreflightResult | null>(() => {
+    if (fileList.length === 0) return null;
+    const withIcons: Record<string, string> = {
+      ...files,
+      "icons/icon16.png": files["icons/icon16.png"] ?? "<binary>",
+      "icons/icon48.png": files["icons/icon48.png"] ?? "<binary>",
+      "icons/icon128.png": files["icons/icon128.png"] ?? "<binary>",
+    };
+    return runPreflight(withIcons);
   }, [files, fileList.length]);
 
   const permissionRisk = useMemo<PermissionRiskReport | null>(() => {
@@ -454,7 +552,7 @@ export default function PackageExtension() {
                   </Button>
                   <Button
                     onClick={handleDownload}
-                    disabled={!!qaReport && qaReport.errors > 0 && !ackWarnings}
+                    disabled={(!!qaReport && qaReport.errors > 0 && !ackWarnings) || (!!preflight && !preflight.passed && !ackWarnings)}
                     className="bg-gradient-cyber text-primary-foreground"
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -480,6 +578,59 @@ export default function PackageExtension() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Preflight Manifest Compliance Gate */}
+          {preflight && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-xl border overflow-hidden ${preflight.passed ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/5"}`}
+            >
+              <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  {preflight.passed
+                    ? <ShieldCheck className="h-5 w-5 text-success" />
+                    : <XCircle className="h-5 w-5 text-destructive" />}
+                  <div>
+                    <h3 className="text-sm font-semibold">Preflight Manifest Compliance</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {preflight.summary} · {preflight.warnings.length} warning{preflight.warnings.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant={preflight.passed ? "default" : "destructive"}
+                  className={`font-mono text-[10px] ${preflight.passed ? "bg-success/20 text-success border-success/40" : ""}`}
+                >
+                  {preflight.passed ? "GATE OPEN" : "GATE CLOSED"}
+                </Badge>
+              </div>
+              {(preflight.blockers.length > 0 || preflight.warnings.length > 0) && (
+                <div className="px-5 pb-4 pt-1 space-y-1.5 border-t border-border/60">
+                  {preflight.blockers.map(b => (
+                    <div key={b.id} className="flex items-start gap-2 text-xs">
+                      <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{b.label}</span>
+                        {b.detail && <span className="text-muted-foreground font-mono ml-1.5 break-all">— {b.detail}</span>}
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase shrink-0">{b.source}</Badge>
+                    </div>
+                  ))}
+                  {preflight.warnings.map(w => (
+                    <div key={w.id} className="flex items-start gap-2 text-xs">
+                      <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{w.label}</span>
+                        {w.detail && <span className="text-muted-foreground font-mono ml-1.5 break-all">— {w.detail}</span>}
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase shrink-0">{w.source}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
           )}
 
           {qaReport && (

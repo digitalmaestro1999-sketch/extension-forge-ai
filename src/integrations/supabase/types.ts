@@ -552,6 +552,51 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit_logs: {
+        Row: {
+          blockers: number
+          created_at: string
+          details: Json
+          event_type: string
+          extension_name: string | null
+          id: string
+          passed: boolean | null
+          project_id: string | null
+          severity: string
+          user_agent: string | null
+          user_id: string | null
+          warnings: number
+        }
+        Insert: {
+          blockers?: number
+          created_at?: string
+          details?: Json
+          event_type: string
+          extension_name?: string | null
+          id?: string
+          passed?: boolean | null
+          project_id?: string | null
+          severity?: string
+          user_agent?: string | null
+          user_id?: string | null
+          warnings?: number
+        }
+        Update: {
+          blockers?: number
+          created_at?: string
+          details?: Json
+          event_type?: string
+          extension_name?: string | null
+          id?: string
+          passed?: boolean | null
+          project_id?: string | null
+          severity?: string
+          user_agent?: string | null
+          user_id?: string | null
+          warnings?: number
+        }
+        Relationships: []
+      }
       support_conversations: {
         Row: {
           answer: string
