@@ -38,13 +38,31 @@ export default function CertifyExtension() {
   const [autoFixSteps, setAutoFixSteps] = useState<AutoFixStep[]>([]);
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [intel, setIntel] = useState<IntelGapReportLike | null>(null);
 
   useEffect(() => {
     const f = loadFiles();
     setFiles(f);
+    // Load the most recent gap report so market fit is scored automatically.
+    supabase
+      .from("intel_gap_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setIntel((data as unknown as IntelGapReportLike) ?? null));
     if (Object.keys(f).length) run(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-merge intel into the report whenever either changes.
+  useEffect(() => {
+    if (!report) return;
+    // Only merge if report doesn't already include a market category (avoid double merge).
+    if (report.categories.some(c => c.key === "market")) return;
+    setReport(mergeIntel(report, intel));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intel, report?.generatedAt]);
 
   const run = async (f: Record<string, string> = files) => {
     if (!Object.keys(f).length) {
@@ -53,7 +71,8 @@ export default function CertifyExtension() {
     }
     setRunning(true);
     try {
-      const r = runCertification(f);
+      const base = runCertification(f);
+      const r = mergeIntel(base, intel);
       setReport(r);
       await logSecurityEvent({
         eventType: r.criticals === 0 ? "preflight_pass" : "preflight_block",
@@ -61,7 +80,7 @@ export default function CertifyExtension() {
         passed: r.criticals === 0,
         blockers: r.criticals,
         warnings: r.warnings,
-        details: { overall: r.overall, passBand: r.passProbability, source: "certify" },
+        details: { overall: r.overall, passBand: r.passProbability, source: "certify", intel: !!intel },
       });
     } finally {
       setRunning(false);
