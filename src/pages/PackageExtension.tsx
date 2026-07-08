@@ -344,6 +344,23 @@ export default function PackageExtension() {
       toast.error("Client ID, secret and refresh token are required");
       return;
     }
+    // Preflight is mandatory for CWS uploads — the store will reject a
+    // non-compliant manifest anyway, so block early and log the attempt.
+    if (preflight && !preflight.passed) {
+      toast.error(`Preflight blocked upload · ${preflight.blockers.length} manifest issue${preflight.blockers.length === 1 ? "" : "s"}`, {
+        description: "Fix critical compliance issues before uploading to the Chrome Web Store.",
+      });
+      void logSecurityEvent({
+        eventType: "preflight_block",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        blockers: preflight.blockers.length,
+        warnings: preflight.warnings.length,
+        details: { blockers: preflight.blockers.map(b => b.id), stage: "cws_upload" },
+      });
+      return;
+    }
     setCwsUploading(true);
     setUploadStage({ step: "building", pct: 10, label: "Building extension package…" });
     try {
