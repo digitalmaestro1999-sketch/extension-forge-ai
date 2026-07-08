@@ -55,14 +55,13 @@ export default function CertifyExtension() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-merge intel into the report whenever either changes.
+  // When intel loads (async), re-merge into the current report from base data.
   useEffect(() => {
-    if (!report) return;
-    // Only merge if report doesn't already include a market category (avoid double merge).
-    if (report.categories.some(c => c.key === "market")) return;
-    setReport(mergeIntel(report, intel));
+    if (!intel || !Object.keys(files).length) return;
+    const base = runCertification(files);
+    setReport(mergeIntel(base, intel));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intel, report?.generatedAt]);
+  }, [intel]);
 
   const run = async (f: Record<string, string> = files) => {
     if (!Object.keys(f).length) {
