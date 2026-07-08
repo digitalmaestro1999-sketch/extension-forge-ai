@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ShieldCheck, AlertTriangle, XCircle, Info, Download, RefreshCw, Wand2, FileWarning } from "lucide-react";
+import { ShieldCheck, AlertTriangle, XCircle, Info, Download, RefreshCw, Wand2, FileWarning, PlayCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { runCertification, renderCertMarkdown, type CertReport, type CertIssue } from "@/lib/certification";
+import { runCertification, renderCertMarkdown, simulateRuntime, type CertReport, type CertIssue, type RuntimeResult } from "@/lib/certification";
+import { runAutoFixLoop, type AutoFixStep } from "@/lib/certification/autofix-loop";
 import { logSecurityEvent } from "@/lib/security-audit-log";
 
 function loadFiles(): Record<string, string> {
