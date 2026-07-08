@@ -399,8 +399,11 @@ export default function AdminAuditLogs() {
         <Button size="sm" variant="outline" onClick={exportCsv}>
           <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
         </Button>
-        <Button size="sm" onClick={exportReport} className="bg-gradient-cyber text-primary-foreground">
-          <FileText className="h-3.5 w-3.5 mr-1.5" /> Compliance Report
+        <Button size="sm" variant="outline" onClick={exportReport}>
+          <FileText className="h-3.5 w-3.5 mr-1.5" /> Markdown
+        </Button>
+        <Button size="sm" onClick={exportPdf} className="bg-gradient-cyber text-primary-foreground">
+          <FileDown className="h-3.5 w-3.5 mr-1.5" /> Compliance PDF
         </Button>
       </div>
 
