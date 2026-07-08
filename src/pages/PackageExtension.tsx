@@ -398,11 +398,26 @@ export default function PackageExtension() {
           : "Uploaded to the Chrome Web Store as a draft.",
       );
       if (data?.dashboardUrl) window.open(data.dashboardUrl, "_blank", "noopener");
+      void logSecurityEvent({
+        eventType: "cws_upload",
+        severity: "info",
+        extensionName: spec?.name ?? null,
+        passed: true,
+        warnings: preflight?.warnings.length ?? 0,
+        details: { publish: cwsPublish, hasExtensionId: !!cwsExtensionId },
+      });
     } catch (e: unknown) {
       console.error("CWS upload error:", e);
       const msg = e instanceof Error ? e.message : "Chrome Web Store upload failed";
       setUploadStage({ step: "error", pct: 0, label: msg });
       toast.error(msg);
+      void logSecurityEvent({
+        eventType: "cws_upload_failed",
+        severity: "error",
+        extensionName: spec?.name ?? null,
+        passed: false,
+        details: { message: msg, publish: cwsPublish },
+      });
     } finally {
       setCwsUploading(false);
       // Auto-hide the bar a few seconds after completion
