@@ -12,6 +12,8 @@ import { analyzePermissionRisk, applyAutoFix, applyAllAutoFixes, checkAutoFixSaf
 import { BrowserCompatPanel, CompatScoreBadge } from "@/components/BrowserCompatPanel";
 import { analyzeBrowserCompatibility, compatReportMarkdown } from "@/lib/browser-compat";
 import { runPreflight, type PreflightResult } from "@/lib/preflight-manifest";
+import { runPolicyCheck } from "@/lib/cws-policy-check";
+import { applyDeterministicPolicyFix } from "@/lib/cws-policy-autofix";
 import { logSecurityEvent } from "@/lib/security-audit-log";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
