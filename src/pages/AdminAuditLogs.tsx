@@ -271,11 +271,6 @@ function buildCompliancePdf(rows: AuditLog[]): jsPDF {
   }
   return doc;
 }
-      lines.push(`- ${r.created_at} · ${r.extension_name ?? "(unnamed)"} · ${r.blockers} blocker(s) · ${ids}`);
-    }
-  }
-  return lines.join("\n");
-}
 
 export default function AdminAuditLogs() {
   const [rows, setRows] = useState<AuditLog[]>([]);
