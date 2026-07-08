@@ -254,7 +254,62 @@ export default function CompetitionIntel() {
         </TabsContent>
 
         {/* COMPETITORS */}
-        <TabsContent value="competitors">
+        <TabsContent value="competitors" className="space-y-4">
+          {listings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Update Cadence Trends
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                  <div className="p-2 rounded bg-card/50 border border-border">
+                    <p className="text-xs text-muted-foreground">Tracked</p>
+                    <p className="text-lg font-semibold">{cadenceStats.total}</p>
+                  </div>
+                  <div className="p-2 rounded bg-emerald-500/5 border border-emerald-500/30">
+                    <p className="text-xs text-muted-foreground">Fresh</p>
+                    <p className="text-lg font-semibold text-emerald-500">{cadenceStats.buckets.fresh}</p>
+                  </div>
+                  <div className="p-2 rounded bg-amber-500/5 border border-amber-500/30">
+                    <p className="text-xs text-muted-foreground">Aging</p>
+                    <p className="text-lg font-semibold text-amber-500">{cadenceStats.buckets.aging}</p>
+                  </div>
+                  <div className="p-2 rounded bg-red-500/5 border border-red-500/30">
+                    <p className="text-xs text-muted-foreground">Stale</p>
+                    <p className="text-lg font-semibold text-red-500">{cadenceStats.buckets.stale}</p>
+                  </div>
+                  <div className="p-2 rounded bg-card/50 border border-border">
+                    <p className="text-xs text-muted-foreground">Median / Avg days</p>
+                    <p className="text-lg font-semibold">
+                      {cadenceStats.median ?? "—"} <span className="text-xs text-muted-foreground">/ {cadenceStats.avg ?? "—"}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={cadenceStats.chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+                      <XAxis dataKey="bucket" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
+                        cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
+                      />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {cadenceStats.chartData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Extensions updated within 90 days signal active maintenance — a Google review positive. Stale competitors ({">"}180d) are opportunities to out-ship.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle>Scraped competitors</CardTitle>
