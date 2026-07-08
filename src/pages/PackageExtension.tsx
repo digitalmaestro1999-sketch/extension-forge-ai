@@ -552,7 +552,7 @@ export default function PackageExtension() {
                   </Button>
                   <Button
                     onClick={handleDownload}
-                    disabled={!!qaReport && qaReport.errors > 0 && !ackWarnings}
+                    disabled={(!!qaReport && qaReport.errors > 0 && !ackWarnings) || (!!preflight && !preflight.passed && !ackWarnings)}
                     className="bg-gradient-cyber text-primary-foreground"
                   >
                     <Download className="h-4 w-4 mr-2" />
