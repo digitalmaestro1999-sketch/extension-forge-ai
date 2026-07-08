@@ -142,7 +142,7 @@ Focus on:
       }];
     }
 
-    return new Response(JSON.stringify({ results }), {
+    return new Response(JSON.stringify({ results: clampToRange(results, niche) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
