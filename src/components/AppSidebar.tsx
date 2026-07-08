@@ -47,6 +47,8 @@ const toolItems: NavItem[] = [
   { title: "Manage Extension", url: "/manage", icon: SlidersHorizontal },
   { title: "Live Control", url: "/control", icon: Radio },
   { title: "Software Intelligence", url: "/intelligence", icon: Brain },
+  { title: "Competition Intel", url: "/competition", icon: Radar },
+
 
 ];
 
