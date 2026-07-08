@@ -82,11 +82,13 @@ export function runCertification(files: Record<string, string>): CertReport {
   const policyIssues: PolicyIssue[] = scanPolicy(files);
   const syntaxIssues: SyntaxIssue[] = validateSyntax(files);
   const securityIssues: SecurityIssue[] = scanSecurity(files);
+  const a11yIssues: A11yIssue[] = checkAccessibility(files);
 
   issues.push(...toCertIssues("manifest", manifestIssues));
   issues.push(...toCertIssues("policy", policyIssues));
   issues.push(...toCertIssues("syntax", syntaxIssues));
   issues.push(...toCertIssues("security", securityIssues));
+  issues.push(...toCertIssues("perfA11y", a11yIssues));
 
   // Packaging via existing package-qa (map its checks in).
   const qa = runPackageQA(files);
