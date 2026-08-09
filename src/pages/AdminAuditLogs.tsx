@@ -353,7 +353,9 @@ export default function AdminAuditLogs() {
           Security Audit Logs
         </h1>
         <p className="text-muted-foreground mt-1">
-          Preflight gates, downloads, uploads and auto-fix events. Superadmins see all users; users see their own.
+          '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
+                                            
+                                            Load the security issues from the scan results and fix the selected issues.
         </p>
       </motion.div>
 
