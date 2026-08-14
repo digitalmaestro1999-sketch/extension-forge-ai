@@ -335,7 +335,7 @@ export default function ApiManager() {
                   <Button
                     size="sm" variant="ghost"
                     title="Check Health"
-                    disabled={checking[k.id] || !k.base_url}
+                    disabled={checking[k.id] || !canProbe(k)}
                     onClick={() => checkHealth(k.id)}
                     className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
                   >
@@ -344,7 +344,7 @@ export default function ApiManager() {
                   <Button
                     size="sm" variant="ghost"
                     title="Auto-retrieve Models"
-                    disabled={retrieving === k.id || !k.base_url}
+                    disabled={retrieving === k.id || !canProbe(k)}
                     onClick={() => autoRetrieveModels(k.id)}
                   >
                     {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
