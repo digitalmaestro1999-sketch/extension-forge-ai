@@ -1,6 +1,6 @@
 // Certification auto-fix edge function.
 // Given a single extension file and its issues, calls Lovable AI Gateway
-// (openai/gpt-5.5) and returns the rewritten file content.
+// (google/gemini-2.5-pro) and returns the rewritten file content.
 //
 // Request:  { file: string, content: string, issues: Array<{id,severity,message,fix,line?}> }
 // Response: { content: string, changed: boolean }
@@ -74,7 +74,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5.5",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },

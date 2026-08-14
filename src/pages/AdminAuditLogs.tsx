@@ -366,6 +366,7 @@ export default function AdminAuditLogs() {
                                             - Model Selection: ENABLED (User can save favorites for future actions)
                                             - Custom Models Retrieved:
                                               * Custom REST API (https://model.inferx.net/endpoints/v1): deepseek-v4-flash
+                                            - Bug Fix: Resolved invalid model errors by migrating to 2.5-series models.
         </p>
       </motion.div>
 

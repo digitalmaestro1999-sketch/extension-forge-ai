@@ -49,7 +49,7 @@ serve(async (req) => {
 
     let apiKey = "";
     let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    let model = "google/gemini-2.0-flash-exp";
+    let model = "google/gemini-2.5-flash";
     let authType = "Bearer";
 
     if (provider && provider !== "lovable_gateway") {
@@ -90,7 +90,7 @@ serve(async (req) => {
     if (!apiKey) {
         apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
         apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-        model = "google/gemini-2.0-flash-exp";
+        model = "google/gemini-2.5-flash";
         authType = "Bearer";
     }
 
