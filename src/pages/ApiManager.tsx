@@ -283,6 +283,34 @@ export default function ApiManager() {
         </p>
       </motion.div>
 
+      <Card className="border-border bg-card/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Lovable AI Gateway</CardTitle>
+                <CardDescription>Built-in high-performance model routing</CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={useLovableAi ? "outline" : "secondary"} className={useLovableAi ? "bg-primary/5 text-primary border-primary/20" : ""}>
+                {useLovableAi ? "Active" : "Inactive"}
+              </Badge>
+              <Switch checked={useLovableAi} onCheckedChange={toggleLovableAi} />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            The Lovable AI Gateway provides a unified API for premium models (Gemini, Llama, etc.) without needing separate accounts. 
+            Toggle this off to strictly use your own stored API keys across the platform.
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {apiServices.map((svc) => (
           <div key={svc.name} className="rounded-lg border border-border bg-card p-4">
