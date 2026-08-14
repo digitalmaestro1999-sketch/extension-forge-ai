@@ -33,6 +33,7 @@ async function callAutofix(file: string, content: string, issues: CertIssue[]): 
     body: {
       file,
       content,
+      provider: "lovable_gateway",
       issues: issues.map(i => ({
         id: i.id, severity: i.severity, message: i.message, fix: i.fix, line: i.line, category: i.category,
       })),

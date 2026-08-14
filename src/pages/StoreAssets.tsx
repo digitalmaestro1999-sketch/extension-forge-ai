@@ -68,7 +68,7 @@ export default function StoreAssets() {
     setBusy("listing");
     try {
       const { data, error } = await supabase.functions.invoke("store-listing-optimizer", {
-        body: { name, description, manifest, category: listing?.category },
+        body: { name, description, manifest, category: listing?.category, provider: "lovable_gateway" },
       });
       if (error) throw error;
       setListing(data.listing);

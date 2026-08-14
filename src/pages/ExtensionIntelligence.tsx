@@ -150,7 +150,7 @@ export default function ExtensionIntelligence() {
           }
         : { competitors: competitors.map(c => ({ name: c.name, description: c.raw?.description, rating: c.rating, users: c.users_count })) };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null },
+        body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null, provider: "lovable_gateway" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -501,7 +501,7 @@ ${(l.keywords ?? []).join(", ")}`);
         monetization: a("monetization") ?? null,
       };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "launch", input, report_id: reportId, competitor_id: selected.id },
+        body: { stage: "launch", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -914,7 +914,7 @@ ${(kit.kpis ?? []).map((k: any) => `- **${k.name}** → target ${k.target} · in
         securitySignals: security,
       };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "legal", input, report_id: reportId, competitor_id: selected.id },
+        body: { stage: "legal", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -1371,7 +1371,7 @@ ${(kit.billingFaq ?? []).map((f: any) => `## ${f.q}\n${f.a}`).join("\n\n")}`);
         competitorsToCompareAgainst: otherCompetitors,
       };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "marketingSite", input, report_id: reportId, competitor_id: selected.id },
+        body: { stage: "marketingSite", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -2984,7 +2984,7 @@ ${(kit.checklist ?? []).map((c: any) => `- [${c.status === "ready" ? "x" : " "}]
         surfaces: ["popup", "options", "onboarding", "contentScript", "sidepanel", "background", "newTab", "offscreen"],
       };
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "abExperiments", input, report_id: reportId, competitor_id: selected.id },
+        body: { stage: "abExperiments", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
