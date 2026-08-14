@@ -31,6 +31,14 @@ const apiServices = [
   { name: "Custom REST API", description: "Any REST API endpoint", docsUrl: "" },
 ];
 
+// Providers with well-known endpoints can be probed without a custom base URL
+const KNOWN_PROBE_SERVICES = ["openai", "nvidia", "deepgram", "google"];
+function canProbe(k: { service: string; base_url: string | null }) {
+  if (k.base_url) return true;
+  const s = (k.service || "").toLowerCase();
+  return KNOWN_PROBE_SERVICES.some((n) => s.includes(n));
+}
+
 export default function ApiManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
