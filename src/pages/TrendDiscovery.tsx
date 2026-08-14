@@ -56,7 +56,7 @@ export default function TrendDiscovery() {
 
     try {
       const { data, error } = await supabase.functions.invoke("discover-trends", {
-        body: { niche: niche.trim() },
+        body: { niche: niche.trim(), provider: "lovable_gateway" },
       });
 
       if (error) throw error;
