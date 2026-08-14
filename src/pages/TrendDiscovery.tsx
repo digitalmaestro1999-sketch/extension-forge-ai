@@ -112,7 +112,7 @@ export default function TrendDiscovery() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-primary" />
-          AI Trend Discovery Agent
+          AI Trend Discovery Agent <Badge variant="secondary" className="text-xs ml-2">Lovable AI Routed</Badge>
         </h1>
         <p className="text-muted-foreground mt-1">
           AI analyzes markets to find profitable Chrome extension opportunities

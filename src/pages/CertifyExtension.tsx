@@ -194,7 +194,7 @@ export default function CertifyExtension() {
           </Button>
           <Button size="sm" onClick={runAutoFix} disabled={autoFixing || !report || report.criticals + report.warnings === 0}>
             {autoFixing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
-            {autoFixing ? "Fixing…" : "AI Auto-Fix"}
+            {autoFixing ? "Fixing…" : "AI Auto-Fix"} <Badge variant="secondary" className="ml-2 text-[10px] py-0 h-4">Lovable AI Routed</Badge>
           </Button>
         </div>
       </div>
