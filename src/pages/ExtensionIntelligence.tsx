@@ -149,8 +149,11 @@ export default function ExtensionIntelligence() {
             reviews_raw: comp!.raw?.reviews_raw ?? [],
           }
         : { competitors: competitors.map(c => ({ name: c.name, description: c.raw?.description, rating: c.rating, users: c.users_count })) };
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").eq("user_id", user.id).maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null, provider: "lovable_gateway" },
+        body: { stage, input, report_id: reportId, competitor_id: comp?.id ?? null, provider: gatewayProvider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
