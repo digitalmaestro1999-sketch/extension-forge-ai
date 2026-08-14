@@ -82,7 +82,7 @@ export async function runAutoFixLoop(
       const content = files[file];
       if (typeof content !== "string") continue;
       const beforeCount = issues.length;
-      const res = await callAutofix(file, content, issues);
+      const res = await callAutofix(file, content, issues, opts.provider ?? "lovable_gateway");
       const step: AutoFixStep = {
         iteration: iter, file, beforeIssues: beforeCount, afterIssues: beforeCount, changed: false,
       };
