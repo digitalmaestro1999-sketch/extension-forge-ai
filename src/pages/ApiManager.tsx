@@ -108,9 +108,6 @@ export default function ApiManager() {
     }
   };
 
-  const toggleReveal = async (id: string) => {
-    toast.error("Security Policy", { description: "API keys cannot be revealed in the UI for security reasons." });
-  };
 
   const checkHealth = async (id: string) => {
     const key = keys.find(k => k.id === id);
