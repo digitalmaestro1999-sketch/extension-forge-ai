@@ -384,6 +384,38 @@ export default function AdminAuditLogs() {
         <StatCard label="Overrides" value={stats.overrides} tone="warning" icon={<AlertTriangle className="h-4 w-4" />} />
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }} 
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-card border rounded-lg p-5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Provider Health & Circuit Breakers
+            </h2>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Live Status</Badge>
+          </div>
+          <ProviderStatusPanel />
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }} 
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-card border rounded-lg p-5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Recent Error Rates (Last 100)
+            </h2>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Metrics</Badge>
+          </div>
+          <ErrorRateChart logs={rows.slice(0, 100)} />
+        </motion.div>
+      </div>
+
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
