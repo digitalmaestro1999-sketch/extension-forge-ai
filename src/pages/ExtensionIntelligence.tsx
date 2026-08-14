@@ -1376,8 +1376,11 @@ ${(kit.billingFaq ?? []).map((f: any) => `## ${f.q}\n${f.a}`).join("\n\n")}`);
         featureAdvantages: buildBetter?.missingFeatures ?? null,
         competitorsToCompareAgainst: otherCompetitors,
       };
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").eq("user_id", user.id).maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "marketingSite", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
+        body: { stage: "marketingSite", input, report_id: reportId, competitor_id: selected.id, provider: gatewayProvider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
