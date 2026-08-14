@@ -367,6 +367,7 @@ export default function AdminAuditLogs() {
                                             - Custom Models Retrieved:
                                               * Custom REST API (https://model.inferx.net/endpoints/v1): deepseek-v4-flash
                                             - Bug Fix: Resolved invalid model errors by migrating to 2.5-series models.
+                                            - AI Routing Logic: Implemented failover algorithm (sequentially tries selected provider then favorites).
         </p>
       </motion.div>
 

@@ -47,85 +47,105 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    let apiKey = "";
-    let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    let model = "google/gemini-2.5-flash";
-    let authType = "Bearer";
+    const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("use_lovable_ai, selected_model_ids")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
+    const useLovable = profile?.use_lovable_ai ?? true;
+    const favorites = profile?.selected_model_ids ?? [];
+
+    let candidates = [];
     if (provider && provider !== "lovable_gateway") {
-        const { data: keyData, error: keyErr } = await supabaseAdmin
-            .from("user_api_keys")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("id", provider)
-            .single();
+        candidates.push(provider);
+    }
+    candidates = [...new Set([...candidates, ...favorites])];
 
-        if (keyErr || !keyData) {
-            console.error("Key not found:", keyErr);
+    const { data: allKeys } = await supabaseAdmin
+        .from("user_api_keys")
+        .select("*")
+        .eq("user_id", user.id);
+
+    async function tryRequest(keyId: string) {
+        const keyData = allKeys?.find(k => k.id === keyId);
+        if (!keyData) return null;
+
+        const apiKey = await decrypt(keyData.ciphertext, keyData.iv);
+        const svc = (keyData.service || "").toLowerCase();
+        let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+        let model = "google/gemini-2.5-flash";
+        let authType = "Bearer";
+
+        if (keyData.base_url) {
+            apiUrl = keyData.base_url.replace(/\/+$/, "") + "/chat/completions";
         } else {
-            apiKey = await decrypt(keyData.ciphertext, keyData.iv);
-            const svc = (keyData.service || "").toLowerCase();
-            
-            if (keyData.base_url) {
-                apiUrl = keyData.base_url.replace(/\/+$/, "") + "/chat/completions";
-            } else {
-                if (svc.includes("openai")) apiUrl = "https://api.openai.com/v1/chat/completions";
-                else if (svc.includes("nvidia")) apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-                else if (svc.includes("google")) apiUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions";
-            }
+            if (svc.includes("openai")) apiUrl = "https://api.openai.com/v1/chat/completions";
+            else if (svc.includes("nvidia")) apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+            else if (svc.includes("google")) apiUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions";
+        }
 
-            if (keyData.model_id) {
-                model = keyData.model_id;
-            } else {
-                if (svc.includes("openai")) model = "gpt-4o-mini";
-                else if (svc.includes("nvidia")) model = "nvidia/llama-3.1-nemotron-70b-instruct";
-                else if (svc.includes("google")) model = "gemini-1.5-flash";
-            }
+        if (keyData.model_id) {
+            model = keyData.model_id;
+        } else {
+            if (svc.includes("openai")) model = "gpt-4o-mini";
+            else if (svc.includes("nvidia")) model = "nvidia/llama-3.1-nemotron-70b-instruct";
+            else if (svc.includes("google")) model = "gemini-1.5-flash";
+        }
 
-            if (svc.includes("google")) authType = "x-goog-api-key";
-            else if (svc.includes("deepgram")) authType = "Token";
+        if (svc.includes("google")) authType = "x-goog-api-key";
+        else if (svc.includes("deepgram")) authType = "Token";
+
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (authType === "x-goog-api-key") {
+            headers["x-goog-api-key"] = apiKey;
+        } else {
+            headers["Authorization"] = `${authType} ${apiKey}`;
+        }
+
+        try {
+            const resp = await fetch(apiUrl, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    model,
+                    messages: [
+                        { role: "system", content: `You are an expert Chrome extension developer assistant. Use Manifest V3 only.` },
+                        ...messages,
+                    ],
+                    stream: true,
+                }),
+            });
+            if (resp.ok) return resp;
+            console.warn(`Provider ${keyId} failed: ${resp.status}`);
+            return null;
+        } catch (e) {
+            console.error(`Fetch error for ${keyId}:`, e);
+            return null;
         }
     }
 
-    if (!apiKey) {
-        apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
-        apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-        model = "google/gemini-2.5-flash";
-        authType = "Bearer";
+    for (const cand of candidates) {
+        const resp = await tryRequest(cand);
+        if (resp) return new Response(resp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (authType === "x-goog-api-key") {
-        headers["x-goog-api-key"] = apiKey;
-    } else {
-        headers["Authorization"] = `${authType} ${apiKey}`;
+    if (useLovable) {
+        const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [{ role: "system", content: `You are an expert Chrome extension developer assistant.` }, ...messages],
+                stream: true,
+            }),
+        });
+        if (response.ok) return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert Chrome extension developer assistant. Use Manifest V3 only.`,
-          },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    return new Response(JSON.stringify({ error: "No working AI models found among selected providers or favorites." }), { status: 503, headers: corsHeaders });
 
-    if (!response.ok) {
-        const errText = await response.text();
-        console.error("Upstream error:", response.status, errText);
-        return new Response(errText, { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
   } catch (e) {
     console.error("ai-chat error:", e);
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
