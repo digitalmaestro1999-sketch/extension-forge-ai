@@ -86,16 +86,15 @@ Focus on:
 - Practical real-world problems
 - Manifest V3 feasibility`;
 
-    // AI Orchestration: Attempt to use the central chat orchestrator logic or fallback
-    // In a full implementation, this would call the internal routing logic
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // AI Orchestration: Delegate to the central ai-chat orchestrator
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const orchestratorResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-chat`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": authHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: "You are a Chrome extension market analyst. Return only valid JSON arrays. [Lovable AI Routed]" },
           { role: "user", content: prompt },
@@ -103,25 +102,23 @@ Focus on:
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
+    if (!orchestratorResponse.ok) {
+      if (orchestratorResponse.status === 402 || orchestratorResponse.status === 503) {
         return new Response(JSON.stringify({
-          warning: "AI credits are currently unavailable. Showing fallback opportunities.",
+          warning: "AI credits or providers are currently unavailable. Showing fallback opportunities.",
           results: buildFallbackResults(niche),
           fallback: true,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error("AI gateway error");
+      throw new Error(`Orchestrator error: ${orchestratorResponse.status}`);
     }
 
-    const data = await response.json();
+    const data = await orchestratorResponse.json();
+    // ai-chat might return a stream or a single response depending on client implementation
+    // for this utility, we expect the content in the first choice if it's been collected
+    const content = data.choices?.[0]?.message?.content || data.content || "";
     const content = data.choices?.[0]?.message?.content || "";
 
     let results;

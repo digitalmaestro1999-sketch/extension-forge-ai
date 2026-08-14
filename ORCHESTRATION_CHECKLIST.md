@@ -19,7 +19,7 @@
 - [x] **Health Tracking**: Backend tracks `status` and `last_check` for each provider.
 
 ## 5. AI MODEL REGISTRY
-- [x] **Normalization**: Discovered models are stored and can be selected as favorites.
+- [x] **Normalization**: `ai_model_registry` table created for unified capability indexing.
 - [x] **Model Identifiers**: System preserves and uses the specific `model_id` provided by the API source.
 
 ## 6. CAPABILITY-FIRST ARCHITECTURE
@@ -36,6 +36,6 @@
 - [x] **Timeout Protection**: 5-second cap on health check requests to prevent latency spikes.
 
 ## OBSERVED GAPS & NEXT STEPS
-1. **Migrate Remaining Modules**: `discover-trends` and other utility functions still call the Lovable AI Gateway directly. They should be refactored to use the central `ai-chat` orchestrator or a shared library.
-2. **Normalized Model Table**: Create a dedicated `ai_model_registry` table for better indexing of capabilities across all providers.
-3. **Structured Logging**: Enhance audit logs to capture specific performance metrics (latency, cost) as defined in Section 10 of the standard.
+1. **Migrate Remaining Modules**: [IN PROGRESS] `discover-trends` now uses the central orchestrator. Other utility functions are being refactored.
+2. **Normalized Model Table**: [DONE] `ai_model_registry` table implemented with RLS.
+3. **Structured Logging**: [DONE] `security_audit_logs` updated to capture latency and model metadata.
