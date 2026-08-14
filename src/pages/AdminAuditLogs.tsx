@@ -355,7 +355,7 @@ export default function AdminAuditLogs() {
         <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
-                                            Add a toast or banner notification when a provider becomes unhealthy or recovers in ApiManager.
+                                            why i am able to see deepgram APi in API manager under stored keyw. All the keys whould vbe saved in supabase backend  and not visible on frontened at all
         </p>
       </motion.div>
 
