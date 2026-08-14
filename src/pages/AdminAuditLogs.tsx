@@ -355,7 +355,7 @@ export default function AdminAuditLogs() {
         <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
-                                            Add a clear health status indicator and last checked timestamp in the ApiManager for each provider and auto-model source.
+                                            Add a toast or banner notification when a provider becomes unhealthy or recovers in ApiManager.
         </p>
       </motion.div>
 
