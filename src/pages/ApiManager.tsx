@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plug, Plus, Trash2, Eye, EyeOff, ExternalLink, ShieldCheck, Loader2, Activity, RefreshCw, ChevronDown } from "lucide-react";
+import { Plug, Plus, Trash2, ExternalLink, ShieldCheck, Loader2, Activity, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
