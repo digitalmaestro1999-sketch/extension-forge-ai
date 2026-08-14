@@ -43,9 +43,10 @@ async function callAutofix(file: string, content: string, issues: CertIssue[]): 
   return { content: String(data.content), changed: Boolean(data.changed) };
 }
 
-function groupByFile(issues: CertIssue[]): Map<string, CertIssue[]> {
+function groupByFile(issues: CertIssue[], filter?: (i: CertIssue) => boolean): Map<string, CertIssue[]> {
   const map = new Map<string, CertIssue[]>();
   for (const i of issues) {
+    if (filter && !filter(i)) continue;
     // Skip issues whose "file" is a virtual bucket (e.g. packaging "bundle")
     if (!i.file || i.file === "bundle") continue;
     if (i.severity === "info") continue;
@@ -71,7 +72,7 @@ export async function runAutoFixLoop(
   for (let iter = 1; iter <= maxIterations; iter++) {
     if (current.criticals === 0 && current.overall >= targetScore) break;
 
-    const buckets = groupByFile(current.issues);
+    const buckets = groupByFile(current.issues, opts.issueFilter);
     if (buckets.size === 0) break;
 
     // Fix each file in this iteration
