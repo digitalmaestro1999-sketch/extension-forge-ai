@@ -159,18 +159,22 @@ export default function ApiManager() {
     setRetrieving(id);
     try {
       const { data, error } = await supabase.functions.invoke("user-api-keys", {
-        body: { action: "proxy", id, path: "models" },
+        body: { action: "proxy", id, path: "/models" },
       });
       if (error) throw error;
-      
-      const models = data?.data?.map((m: any) => m.id) || data?.models?.map((m: any) => m.name || m.id) || [];
+
+      const raw = data?.data ?? data?.models ?? data?.stt_models ?? [];
+      const list = Array.isArray(raw) ? raw : [];
+      const models = list
+        .map((m: any) => (typeof m === "string" ? m : m.id || m.name || m.canonical_name))
+        .filter(Boolean);
       if (models.length > 0) {
-        toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "..." });
+        toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "…" });
       } else {
         toast.info("No models found in response");
       }
     } catch (e) {
-      toast.error("Model retrieval failed");
+      toast.error("Model retrieval failed", { description: (e as Error).message });
     } finally {
       setRetrieving(null);
     }
