@@ -179,13 +179,15 @@ export default function AIBuilder() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Select AI Provider</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => setSelectedProvider("lovable_gateway")}
-              className="flex items-center justify-between"
-            >
-              <span>Lovable Gateway</span>
-              {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
-            </DropdownMenuItem>
+            {lovableAiEnabled && (
+              <DropdownMenuItem 
+                onClick={() => setSelectedProvider("lovable_gateway")}
+                className="flex items-center justify-between"
+              >
+                <span>Lovable Gateway</span>
+                {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
+              </DropdownMenuItem>
+            )}
             {availableKeys.length > 0 && <DropdownMenuSeparator />}
             {availableKeys.map(key => (
               <DropdownMenuItem 
