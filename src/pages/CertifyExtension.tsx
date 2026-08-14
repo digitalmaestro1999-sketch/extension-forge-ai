@@ -39,6 +39,7 @@ export default function CertifyExtension() {
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [intel, setIntel] = useState<IntelGapReportLike | null>(null);
+  const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const f = loadFiles();
