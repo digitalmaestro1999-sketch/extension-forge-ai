@@ -806,34 +806,40 @@ export type Database = {
       }
       user_api_keys: {
         Row: {
+          base_url: string | null
           ciphertext: string
           created_at: string
           hint: string | null
           id: string
           iv: string
           label: string
+          model_id: string | null
           service: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          base_url?: string | null
           ciphertext: string
           created_at?: string
           hint?: string | null
           id?: string
           iv: string
           label: string
+          model_id?: string | null
           service: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          base_url?: string | null
           ciphertext?: string
           created_at?: string
           hint?: string | null
           id?: string
           iv?: string
           label?: string
+          model_id?: string | null
           service?: string
           updated_at?: string
           user_id?: string

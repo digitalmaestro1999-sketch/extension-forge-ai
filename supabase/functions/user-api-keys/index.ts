@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const { data, error } = await supabase
         .from("user_api_keys")
-        .select("id, service, label, hint, created_at, updated_at")
+        .select("id, service, label, hint, base_url, model_id, created_at, updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return json(200, { keys: data ?? [] });
@@ -96,6 +96,9 @@ Deno.serve(async (req) => {
       const service = String(body?.service ?? "").trim().slice(0, 64);
       const label = String(body?.label ?? "").trim().slice(0, 120);
       const value = String(body?.value ?? "");
+      const base_url = body?.base_url ? String(body.base_url).trim().slice(0, 512) : null;
+      const model_id = body?.model_id ? String(body.model_id).trim().slice(0, 128) : null;
+
       if (!service || !label || !value) return json(400, { error: "Missing fields" });
       if (value.length > 4096) return json(400, { error: "Key too long" });
       const { ciphertext, iv } = await encrypt(value);
@@ -104,8 +107,9 @@ Deno.serve(async (req) => {
         .insert({
           user_id: user.id,
           service, label, ciphertext, iv, hint: hint(value),
+          base_url, model_id
         })
-        .select("id, service, label, hint, created_at, updated_at")
+        .select("id, service, label, hint, base_url, model_id, created_at, updated_at")
         .single();
       if (error) throw error;
       return json(200, { key: data });
