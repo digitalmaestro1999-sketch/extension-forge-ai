@@ -28,12 +28,22 @@ export default function AIBuilder() {
   const [isLoading, setIsLoading] = useState(false);
   const [availableKeys, setAvailableKeys] = useState<any[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("lovable_gateway");
+  const [lovableAiEnabled, setLovableAiEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchKeys = async () => {
+    const fetchKeysAndPrefs = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("use_lovable_ai")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      
+      const isLovableAiEnabled = profile?.use_lovable_ai ?? true;
+      setLovableAiEnabled(isLovableAiEnabled);
       
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-api-keys`, {
         method: 'POST',
@@ -45,10 +55,17 @@ export default function AIBuilder() {
       });
       if (response.ok) {
         const data = await response.json();
-        setAvailableKeys(data.keys || []);
+        const keys = data.keys || [];
+        setAvailableKeys(keys);
+
+        if (!isLovableAiEnabled && selectedProvider === "lovable_gateway") {
+          if (keys.length > 0) {
+            setSelectedProvider(keys[0].id);
+          }
+        }
       }
     };
-    fetchKeys();
+    fetchKeysAndPrefs();
   }, []);
 
   useEffect(() => {
@@ -162,13 +179,15 @@ export default function AIBuilder() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Select AI Provider</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => setSelectedProvider("lovable_gateway")}
-              className="flex items-center justify-between"
-            >
-              <span>Lovable Gateway</span>
-              {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
-            </DropdownMenuItem>
+            {lovableAiEnabled && (
+              <DropdownMenuItem 
+                onClick={() => setSelectedProvider("lovable_gateway")}
+                className="flex items-center justify-between"
+              >
+                <span>Lovable Gateway</span>
+                {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
+              </DropdownMenuItem>
+            )}
             {availableKeys.length > 0 && <DropdownMenuSeparator />}
             {availableKeys.map(key => (
               <DropdownMenuItem 

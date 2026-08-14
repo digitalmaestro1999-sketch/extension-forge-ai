@@ -26,14 +26,15 @@ export interface AutoFixOptions {
   targetScore?: number;        // default 95 — stop when overall >= target and 0 criticals
   onProgress?: (step: AutoFixStep) => void;
   issueFilter?: (issue: CertIssue) => boolean;
+  provider?: string | null;
 }
 
-async function callAutofix(file: string, content: string, issues: CertIssue[]): Promise<{ content: string; changed: boolean } | { error: string }> {
+async function callAutofix(file: string, content: string, issues: CertIssue[], provider: string | null = "lovable_gateway"): Promise<{ content: string; changed: boolean } | { error: string }> {
   const { data, error } = await supabase.functions.invoke("certify-autofix", {
     body: {
       file,
       content,
-      provider: "lovable_gateway",
+      provider,
       issues: issues.map(i => ({
         id: i.id, severity: i.severity, message: i.message, fix: i.fix, line: i.line, category: i.category,
       })),
@@ -81,7 +82,7 @@ export async function runAutoFixLoop(
       const content = files[file];
       if (typeof content !== "string") continue;
       const beforeCount = issues.length;
-      const res = await callAutofix(file, content, issues);
+      const res = await callAutofix(file, content, issues, opts.provider ?? "lovable_gateway");
       const step: AutoFixStep = {
         iteration: iter, file, beforeIssues: beforeCount, afterIssues: beforeCount, changed: false,
       };

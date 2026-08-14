@@ -665,6 +665,7 @@ export type Database = {
           id: string
           status: Database["public"]["Enums"]["user_status"]
           updated_at: string
+          use_lovable_ai: boolean
           user_id: string
         }
         Insert: {
@@ -674,6 +675,7 @@ export type Database = {
           id?: string
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
+          use_lovable_ai?: boolean
           user_id: string
         }
         Update: {
@@ -683,6 +685,7 @@ export type Database = {
           id?: string
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
+          use_lovable_ai?: boolean
           user_id?: string
         }
         Relationships: []

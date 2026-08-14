@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plug, Plus, Trash2, ExternalLink, ShieldCheck, Loader2, Activity, RefreshCw, ChevronDown } from "lucide-react";
+import { Plug, Plus, Trash2, ExternalLink, ShieldCheck, Loader2, Activity, RefreshCw, Zap, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StoredKey {
   id: string;
@@ -43,6 +45,7 @@ export default function ApiManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [keys, setKeys] = useState<StoredKey[]>([]);
+  const [useLovableAi, setUseLovableAi] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<Record<string, boolean>>({});
@@ -52,6 +55,37 @@ export default function ApiManager() {
   const [newService, setNewService] = useState("OpenAI");
   const [newBaseUrl, setNewBaseUrl] = useState("");
   const [newModelId, setNewModelId] = useState("");
+
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("use_lovable_ai")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (!error && data) {
+      setUseLovableAi(data.use_lovable_ai);
+    }
+  }, [user]);
+
+  const toggleLovableAi = async (checked: boolean) => {
+    if (!user) return;
+    setUseLovableAi(checked);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ use_lovable_ai: checked })
+      .eq("user_id", user.id);
+    
+    if (error) {
+      toast.error("Failed to update preferences");
+      setUseLovableAi(!checked);
+    } else {
+      toast.success(checked ? "Lovable AI enabled" : "Lovable AI disabled", {
+        description: checked ? "Lovable AI will be available as a routing option." : "Lovable AI is now hidden from all AI selection menus."
+      });
+    }
+  };
 
   const invoke = useCallback(async <T = unknown>(action: string, extra: Record<string, unknown> = {}): Promise<T> => {
     const { data, error } = await supabase.functions.invoke("user-api-keys", {
@@ -73,7 +107,10 @@ export default function ApiManager() {
     }
   }, [user, invoke]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { 
+    void load(); 
+    void loadProfile();
+  }, [load, loadProfile]);
   
   useEffect(() => {
     if (keys.length === 0 || !user) return;
@@ -245,6 +282,34 @@ export default function ApiManager() {
           Keys are encrypted with AES-GCM server-side and only decrypted on your request.
         </p>
       </motion.div>
+
+      <Card className="border-border bg-card/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Lovable AI Gateway</CardTitle>
+                <CardDescription>Built-in high-performance model routing</CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={useLovableAi ? "outline" : "secondary"} className={useLovableAi ? "bg-primary/5 text-primary border-primary/20" : ""}>
+                {useLovableAi ? "Active" : "Inactive"}
+              </Badge>
+              <Switch checked={useLovableAi} onCheckedChange={toggleLovableAi} />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            The Lovable AI Gateway provides a unified API for premium models (Gemini, Llama, etc.) without needing separate accounts. 
+            Toggle this off to strictly use your own stored API keys across the platform.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {apiServices.map((svc) => (

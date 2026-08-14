@@ -121,9 +121,13 @@ export default function CertifyExtension() {
     setAutoFixing(true);
     setAutoFixSteps([]);
     try {
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const result = await runAutoFixLoop(files, {
         maxIterations: 3,
         targetScore: 95,
+        provider: gatewayProvider,
         onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
         issueFilter: (i) => {
           const idx = report.issues.findIndex(ri => ri.id === i.id && ri.file === i.file && ri.line === i.line && ri.message === i.message);
