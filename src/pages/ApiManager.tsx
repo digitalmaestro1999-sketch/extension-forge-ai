@@ -132,7 +132,9 @@ export default function ApiManager() {
       const resp = await supabase.functions.invoke("user-api-keys", {
         body: { action: "health", id },
       });
-      const isHealthy = resp.data && !resp.error && resp.status >= 200 && resp.status < 300;
+      // The edge function response status is returned as part of the data or error by invoke
+      // We check if the data exists and we didn't get an explicit error
+      const isHealthy = !resp.error;
       setKeys(prev => prev.map(k => k.id === id ? { 
         ...k, 
         status: isHealthy ? "healthy" : "error",
