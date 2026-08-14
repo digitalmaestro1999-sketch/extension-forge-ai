@@ -107,7 +107,10 @@ export default function ApiManager() {
     }
   }, [user, invoke]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { 
+    void load(); 
+    void loadProfile();
+  }, [load, loadProfile]);
   
   useEffect(() => {
     if (keys.length === 0 || !user) return;
