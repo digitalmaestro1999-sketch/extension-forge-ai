@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plug, Plus, Trash2, Eye, EyeOff, ExternalLink, ShieldCheck, Loader2 } from "lucide-react";
+import { Plug, Plus, Trash2, Eye, EyeOff, ExternalLink, ShieldCheck, Loader2, Activity, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,8 @@ interface StoredKey {
   base_url: string | null;
   model_id: string | null;
   created_at: string;
+  status?: "healthy" | "error" | "unknown";
+  last_check?: string;
 }
 
 const apiServices = [
@@ -36,6 +38,8 @@ export default function ApiManager() {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState<Record<string, boolean>>({});
+  const [retrieving, setRetrieving] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newValue, setNewValue] = useState("");
   const [newService, setNewService] = useState("OpenAI");

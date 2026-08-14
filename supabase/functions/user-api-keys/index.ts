@@ -115,6 +115,63 @@ Deno.serve(async (req) => {
       return json(200, { key: data });
     }
 
+    if (action === "proxy" || action === "health") {
+      const id = String(body?.id ?? "");
+      const path = String(body?.path ?? "");
+      const method = String(body?.method ?? "GET");
+      const proxyBody = body?.body;
+
+      if (!id) return json(400, { error: "Missing id" });
+      const { data, error } = await supabase
+        .from("user_api_keys")
+        .select("ciphertext, iv, service, base_url")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return json(404, { error: "Not found" });
+
+      const value = await decrypt(data.ciphertext, data.iv);
+      let url = data.base_url || "";
+      
+      // Default health/model paths if not provided
+      const finalPath = path || (action === "health" ? "" : "/models");
+      if (url && !url.endsWith("/") && finalPath && !finalPath.startsWith("/")) url += "/";
+      const targetUrl = url + finalPath;
+
+      if (!targetUrl.startsWith("http")) {
+         return json(400, { error: "No base URL configured for this key" });
+      }
+
+      try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+
+        // Basic auth injection based on service
+        if (data.service.toLowerCase().includes("openai") || data.service.toLowerCase().includes("nvidia")) {
+          headers["Authorization"] = `Bearer ${value}`;
+        } else if (data.service.toLowerCase().includes("google")) {
+          // Google often uses x-goog-api-key or ?key=
+          headers["x-goog-api-key"] = value;
+        } else if (data.service.toLowerCase().includes("deepgram")) {
+          headers["Authorization"] = `Token ${value}`;
+        } else {
+          headers["Authorization"] = `Bearer ${value}`;
+        }
+
+        const resp = await fetch(targetUrl, {
+          method,
+          headers,
+          body: proxyBody ? JSON.stringify(proxyBody) : undefined,
+        });
+
+        const respData = await resp.json().catch(() => ({}));
+        return json(resp.status, respData);
+      } catch (e) {
+        return json(500, { error: `Proxy failed: ${e.message}` });
+      }
+    }
+
     if (action === "reveal") {
       const id = String(body?.id ?? "");
       if (!id) return json(400, { error: "Missing id" });
