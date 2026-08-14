@@ -127,21 +127,43 @@ export default function ApiManager() {
   };
 
   const checkHealth = async (id: string) => {
+    const key = keys.find(k => k.id === id);
+    if (!key) return;
+
     setChecking(prev => ({ ...prev, [id]: true }));
     try {
       const resp = await supabase.functions.invoke("user-api-keys", {
         body: { action: "health", id },
       });
-      // The edge function response status is returned as part of the data or error by invoke
-      // We check if the data exists and we didn't get an explicit error
+      
       const isHealthy = !resp.error;
+      const prevStatus = key.status;
+      
       setKeys(prev => prev.map(k => k.id === id ? { 
         ...k, 
         status: isHealthy ? "healthy" : "error",
         last_check: new Date().toISOString()
       } : k));
-      if (isHealthy) toast.success("API is healthy");
-      else toast.error("API health check failed");
+
+      if (isHealthy) {
+        if (prevStatus === "error") {
+          toast.success(`${key.label} has recovered`, {
+            description: "The API provider is back online and healthy.",
+            icon: <Activity className="h-4 w-4 text-green-500" />
+          });
+        } else {
+          toast.success("API is healthy");
+        }
+      } else {
+        if (prevStatus !== "error") {
+          toast.error(`${key.label} is unhealthy`, {
+            description: "The API provider returned an error during health check.",
+            icon: <Activity className="h-4 w-4 text-destructive" />
+          });
+        } else {
+          toast.error("API health check failed");
+        }
+      }
     } catch (e) {
       setKeys(prev => prev.map(k => k.id === id ? { ...k, status: "error" } : k));
       toast.error("Health check error");
