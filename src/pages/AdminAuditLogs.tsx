@@ -356,12 +356,13 @@ export default function AdminAuditLogs() {
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
                                             AI Action Implementation Status:
-                                            - Extension Intelligence: ENABLED (lovable_gateway routing active, UI labeled)
-                                            - Trend Discovery: ENABLED (lovable_gateway routing active, UI labeled)
-                                            - Certification Engine: ENABLED (lovable_gateway routing active, UI labeled)
-                                            - Store Assets: ENABLED (lovable_gateway routing active, UI labeled)
-                                            - Competition Intelligence: ENABLED (lovable_gateway routing active, UI labeled)
-                                            - AI Builder Chat: ENABLED (Custom API Manager routing + selection UI)
+                                            - Extension Intelligence: ENABLED (lovable_gateway routing active, respect user preference)
+                                            - Trend Discovery: ENABLED (lovable_gateway routing active, respect user preference)
+                                            - Certification Engine: ENABLED (lovable_gateway routing active, respect user preference)
+                                            - Store Assets: ENABLED (lovable_gateway routing active, respect user preference)
+                                            - Competition Intelligence: ENABLED (lovable_gateway routing active, respect user preference)
+                                            - AI Builder Chat: ENABLED (respect user preference + selection UI)
+                                            - Global Toggle: ENABLED (User can select/deselect Lovable AI in API Manager)
         </p>
       </motion.div>
 

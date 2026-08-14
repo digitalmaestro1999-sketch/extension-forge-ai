@@ -106,7 +106,10 @@ export default function CompetitionIntel() {
   const scrapeOne = async (url: string) => {
     setScrapingUrl(url);
     try {
-      const { data, error } = await supabase.functions.invoke("intel-cws-scrape", { body: { mode: "listing", url, category, provider: "lovable_gateway" } });
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
+      const { data, error } = await supabase.functions.invoke("intel-cws-scrape", { body: { mode: "listing", url, category, provider: gatewayProvider } });
       if (error) throw error;
       toast.success(`Scraped: ${data.listing?.name ?? "listing"}`);
       await refresh();

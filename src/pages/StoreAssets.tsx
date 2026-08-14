@@ -67,8 +67,11 @@ export default function StoreAssets() {
   const genListing = async () => {
     setBusy("listing");
     try {
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const { data, error } = await supabase.functions.invoke("store-listing-optimizer", {
-        body: { name, description, manifest, category: listing?.category, provider: "lovable_gateway" },
+        body: { name, description, manifest, category: listing?.category, provider: gatewayProvider },
       });
       if (error) throw error;
       setListing(data.listing);
