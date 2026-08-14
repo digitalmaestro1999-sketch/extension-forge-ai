@@ -355,7 +355,7 @@ export default function AdminAuditLogs() {
         <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
-                                            why i am able to see deepgram APi in API manager under stored keyw. All the keys whould vbe saved in supabase backend  and not visible on frontened at all
+                                            why i am not able to refresh. ping and check deepgram api healthg
         </p>
       </motion.div>
 
