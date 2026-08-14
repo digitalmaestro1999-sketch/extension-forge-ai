@@ -316,7 +316,7 @@ export default function ApiManager() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-xs text-muted-foreground font-mono break-all">
-                      {revealed[k.id] ?? (k.hint ? `${k.hint}` : "•".repeat(24))}
+                      {k.hint ? `${k.hint}` : "•".repeat(24)}
                     </p>
                     {k.last_check && (
                       <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
@@ -349,14 +349,6 @@ export default function ApiManager() {
                     onClick={() => autoRetrieveModels(k.id)}
                   >
                     {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    disabled={busy === k.id}
-                    onClick={() => toggleReveal(k.id)}
-                  >
-                    {busy === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
-                      revealed[k.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
                 <Button
