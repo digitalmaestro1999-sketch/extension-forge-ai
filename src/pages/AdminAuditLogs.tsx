@@ -371,6 +371,7 @@ export default function AdminAuditLogs() {
                                             - Bug Fix: Resolved 503 error by adding exhaustive fallback to all user keys if selected/favorites fail, and improved error logging in edge functions.
                                             - Preflight Health Checks: ENABLED (Back-end verifies provider connectivity before routing requests).
                                             - Universal AI Orchestration: ENABLED (Orchestrator migration in progress, Registry table created, Performance metrics logging active).
+                                            - Resilience: ENABLED (Circuit Breaker & Exponential Backoff retry strategy active).
 
         </p>
       </motion.div>

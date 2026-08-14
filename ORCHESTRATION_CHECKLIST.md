@@ -28,6 +28,7 @@
 
 ## 7-9. PRIORITY & SELECTION ALGORITHMS
 - [x] **Failover Logic**: Sequentially attempts: 1. Manually Selected Provider -> 2. Saved Favorites -> 3. Any Other Healthy User Key -> 4. Lovable AI (if enabled).
+- [x] **Resilience**: Implemented Circuit Breaker (cooldown on failure) and Exponential Backoff (retries on 429/5xx errors).
 - [x] **Redundancy**: The orchestrator cycles through all eligible candidates until one succeeds.
 
 ## 10-11. HEALTH MANAGEMENT
