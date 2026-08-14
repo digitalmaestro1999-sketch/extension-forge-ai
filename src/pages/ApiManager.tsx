@@ -22,6 +22,7 @@ interface StoredKey {
   created_at: string;
   status?: "healthy" | "error" | "unknown";
   last_check?: string;
+  available_models?: string[];
 }
 
 const apiServices = [
@@ -46,6 +47,7 @@ export default function ApiManager() {
   const navigate = useNavigate();
   const [keys, setKeys] = useState<StoredKey[]>([]);
   const [useLovableAi, setUseLovableAi] = useState(true);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<Record<string, boolean>>({});
@@ -60,12 +62,13 @@ export default function ApiManager() {
     if (!user) return;
     const { data, error } = await supabase
       .from("profiles")
-      .select("use_lovable_ai")
+      .select("use_lovable_ai, selected_model_ids")
       .eq("user_id", user.id)
       .maybeSingle();
     
     if (!error && data) {
       setUseLovableAi(data.use_lovable_ai);
+      setSelectedModels(data.selected_model_ids || []);
     }
   }, [user]);
 
@@ -245,7 +248,9 @@ export default function ApiManager() {
       const models = list
         .map((m: any) => (typeof m === "string" ? m : m.id || m.name || m.canonical_name))
         .filter(Boolean);
+      
       if (models.length > 0) {
+        setKeys(prev => prev.map(k => k.id === id ? { ...k, available_models: models } : k));
         toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "…" });
       } else {
         toast.info("No models found in response");
@@ -254,6 +259,25 @@ export default function ApiManager() {
       toast.error("Model retrieval failed", { description: (e as Error).message });
     } finally {
       setRetrieving(null);
+    }
+  };
+
+  const toggleModelSelection = async (modelName: string) => {
+    if (!user) return;
+    const isSelected = selectedModels.includes(modelName);
+    const newSelection = isSelected 
+      ? selectedModels.filter(m => m !== modelName)
+      : [...selectedModels, modelName];
+    
+    setSelectedModels(newSelection);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ selected_model_ids: newSelection })
+      .eq("user_id", user.id);
+    
+    if (error) {
+      toast.error("Failed to save model selection");
+      setSelectedModels(selectedModels);
     }
   };
 
@@ -397,72 +421,104 @@ export default function ApiManager() {
         ) : (
           <div className="divide-y divide-border">
             {keys.map((k) => (
-              <div key={k.id} className="px-4 py-3 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{k.label}</span>
-                    <Badge variant="secondary" className="text-[10px]">{k.service}</Badge>
-                    {k.status && (
-                      <Badge 
-                        variant="outline" 
-                        className={`text-[9px] px-1 py-0 h-4 flex items-center gap-1 ${
-                          k.status === "healthy" ? "border-green-500/50 text-green-500 bg-green-500/5" : 
-                          k.status === "error" ? "border-destructive/50 text-destructive bg-destructive/5" : ""
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          k.status === "healthy" ? "bg-green-500" : 
-                          k.status === "error" ? "bg-destructive" : "bg-muted-foreground"
-                        }`} />
-                        {k.status}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-muted-foreground font-mono break-all">
-                      {k.hint ? `${k.hint}` : "•".repeat(24)}
-                    </p>
-                    {k.last_check && (
-                      <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
-                        <Loader2 className="h-2.5 w-2.5" />
-                        Checked {new Date(k.last_check).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                  {(k.base_url || k.model_id) && (
-                    <div className="flex gap-2 mt-1">
-                      {k.base_url && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{k.base_url}</Badge>}
-                      {k.model_id && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-primary/5">{k.model_id}</Badge>}
+              <div key={k.id} className="p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{k.label}</span>
+                      <Badge variant="secondary" className="text-[10px]">{k.service}</Badge>
+                      {k.status && (
+                        <Badge 
+                          variant="outline" 
+                          className={`text-[9px] px-1 py-0 h-4 flex items-center gap-1 ${
+                            k.status === "healthy" ? "border-green-500/50 text-green-500 bg-green-500/5" : 
+                            k.status === "error" ? "border-destructive/50 text-destructive bg-destructive/5" : ""
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            k.status === "healthy" ? "bg-green-500" : 
+                            k.status === "error" ? "bg-destructive" : "bg-muted-foreground"
+                          }`} />
+                          {k.status}
+                        </Badge>
+                      )}
                     </div>
-                  )}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground font-mono break-all">
+                        {k.hint ? `${k.hint}` : "•".repeat(24)}
+                      </p>
+                      {k.last_check && (
+                        <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
+                          <Loader2 className="h-2.5 w-2.5" />
+                          Checked {new Date(k.last_check).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    {(k.base_url || k.model_id) && (
+                      <div className="flex gap-2 mt-1">
+                        {k.base_url && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{k.base_url}</Badge>}
+                        {k.model_id && (
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-primary/5">{k.model_id}</Badge>
+                            <Switch 
+                              checked={selectedModels.includes(k.model_id)} 
+                              onCheckedChange={() => k.model_id && toggleModelSelection(k.model_id)} 
+                              className="scale-75" 
+                            />
+                            <span className="text-[8px] text-muted-foreground uppercase font-bold">Primary</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm" variant="ghost"
+                      title="Check Health"
+                      disabled={checking[k.id] || !canProbe(k)}
+                      onClick={() => checkHealth(k.id)}
+                      className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
+                    >
+                      {checking[k.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      title="Auto-retrieve Models"
+                      disabled={retrieving === k.id || !canProbe(k)}
+                      onClick={() => autoRetrieveModels(k.id)}
+                    >
+                      {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      disabled={busy === k.id}
+                      onClick={() => removeKey(k.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm" variant="ghost"
-                    title="Check Health"
-                    disabled={checking[k.id] || !canProbe(k)}
-                    onClick={() => checkHealth(k.id)}
-                    className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
-                  >
-                    {checking[k.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    title="Auto-retrieve Models"
-                    disabled={retrieving === k.id || !canProbe(k)}
-                    onClick={() => autoRetrieveModels(k.id)}
-                  >
-                    {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
-                <Button
-                  size="sm" variant="ghost"
-                  disabled={busy === k.id}
-                  onClick={() => removeKey(k.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {k.available_models && k.available_models.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <p className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                      <Settings2 className="h-3 w-3" />
+                      Discovered Models
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {k.available_models.map(m => (
+                        <div key={m} className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded border border-border/50">
+                          <span className="text-[11px] font-mono">{m}</span>
+                          <Switch 
+                            checked={selectedModels.includes(m)} 
+                            onCheckedChange={() => toggleModelSelection(m)}
+                            className="scale-75 h-4 w-7"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

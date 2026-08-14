@@ -361,8 +361,9 @@ export default function AdminAuditLogs() {
                                             - Certification Engine: ENABLED (lovable_gateway routing active, respect user preference)
                                             - Store Assets: ENABLED (lovable_gateway routing active, respect user preference)
                                             - Competition Intelligence: ENABLED (lovable_gateway routing active, respect user preference)
-                                            - AI Builder Chat: ENABLED (respect user preference + selection UI)
+                                            - AI Builder Chat: ENABLED (respect user preference + selection UI + favorites support)
                                             - Global Toggle: ENABLED (User can select/deselect Lovable AI in API Manager)
+                                            - Model Selection: ENABLED (User can save favorites for future actions)
                                             - Custom Models Retrieved:
                                               * Custom REST API (https://model.inferx.net/endpoints/v1): deepseek-v4-flash
         </p>

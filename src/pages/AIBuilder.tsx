@@ -29,6 +29,7 @@ export default function AIBuilder() {
   const [availableKeys, setAvailableKeys] = useState<any[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("lovable_gateway");
   const [lovableAiEnabled, setLovableAiEnabled] = useState(true);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,12 +39,13 @@ export default function AIBuilder() {
       
       const { data: profile } = await supabase
         .from("profiles")
-        .select("use_lovable_ai")
+        .select("use_lovable_ai, selected_model_ids")
         .eq("user_id", session.user.id)
         .maybeSingle();
       
       const isLovableAiEnabled = profile?.use_lovable_ai ?? true;
       setLovableAiEnabled(isLovableAiEnabled);
+      setSelectedModels(profile?.selected_model_ids || []);
       
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-api-keys`, {
         method: 'POST',
@@ -59,7 +61,10 @@ export default function AIBuilder() {
         setAvailableKeys(keys);
 
         if (!isLovableAiEnabled && selectedProvider === "lovable_gateway") {
-          if (keys.length > 0) {
+          const selectedId = profile?.selected_model_ids?.[0];
+          if (selectedId) {
+            setSelectedProvider(selectedId);
+          } else if (keys.length > 0) {
             setSelectedProvider(keys[0].id);
           }
         }
@@ -165,7 +170,7 @@ export default function AIBuilder() {
             </Badge>
           ) : (
             <Badge variant="outline" className="text-[10px] bg-secondary text-secondary-foreground">
-              {availableKeys.find(k => k.id === selectedProvider)?.label || "Custom AI"}
+              {availableKeys.find(k => k.id === selectedProvider)?.label || selectedModels.find(m => m === selectedProvider) || "Custom AI"}
             </Badge>
           )}
         </h1>
@@ -178,6 +183,22 @@ export default function AIBuilder() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Select AI Provider</DropdownMenuLabel>
+            {selectedModels.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Saved Favorites</DropdownMenuLabel>
+                {selectedModels.map(model => (
+                  <DropdownMenuItem 
+                    key={`fav-${model}`}
+                    onClick={() => setSelectedProvider(model)}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="truncate">{model}</span>
+                    {selectedProvider === model && <Zap className="h-3 w-3 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
             <DropdownMenuSeparator />
             {lovableAiEnabled && (
               <DropdownMenuItem 

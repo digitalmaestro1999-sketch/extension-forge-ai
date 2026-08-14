@@ -663,6 +663,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          selected_model_ids: string[] | null
           status: Database["public"]["Enums"]["user_status"]
           updated_at: string
           use_lovable_ai: boolean
@@ -673,6 +674,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          selected_model_ids?: string[] | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
           use_lovable_ai?: boolean
@@ -683,6 +685,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          selected_model_ids?: string[] | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
           use_lovable_ai?: boolean
