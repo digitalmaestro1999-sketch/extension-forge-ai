@@ -363,6 +363,8 @@ export default function AdminAuditLogs() {
                                             - Competition Intelligence: ENABLED (lovable_gateway routing active, respect user preference)
                                             - AI Builder Chat: ENABLED (respect user preference + selection UI)
                                             - Global Toggle: ENABLED (User can select/deselect Lovable AI in API Manager)
+                                            - Custom Models Retrieved:
+                                              * Custom REST API (https://model.inferx.net/endpoints/v1): deepseek-v4-flash
         </p>
       </motion.div>
 
