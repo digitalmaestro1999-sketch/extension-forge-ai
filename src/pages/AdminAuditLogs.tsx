@@ -361,8 +361,7 @@ export default function AdminAuditLogs() {
                                             - Certification Engine: ENABLED (lovable_gateway routing active, UI labeled)
                                             - Store Assets: ENABLED (lovable_gateway routing active, UI labeled)
                                             - Competition Intelligence: ENABLED (lovable_gateway routing active, UI labeled)
-                                            
-                                            can we noit use this AI from API manger in AI Builder Chat
+                                            - AI Builder Chat: ENABLED (Custom API Manager routing + selection UI)
         </p>
       </motion.div>
 
