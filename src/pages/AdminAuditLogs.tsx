@@ -369,6 +369,8 @@ export default function AdminAuditLogs() {
                                             - Bug Fix: Resolved invalid model errors by migrating to 2.5-series models.
                                             - AI Routing Logic: Implemented failover algorithm (sequentially tries selected provider then favorites).
                                             - Bug Fix: Resolved 503 error by adding exhaustive fallback to all user keys if selected/favorites fail, and improved error logging in edge functions.
+                                            - Preflight Health Checks: ENABLED (Back-end verifies provider connectivity before routing requests).
+
         </p>
       </motion.div>
 

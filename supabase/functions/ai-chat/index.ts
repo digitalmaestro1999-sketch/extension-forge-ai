@@ -60,7 +60,6 @@ serve(async (req) => {
     if (provider && provider !== "lovable_gateway") {
         candidates.push(provider);
     }
-    // Only add unique favorites that aren't already the selected provider
     for (const fav of favorites) {
         if (!candidates.includes(fav)) {
             candidates.push(fav);
@@ -72,10 +71,51 @@ serve(async (req) => {
         .select("*")
         .eq("user_id", user.id);
 
+    async function checkHealth(keyData: any): Promise<boolean> {
+        const apiKey = await decrypt(keyData.ciphertext, keyData.iv);
+        const svc = (keyData.service || "").toLowerCase();
+        
+        let healthUrl = "";
+        let authType = "Bearer";
+        
+        if (keyData.base_url) {
+            healthUrl = keyData.base_url.replace(/\/+$/, "") + "/models";
+        } else {
+            if (svc.includes("openai")) healthUrl = "https://api.openai.com/v1/models";
+            else if (svc.includes("nvidia")) healthUrl = "https://integrate.api.nvidia.com/v1/models";
+            else if (svc.includes("google")) healthUrl = "https://generativelanguage.googleapis.com/v1beta/models";
+            else if (svc.includes("deepgram")) healthUrl = "https://api.deepgram.com/v1/projects";
+        }
+
+        if (!healthUrl) return true; // Assume healthy if we don't know how to check
+
+        if (svc.includes("google")) authType = "x-goog-api-key";
+        else if (svc.includes("deepgram")) authType = "Token";
+
+        try {
+            const h = { "Content-Type": "application/json" };
+            if (authType === "x-goog-api-key") h["x-goog-api-key"] = apiKey;
+            else h["Authorization"] = `${authType} ${apiKey}`;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const resp = await fetch(healthUrl, { method: "GET", headers: h, signal: controller.signal });
+            clearTimeout(timeoutId);
+            return resp.ok;
+        } catch (e) {
+            console.warn(`Health check failed for ${keyData.id}:`, e.message);
+            return false;
+        }
+    }
+
     async function tryRequest(keyId: string) {
         const keyData = allKeys?.find(k => k.id === keyId);
-        if (!keyData) {
-            console.warn(`Key data not found for candidate ID: ${keyId}`);
+        if (!keyData) return null;
+
+        // Preflight health check
+        const isHealthy = await checkHealth(keyData);
+        if (!isHealthy) {
+            console.warn(`Skipping unhealthy provider: ${keyData.service} (${keyId})`);
             return null;
         }
 
@@ -112,7 +152,6 @@ serve(async (req) => {
         }
 
         try {
-            console.log(`Attempting request to ${svc} (${model}) at ${apiUrl}`);
             const resp = await fetch(apiUrl, {
                 method: "POST",
                 headers,
@@ -126,23 +165,17 @@ serve(async (req) => {
                 }),
             });
             if (resp.ok) return resp;
-            
-            const errorText = await resp.text();
-            console.warn(`Provider ${keyId} (${svc}) failed with status ${resp.status}: ${errorText.substring(0, 200)}`);
             return null;
         } catch (e) {
-            console.error(`Fetch error for ${keyId} (${svc}):`, e);
             return null;
         }
     }
 
-    // Try custom candidates first
     for (const cand of candidates) {
         const resp = await tryRequest(cand);
         if (resp) return new Response(resp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    // Fallback to all other available keys if candidates failed and Lovable is disabled
     if (!useLovable && allKeys && allKeys.length > 0) {
         for (const k of allKeys) {
             if (!candidates.includes(k.id)) {
@@ -152,7 +185,6 @@ serve(async (req) => {
         }
     }
 
-    // Finally try Lovable if enabled
     if (useLovable) {
         const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
         try {
@@ -166,15 +198,12 @@ serve(async (req) => {
                 }),
             });
             if (response.ok) return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
-            console.error(`Lovable Gateway failed with status ${response.status}`);
-        } catch (e) {
-            console.error("Lovable Gateway fetch error:", e);
-        }
+        } catch (e) {}
     }
 
     return new Response(JSON.stringify({ 
         error: "No working AI models found among selected providers or favorites.",
-        details: candidates.length > 0 ? "Check your API keys and model settings for the selected providers." : "Ensure you have added and selected at least one AI provider in the API Manager."
+        details: "All attempted models failed health checks or returned errors. Please verify your API keys and provider status in the API Manager."
     }), { status: 503, headers: corsHeaders });
 
   } catch (e) {
