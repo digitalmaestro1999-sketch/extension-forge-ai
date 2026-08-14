@@ -55,8 +55,11 @@ export default function TrendDiscovery() {
     setResults([]);
 
     try {
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").eq("user_id", user.id).maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const { data, error } = await supabase.functions.invoke("discover-trends", {
-        body: { niche: niche.trim(), provider: "lovable_gateway" },
+        body: { niche: niche.trim(), provider: gatewayProvider },
       });
 
       if (error) throw error;
