@@ -355,7 +355,13 @@ export default function AdminAuditLogs() {
         <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
-                                            Enable periodic background health checks for each provider and update the last checked timestamp automatically without manual refresh.
+                                            AI-Integrated Modules List:
+                                            - Extension Intelligence: Code architecture, manifest analysis, security checks, localization (ext-intel-analyze)
+                                            - Trend Discovery: Market opportunity identification (discover-trends)
+                                            - Certification Engine: AI auto-fix loop for security/policy issues (certify-autofix)
+                                            - Store Assets: Listing copy optimization, privacy policy drafting, icon generation (store-listing-optimizer, store-privacy-policy, store-icon-set)
+                                            - Competition Intelligence: Market gap analysis and competitor scraping (intel-cws-scrape)
+                                            - API Manager: Periodic health checks and automated model discovery proxying (user-api-keys)
         </p>
       </motion.div>
 
