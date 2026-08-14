@@ -25,6 +25,7 @@ export interface AutoFixOptions {
   maxIterations?: number;      // default 3
   targetScore?: number;        // default 95 — stop when overall >= target and 0 criticals
   onProgress?: (step: AutoFixStep) => void;
+  issueFilter?: (issue: CertIssue) => boolean;
 }
 
 async function callAutofix(file: string, content: string, issues: CertIssue[]): Promise<{ content: string; changed: boolean } | { error: string }> {
