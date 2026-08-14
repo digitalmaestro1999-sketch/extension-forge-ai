@@ -173,17 +173,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "reveal") {
-      const id = String(body?.id ?? "");
-      if (!id) return json(400, { error: "Missing id" });
-      const { data, error } = await supabase
-        .from("user_api_keys")
-        .select("ciphertext, iv")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return json(404, { error: "Not found" });
-      const value = await decrypt(data.ciphertext, data.iv);
-      return json(200, { value });
+      return json(403, { error: "Security Policy: Keys cannot be revealed via the API for security reasons." });
     }
 
     if (action === "delete") {
