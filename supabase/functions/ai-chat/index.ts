@@ -113,10 +113,25 @@ serve(async (req) => {
         const keyData = allKeys?.find(k => k.id === keyId);
         if (!keyData) return null;
 
+        // Circuit Breaker: Check if provider is currently in an error state
+        if (keyData.status === 'error' || keyData.status === 'unhealthy') {
+            const lastCheck = keyData.last_check ? new Date(keyData.last_check).getTime() : 0;
+            const cooldown = 60000; // 1 minute cooldown
+            if (Date.now() - lastCheck < cooldown) {
+                console.warn(`Circuit Breaker: Skipping provider ${keyData.service} due to recent failure.`);
+                return null;
+            }
+        }
+
         // Preflight health check
         const isHealthy = await checkHealth(keyData);
         if (!isHealthy) {
             console.warn(`Skipping unhealthy provider: ${keyData.service} (${keyId})`);
+            // Update status in DB to trigger circuit breaker for others
+            await supabaseAdmin.from("user_api_keys").update({ 
+                status: 'unhealthy', 
+                last_check: new Date().toISOString() 
+            }).eq("id", keyId);
             return null;
         }
 
@@ -152,38 +167,64 @@ serve(async (req) => {
             headers["Authorization"] = `${authType} ${apiKey}`;
         }
 
-        try {
-            const resp = await fetch(apiUrl, {
-                method: "POST",
-                headers,
-                body: JSON.stringify({
-                    model,
-                    messages: [
-                        { role: "system", content: `You are an expert Chrome extension developer assistant. Use Manifest V3 only.` },
-                        ...messages,
-                    ],
-                    stream,
-                }),
-            });
-            
-            if (resp.ok) {
-                const latency = Date.now() - startTime;
-                // Log performance metrics
-                await supabaseAdmin.from("security_audit_logs").insert({
-                    user_id: user.id,
-                    event_type: "ai_request_success",
-                    severity: "info",
-                    details: { model, provider: keyData.service, latency_ms: latency, capability: "chat" },
-                    latency_ms: latency,
-                    model_id: model,
-                    provider_id: keyData.id
+        // Exponential Backoff Retry Strategy
+        let attempts = 0;
+        const maxRetries = 2;
+        
+        while (attempts <= maxRetries) {
+            try {
+                const resp = await fetch(apiUrl, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        model,
+                        messages: [
+                            { role: "system", content: `You are an expert Chrome extension developer assistant. Use Manifest V3 only.` },
+                            ...messages,
+                        ],
+                        stream,
+                    }),
                 });
-                return resp;
+                
+                if (resp.ok) {
+                    const latency = Date.now() - startTime;
+                    await supabaseAdmin.from("security_audit_logs").insert({
+                        user_id: user.id,
+                        event_type: "ai_request_success",
+                        severity: "info",
+                        details: { model, provider: keyData.service, latency_ms: latency, attempts: attempts + 1 },
+                        latency_ms: latency,
+                        model_id: model,
+                        provider_id: keyData.id
+                    });
+                    // Reset status to healthy on success
+                    await supabaseAdmin.from("user_api_keys").update({ status: 'healthy', last_check: new Date().toISOString() }).eq("id", keyId);
+                    return resp;
+                }
+                
+                // If we get a rate limit or server error, retry
+                if (resp.status === 429 || resp.status >= 500) {
+                    attempts++;
+                    if (attempts <= maxRetries) {
+                        const delay = Math.pow(2, attempts) * 1000;
+                        console.log(`Retry ${attempts}/${maxRetries} for ${keyData.service} after ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                }
+                
+                return null;
+            } catch (e) {
+                attempts++;
+                if (attempts <= maxRetries) {
+                    const delay = Math.pow(2, attempts) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                return null;
             }
-            return null;
-        } catch (e) {
-            return null;
         }
+        return null;
     }
 
     for (const cand of candidates) {
