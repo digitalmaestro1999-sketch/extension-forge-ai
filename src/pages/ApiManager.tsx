@@ -45,6 +45,7 @@ export default function ApiManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [keys, setKeys] = useState<StoredKey[]>([]);
+  const [useLovableAi, setUseLovableAi] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<Record<string, boolean>>({});
@@ -54,6 +55,37 @@ export default function ApiManager() {
   const [newService, setNewService] = useState("OpenAI");
   const [newBaseUrl, setNewBaseUrl] = useState("");
   const [newModelId, setNewModelId] = useState("");
+
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("use_lovable_ai")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (!error && data) {
+      setUseLovableAi(data.use_lovable_ai);
+    }
+  }, [user]);
+
+  const toggleLovableAi = async (checked: boolean) => {
+    if (!user) return;
+    setUseLovableAi(checked);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ use_lovable_ai: checked })
+      .eq("user_id", user.id);
+    
+    if (error) {
+      toast.error("Failed to update preferences");
+      setUseLovableAi(!checked);
+    } else {
+      toast.success(checked ? "Lovable AI enabled" : "Lovable AI disabled", {
+        description: checked ? "Lovable AI will be available as a routing option." : "Lovable AI is now hidden from all AI selection menus."
+      });
+    }
+  };
 
   const invoke = useCallback(async <T = unknown>(action: string, extra: Record<string, unknown> = {}): Promise<T> => {
     const { data, error } = await supabase.functions.invoke("user-api-keys", {
