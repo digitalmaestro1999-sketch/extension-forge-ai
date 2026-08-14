@@ -39,6 +39,7 @@ export default function CertifyExtension() {
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [intel, setIntel] = useState<IntelGapReportLike | null>(null);
+  const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const f = loadFiles();
@@ -73,6 +74,7 @@ export default function CertifyExtension() {
       const base = runCertification(f);
       const r = mergeIntel(base, intel);
       setReport(r);
+      setSelectedIssues(new Set(r.issues.map((_, idx) => idx.toString())));
       await logSecurityEvent({
         eventType: r.criticals === 0 ? "preflight_pass" : "preflight_block",
         severity: r.criticals === 0 ? "info" : "warning",
@@ -123,6 +125,10 @@ export default function CertifyExtension() {
         maxIterations: 3,
         targetScore: 95,
         onProgress: (s) => setAutoFixSteps(prev => [...prev, s]),
+        issueFilter: (i) => {
+          const idx = report.issues.findIndex(ri => ri.id === i.id && ri.file === i.file && ri.line === i.line && ri.message === i.message);
+          return selectedIssues.has(idx.toString());
+        }
       });
       persistFiles(result.files);
       setReport(mergeIntel(result.after, intel));
@@ -250,7 +256,28 @@ export default function CertifyExtension() {
           {/* Issues table */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <CardTitle>Issues ({report.issues.length})</CardTitle>
+              <div className="flex items-center gap-4">
+                <CardTitle>Issues ({report.issues.length})</CardTitle>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border-l pl-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2" 
+                    onClick={() => setSelectedIssues(new Set(report.issues.map((_, i) => i.toString())))}
+                  >
+                    Select All
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2" 
+                    onClick={() => setSelectedIssues(new Set())}
+                  >
+                    Clear
+                  </Button>
+                  <span className="ml-2">{selectedIssues.size} selected for fix</span>
+                </div>
+              </div>
               <Input
                 placeholder="Filter by file, message, category…"
                 value={query}
@@ -264,7 +291,25 @@ export default function CertifyExtension() {
               ) : (
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
                   {filtered.map((i, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 rounded-md border border-border bg-card/50">
+                    <div 
+                      key={idx} 
+                      className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${
+                        selectedIssues.has(idx.toString()) 
+                          ? "border-primary/50 bg-primary/5" 
+                          : "border-border bg-card/50 opacity-80"
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        checked={selectedIssues.has(idx.toString())}
+                        onChange={(e) => {
+                          const next = new Set(selectedIssues);
+                          if (e.target.checked) next.add(idx.toString());
+                          else next.delete(idx.toString());
+                          setSelectedIssues(next);
+                        }}
+                      />
                       {severityIcon(i.severity)}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
