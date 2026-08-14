@@ -30,6 +30,117 @@ const EVENT_TYPES = [
   "certify", "manifest_edit",
 ] as const;
 
+function ProviderStatusPanel() {
+  const [keys, setKeys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchKeys = async () => {
+      const { data } = await supabase.from("user_api_keys").select("*");
+      if (data) setKeys(data);
+      setLoading(false);
+    };
+    fetchKeys();
+    const interval = setInterval(fetchKeys, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="h-20 flex items-center justify-center text-muted-foreground">Loading status...</div>;
+
+  return (
+    <div className="space-y-3">
+      {keys.length === 0 && <p className="text-sm text-muted-foreground italic">No providers configured.</p>}
+      {keys.map((k) => {
+        const isHealthy = k.status === 'healthy';
+        const isCircuitOpen = k.status === 'error' || k.status === 'unhealthy';
+        const lastCheck = k.last_check ? new Date(k.last_check) : null;
+        const cooldownRemaining = isCircuitOpen && lastCheck 
+          ? Math.max(0, 60 - Math.floor((Date.now() - lastCheck.getTime()) / 1000))
+          : 0;
+
+        return (
+          <div key={k.id} className="flex items-center justify-between p-2 border rounded-md bg-muted/30">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{k.service || 'Unknown'}</span>
+              <span className="text-[10px] text-muted-foreground">{k.label || k.id.slice(0, 8)}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {isCircuitOpen && (
+                <div className="flex flex-col items-end">
+                  <Badge variant="destructive" className="text-[9px] px-1.5 h-4">CIRCUIT OPEN</Badge>
+                  {cooldownRemaining > 0 && (
+                    <span className="text-[9px] text-destructive/80 font-mono">Cooldown: {cooldownRemaining}s</span>
+                  )}
+                </div>
+              )}
+              {!isCircuitOpen && (
+                <Badge variant={isHealthy ? "default" : "secondary"} className={`text-[9px] px-1.5 h-4 ${isHealthy ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}>
+                  {k.status || 'UNKNOWN'}
+                </Badge>
+              )}
+              {lastCheck && (
+                <div className="text-[10px] text-muted-foreground text-right">
+                  <div className="leading-none">Last Checked</div>
+                  <div className="leading-none mt-1">{lastCheck.toLocaleTimeString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ErrorRateChart({ logs }: { logs: AuditLog[] }) {
+  const stats = useMemo(() => {
+    const total = logs.length;
+    if (total === 0) return { rate: 0, count: 0 };
+    const fails = logs.filter(l => l.event_type === 'ai_request_fail' || l.severity === 'error').length;
+    return {
+      rate: Math.round((fails / total) * 100),
+      count: fails
+    };
+  }, [logs]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div className="space-y-1">
+          <div className="text-3xl font-bold">{stats.rate}%</div>
+          <div className="text-xs text-muted-foreground">Failure rate across recent interactions</div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-medium text-destructive">{stats.count} errors</div>
+          <div className="text-xs text-muted-foreground">of {logs.length} events</div>
+        </div>
+      </div>
+      
+      <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
+        <div 
+          className="h-full bg-destructive transition-all duration-500" 
+          style={{ width: `${stats.rate}%` }} 
+        />
+        <div 
+          className="h-full bg-emerald-500 transition-all duration-500" 
+          style={{ width: `${100 - stats.rate}%` }} 
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-destructive" />
+          <span>Failed Requests</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span>Success / Info</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function severityIcon(sev: string) {
   if (sev === "error") return <XCircle className="h-3.5 w-3.5 text-destructive" />;
   if (sev === "warning") return <AlertTriangle className="h-3.5 w-3.5 text-warning" />;
@@ -382,6 +493,38 @@ export default function AdminAuditLogs() {
         <StatCard label="Warnings" value={stats.warnings} tone="warning" icon={<AlertTriangle className="h-4 w-4" />} />
         <StatCard label="Blocks" value={stats.blocks} tone="destructive" icon={<ShieldCheck className="h-4 w-4" />} />
         <StatCard label="Overrides" value={stats.overrides} tone="warning" icon={<AlertTriangle className="h-4 w-4" />} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }} 
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-card border rounded-lg p-5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Provider Health & Circuit Breakers
+            </h2>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Live Status</Badge>
+          </div>
+          <ProviderStatusPanel />
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }} 
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-card border rounded-lg p-5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Recent Error Rates (Last 100)
+            </h2>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Metrics</Badge>
+          </div>
+          <ErrorRateChart logs={rows.slice(0, 100)} />
+        </motion.div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
