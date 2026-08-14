@@ -26,7 +26,30 @@ export default function AIBuilder() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [availableKeys, setAvailableKeys] = useState<any[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("lovable_gateway");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchKeys = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-api-keys`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ action: 'list' })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableKeys(data.keys || []);
+      }
+    };
+    fetchKeys();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -43,15 +66,19 @@ export default function AIBuilder() {
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+          body: JSON.stringify({ 
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            provider: selectedProvider 
+          }),
         }
       );
 
