@@ -35,7 +35,7 @@ export default function ApiManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [keys, setKeys] = useState<StoredKey[]>([]);
-  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<Record<string, boolean>>({});
@@ -101,7 +101,6 @@ export default function ApiManager() {
     try {
       await invoke("delete", { id });
       setKeys((prev) => prev.filter((k) => k.id !== id));
-      setRevealed((prev) => { const n = { ...prev }; delete n[id]; return n; });
       toast.success("Key removed");
     } catch (e) {
       toast.error("Delete failed", { description: (e as Error).message });
