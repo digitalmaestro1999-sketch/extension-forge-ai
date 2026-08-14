@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_model_registry: {
+        Row: {
+          audio_support: boolean | null
+          capabilities: string[] | null
+          context_window: number | null
+          cost_per_1k_tokens_input: number | null
+          cost_per_1k_tokens_output: number | null
+          created_at: string | null
+          discovery_source: string | null
+          enabled: boolean | null
+          health_status: string | null
+          id: string
+          image_generation: boolean | null
+          input_types: string[] | null
+          latency_average_ms: number | null
+          model_display_name: string
+          model_id: string
+          output_types: string[] | null
+          priority: number | null
+          provider_id: string
+          reasoning_support: boolean | null
+          streaming: boolean | null
+          structured_output: boolean | null
+          tool_calling: boolean | null
+          updated_at: string | null
+          vision_support: boolean | null
+        }
+        Insert: {
+          audio_support?: boolean | null
+          capabilities?: string[] | null
+          context_window?: number | null
+          cost_per_1k_tokens_input?: number | null
+          cost_per_1k_tokens_output?: number | null
+          created_at?: string | null
+          discovery_source?: string | null
+          enabled?: boolean | null
+          health_status?: string | null
+          id?: string
+          image_generation?: boolean | null
+          input_types?: string[] | null
+          latency_average_ms?: number | null
+          model_display_name: string
+          model_id: string
+          output_types?: string[] | null
+          priority?: number | null
+          provider_id: string
+          reasoning_support?: boolean | null
+          streaming?: boolean | null
+          structured_output?: boolean | null
+          tool_calling?: boolean | null
+          updated_at?: string | null
+          vision_support?: boolean | null
+        }
+        Update: {
+          audio_support?: boolean | null
+          capabilities?: string[] | null
+          context_window?: number | null
+          cost_per_1k_tokens_input?: number | null
+          cost_per_1k_tokens_output?: number | null
+          created_at?: string | null
+          discovery_source?: string | null
+          enabled?: boolean | null
+          health_status?: string | null
+          id?: string
+          image_generation?: boolean | null
+          input_types?: string[] | null
+          latency_average_ms?: number | null
+          model_display_name?: string
+          model_id?: string
+          output_types?: string[] | null
+          priority?: number | null
+          provider_id?: string
+          reasoning_support?: boolean | null
+          streaming?: boolean | null
+          structured_output?: boolean | null
+          tool_calling?: boolean | null
+          updated_at?: string | null
+          vision_support?: boolean | null
+        }
+        Relationships: []
+      }
       batch_queue: {
         Row: {
           completed_at: string | null
@@ -701,9 +782,13 @@ export type Database = {
           event_type: string
           extension_name: string | null
           id: string
+          latency_ms: number | null
+          model_id: string | null
           passed: boolean | null
           project_id: string | null
+          provider_id: string | null
           severity: string
+          token_usage: Json | null
           user_agent: string | null
           user_id: string | null
           warnings: number
@@ -715,9 +800,13 @@ export type Database = {
           event_type: string
           extension_name?: string | null
           id?: string
+          latency_ms?: number | null
+          model_id?: string | null
           passed?: boolean | null
           project_id?: string | null
+          provider_id?: string | null
           severity?: string
+          token_usage?: Json | null
           user_agent?: string | null
           user_id?: string | null
           warnings?: number
@@ -729,9 +818,13 @@ export type Database = {
           event_type?: string
           extension_name?: string | null
           id?: string
+          latency_ms?: number | null
+          model_id?: string | null
           passed?: boolean | null
           project_id?: string | null
+          provider_id?: string | null
           severity?: string
+          token_usage?: Json | null
           user_agent?: string | null
           user_id?: string | null
           warnings?: number

@@ -38,7 +38,8 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
-    const { messages, provider } = await req.json();
+    const { messages, provider, stream = true } = await req.json();
+    const startTime = Date.now();
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
@@ -161,10 +162,24 @@ serve(async (req) => {
                         { role: "system", content: `You are an expert Chrome extension developer assistant. Use Manifest V3 only.` },
                         ...messages,
                     ],
-                    stream: true,
+                    stream,
                 }),
             });
-            if (resp.ok) return resp;
+            
+            if (resp.ok) {
+                const latency = Date.now() - startTime;
+                // Log performance metrics
+                await supabaseAdmin.from("security_audit_logs").insert({
+                    user_id: user.id,
+                    event_type: "ai_request_success",
+                    severity: "info",
+                    details: { model, provider: keyData.service, latency_ms: latency, capability: "chat" },
+                    latency_ms: latency,
+                    model_id: model,
+                    provider_id: keyData.id
+                });
+                return resp;
+            }
             return null;
         } catch (e) {
             return null;
@@ -200,6 +215,15 @@ serve(async (req) => {
             if (response.ok) return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
         } catch (e) {}
     }
+
+    const totalLatency = Date.now() - startTime;
+    await supabaseAdmin.from("security_audit_logs").insert({
+        user_id: user.id,
+        event_type: "ai_request_fail",
+        severity: "error",
+        details: { error: "No working models", latency_ms: totalLatency },
+        latency_ms: totalLatency
+    });
 
     return new Response(JSON.stringify({ 
         error: "No working AI models found among selected providers or favorites.",
