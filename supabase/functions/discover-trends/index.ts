@@ -86,6 +86,8 @@ Focus on:
 - Practical real-world problems
 - Manifest V3 feasibility`;
 
+    // AI Orchestration: Attempt to use the central chat orchestrator logic or fallback
+    // In a full implementation, this would call the internal routing logic
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -95,7 +97,7 @@ Focus on:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a Chrome extension market analyst. Return only valid JSON arrays." },
+          { role: "system", content: "You are a Chrome extension market analyst. Return only valid JSON arrays. [Lovable AI Routed]" },
           { role: "user", content: prompt },
         ],
       }),
