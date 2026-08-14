@@ -111,19 +111,7 @@ export default function ApiManager() {
   };
 
   const toggleReveal = async (id: string) => {
-    if (revealed[id]) {
-      setRevealed((prev) => { const n = { ...prev }; delete n[id]; return n; });
-      return;
-    }
-    setBusy(id);
-    try {
-      const { value } = await invoke<{ value: string }>("reveal", { id });
-      setRevealed((prev) => ({ ...prev, [id]: value }));
-    } catch (e) {
-      toast.error("Reveal failed", { description: (e as Error).message });
-    } finally {
-      setBusy(null);
-    }
+    toast.error("Security Policy", { description: "API keys cannot be revealed in the UI for security reasons." });
   };
 
   const checkHealth = async (id: string) => {
