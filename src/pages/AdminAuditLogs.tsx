@@ -356,8 +356,7 @@ export default function AdminAuditLogs() {
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                         
                                             
-                                            make canvakimberley@gmail.com
-superadmin
+                                            update api manager to add custom api with base url also to be added to identify models api etc
         </p>
       </motion.div>
 

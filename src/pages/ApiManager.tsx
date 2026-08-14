@@ -15,6 +15,8 @@ interface StoredKey {
   service: string;
   label: string;
   hint: string | null;
+  base_url: string | null;
+  model_id: string | null;
   created_at: string;
 }
 
@@ -37,6 +39,8 @@ export default function ApiManager() {
   const [newLabel, setNewLabel] = useState("");
   const [newValue, setNewValue] = useState("");
   const [newService, setNewService] = useState("OpenAI");
+  const [newBaseUrl, setNewBaseUrl] = useState("");
+  const [newModelId, setNewModelId] = useState("");
 
   const invoke = useCallback(async <T = unknown>(action: string, extra: Record<string, unknown> = {}): Promise<T> => {
     const { data, error } = await supabase.functions.invoke("user-api-keys", {
@@ -72,10 +76,14 @@ export default function ApiManager() {
     setBusy("create");
     try {
       const { key } = await invoke<{ key: StoredKey }>("create", {
-        service: newService, label: newLabel.trim(), value: newValue.trim(),
+        service: newService, 
+        label: newLabel.trim(), 
+        value: newValue.trim(),
+        base_url: newBaseUrl.trim() || null,
+        model_id: newModelId.trim() || null
       });
       setKeys((prev) => [key, ...prev]);
-      setNewLabel(""); setNewValue("");
+      setNewLabel(""); setNewValue(""); setNewBaseUrl(""); setNewModelId("");
       toast.success("API key encrypted & saved");
     } catch (e) {
       toast.error("Save failed", { description: (e as Error).message });
@@ -158,7 +166,7 @@ export default function ApiManager() {
 
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <h3 className="font-semibold">Add API Key</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="space-y-1">
             <Label className="text-xs">Service</Label>
             <select
@@ -191,6 +199,24 @@ export default function ApiManager() {
               className="bg-secondary border-border font-mono"
             />
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Base URL (Optional)</Label>
+            <Input
+              placeholder="https://api.example.com/v1"
+              value={newBaseUrl}
+              onChange={(e) => setNewBaseUrl(e.target.value)}
+              className="bg-secondary border-border"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Model ID (Optional)</Label>
+            <Input
+              placeholder="gpt-4, my-custom-model, etc."
+              value={newModelId}
+              onChange={(e) => setNewModelId(e.target.value)}
+              className="bg-secondary border-border font-mono"
+            />
+          </div>
         </div>
         <Button onClick={addKey} variant="outline" size="sm" disabled={busy === "create"}>
           {busy === "create" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
@@ -217,6 +243,12 @@ export default function ApiManager() {
                   <p className="text-xs text-muted-foreground font-mono mt-0.5 break-all">
                     {revealed[k.id] ?? (k.hint ? `${k.hint}` : "•".repeat(24))}
                   </p>
+                  {(k.base_url || k.model_id) && (
+                    <div className="flex gap-2 mt-1">
+                      {k.base_url && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{k.base_url}</Badge>}
+                      {k.model_id && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-primary/5">{k.model_id}</Badge>}
+                    </div>
+                  )}
                 </div>
                 <Button
                   size="sm" variant="ghost"
