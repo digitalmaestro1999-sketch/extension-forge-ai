@@ -288,10 +288,33 @@ export default function ApiManager() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{k.label}</span>
                     <Badge variant="secondary" className="text-[10px]">{k.service}</Badge>
+                    {k.status && (
+                      <Badge 
+                        variant="outline" 
+                        className={`text-[9px] px-1 py-0 h-4 flex items-center gap-1 ${
+                          k.status === "healthy" ? "border-green-500/50 text-green-500 bg-green-500/5" : 
+                          k.status === "error" ? "border-destructive/50 text-destructive bg-destructive/5" : ""
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          k.status === "healthy" ? "bg-green-500" : 
+                          k.status === "error" ? "bg-destructive" : "bg-muted-foreground"
+                        }`} />
+                        {k.status}
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5 break-all">
-                    {revealed[k.id] ?? (k.hint ? `${k.hint}` : "•".repeat(24))}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-muted-foreground font-mono break-all">
+                      {revealed[k.id] ?? (k.hint ? `${k.hint}` : "•".repeat(24))}
+                    </p>
+                    {k.last_check && (
+                      <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
+                        <Loader2 className="h-2.5 w-2.5" />
+                        Checked {new Date(k.last_check).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
                   {(k.base_url || k.model_id) && (
                     <div className="flex gap-2 mt-1">
                       {k.base_url && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{k.base_url}</Badge>}
