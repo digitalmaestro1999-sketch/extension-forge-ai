@@ -4038,7 +4038,7 @@ All copy is original and IP-safe.`);
           <div>
             <h1 className="text-2xl font-bold text-gradient-cyber">Extension Intelligence Engine</h1>
             <p className="text-xs text-muted-foreground">
-              Reverse-engineer top Chrome extensions into original, IP-safe blueprints. Powered by Firecrawl + Lovable AI.
+              Reverse-engineer top Chrome extensions into original, IP-safe blueprints. Analysis via Firecrawl. <Badge variant="secondary" className="ml-1 text-[10px] py-0 h-4">Lovable AI Routed</Badge>
             </p>
           </div>
         </div>

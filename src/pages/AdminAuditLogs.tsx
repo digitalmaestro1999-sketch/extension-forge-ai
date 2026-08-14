@@ -356,11 +356,11 @@ export default function AdminAuditLogs() {
           '''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
                                             
                                             AI Action Implementation Status:
-                                            - Extension Intelligence: ENABLED (lovable_gateway routing active)
-                                            - Trend Discovery: ENABLED (lovable_gateway routing active)
-                                            - Certification Engine: ENABLED (lovable_gateway routing active)
-                                            - Store Assets: ENABLED (lovable_gateway routing active)
-                                            - Competition Intelligence: ENABLED (lovable_gateway routing active)
+                                            - Extension Intelligence: ENABLED (lovable_gateway routing active, UI labeled)
+                                            - Trend Discovery: ENABLED (lovable_gateway routing active, UI labeled)
+                                            - Certification Engine: ENABLED (lovable_gateway routing active, UI labeled)
+                                            - Store Assets: ENABLED (lovable_gateway routing active, UI labeled)
+                                            - Competition Intelligence: ENABLED (lovable_gateway routing active, UI labeled)
         </p>
       </motion.div>
 
