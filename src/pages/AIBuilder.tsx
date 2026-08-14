@@ -1,10 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Zap, Send, Loader2, Bot, User } from "lucide-react";
+import { Zap, Send, Loader2, Bot, User, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,7 +26,30 @@ export default function AIBuilder() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [availableKeys, setAvailableKeys] = useState<any[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("lovable_gateway");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchKeys = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-api-keys`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ action: 'list' })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableKeys(data.keys || []);
+      }
+    };
+    fetchKeys();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -34,15 +66,19 @@ export default function AIBuilder() {
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+          body: JSON.stringify({ 
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            provider: selectedProvider 
+          }),
         }
       );
 
@@ -103,10 +139,49 @@ export default function AIBuilder() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-3rem)]">
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
         <h1 className="font-semibold flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" /> AI Builder Chat
+          {selectedProvider === "lovable_gateway" ? (
+            <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+              Lovable AI Routed
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] bg-secondary text-secondary-foreground">
+              {availableKeys.find(k => k.id === selectedProvider)?.label || "Custom AI"}
+            </Badge>
+          )}
         </h1>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Settings2 className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Select AI Provider</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setSelectedProvider("lovable_gateway")}
+              className="flex items-center justify-between"
+            >
+              <span>Lovable Gateway</span>
+              {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
+            </DropdownMenuItem>
+            {availableKeys.length > 0 && <DropdownMenuSeparator />}
+            {availableKeys.map(key => (
+              <DropdownMenuItem 
+                key={key.id} 
+                onClick={() => setSelectedProvider(key.id)}
+                className="flex items-center justify-between"
+              >
+                <span className="truncate">{key.label}</span>
+                {selectedProvider === key.id && <Zap className="h-3 w-3 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
