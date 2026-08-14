@@ -66,7 +66,7 @@ Produce an honest gap analysis. Prioritise concrete, shippable opportunities. Do
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-5.5",
+        model: "google/gemini-2.5-pro",
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),

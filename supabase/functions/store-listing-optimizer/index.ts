@@ -34,7 +34,7 @@ Write an original CWS listing. Be concrete about what users get. No superlatives
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-5.5",
+        model: "google/gemini-2.5-pro",
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),
