@@ -126,6 +126,49 @@ export default function ApiManager() {
     }
   };
 
+  const checkHealth = async (id: string) => {
+    setChecking(prev => ({ ...prev, [id]: true }));
+    try {
+      const resp = await supabase.functions.invoke("user-api-keys", {
+        body: { action: "health", id },
+      });
+      const isHealthy = resp.data && !resp.error && resp.status >= 200 && resp.status < 300;
+      setKeys(prev => prev.map(k => k.id === id ? { 
+        ...k, 
+        status: isHealthy ? "healthy" : "error",
+        last_check: new Date().toISOString()
+      } : k));
+      if (isHealthy) toast.success("API is healthy");
+      else toast.error("API health check failed");
+    } catch (e) {
+      setKeys(prev => prev.map(k => k.id === id ? { ...k, status: "error" } : k));
+      toast.error("Health check error");
+    } finally {
+      setChecking(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const autoRetrieveModels = async (id: string) => {
+    setRetrieving(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("user-api-keys", {
+        body: { action: "proxy", id, path: "models" },
+      });
+      if (error) throw error;
+      
+      const models = data?.data?.map((m: any) => m.id) || data?.models?.map((m: any) => m.name || m.id) || [];
+      if (models.length > 0) {
+        toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "..." });
+      } else {
+        toast.info("No models found in response");
+      }
+    } catch (e) {
+      toast.error("Model retrieval failed");
+    } finally {
+      setRetrieving(null);
+    }
+  };
+
   if (!user) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
@@ -254,14 +297,33 @@ export default function ApiManager() {
                     </div>
                   )}
                 </div>
-                <Button
-                  size="sm" variant="ghost"
-                  disabled={busy === k.id}
-                  onClick={() => toggleReveal(k.id)}
-                >
-                  {busy === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
-                    revealed[k.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm" variant="ghost"
+                    title="Check Health"
+                    disabled={checking[k.id] || !k.base_url}
+                    onClick={() => checkHealth(k.id)}
+                    className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
+                  >
+                    {checking[k.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost"
+                    title="Auto-retrieve Models"
+                    disabled={retrieving === k.id || !k.base_url}
+                    onClick={() => autoRetrieveModels(k.id)}
+                  >
+                    {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost"
+                    disabled={busy === k.id}
+                    onClick={() => toggleReveal(k.id)}
+                  >
+                    {busy === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
+                      revealed[k.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
                 <Button
                   size="sm" variant="ghost"
                   disabled={busy === k.id}
