@@ -30,8 +30,6 @@ const EVENT_TYPES = [
   "certify", "manifest_edit",
 ] as const;
 
-}
-
 function ProviderStatusPanel() {
   const [keys, setKeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
