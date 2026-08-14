@@ -239,7 +239,7 @@ Reminders:
                   <CardTitle>Listing Optimizer</CardTitle>
                   <Button size="sm" onClick={genListing} disabled={busy === "listing" || !name}>
                     {busy === "listing" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                    Generate
+                    Generate <Badge variant="secondary" className="ml-2 text-[10px] py-0 h-4">Lovable AI Routed</Badge>
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">

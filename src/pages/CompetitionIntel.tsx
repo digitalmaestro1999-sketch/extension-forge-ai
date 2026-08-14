@@ -317,7 +317,7 @@ export default function CompetitionIntel() {
                 <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
                 <Button size="sm" onClick={runGapAnalysis} disabled={!selectedCount || analysing}>
                   {analysing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  Run Gap Analysis
+                  Run Gap Analysis <Badge variant="secondary" className="ml-2 text-[10px] py-0 h-4">Lovable AI Routed</Badge>
                 </Button>
               </div>
             </CardHeader>
