@@ -472,33 +472,53 @@ export default function ApiManager() {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
-
-                  <Button
-                    size="sm" variant="ghost"
-                    title="Check Health"
-                    disabled={checking[k.id] || !canProbe(k)}
-                    onClick={() => checkHealth(k.id)}
-                    className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
-                  >
-                    {checking[k.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    title="Auto-retrieve Models"
-                    disabled={retrieving === k.id || !canProbe(k)}
-                    onClick={() => autoRetrieveModels(k.id)}
-                  >
-                    {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      title="Check Health"
+                      disabled={checking[k.id] || !canProbe(k)}
+                      onClick={() => checkHealth(k.id)}
+                      className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
+                    >
+                      {checking[k.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      title="Auto-retrieve Models"
+                      disabled={retrieving === k.id || !canProbe(k)}
+                      onClick={() => autoRetrieveModels(k.id)}
+                    >
+                      {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      disabled={busy === k.id}
+                      onClick={() => removeKey(k.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  size="sm" variant="ghost"
-                  disabled={busy === k.id}
-                  onClick={() => removeKey(k.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {k.available_models && k.available_models.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <p className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                      <Settings2 className="h-3 w-3" />
+                      Discovered Models
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {k.available_models.map(m => (
+                        <div key={m} className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded border border-border/50">
+                          <span className="text-[11px] font-mono">{m}</span>
+                          <Switch 
+                            checked={selectedModels.includes(m)} 
+                            onCheckedChange={() => toggleModelSelection(m)}
+                            className="scale-75 h-4 w-7"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
