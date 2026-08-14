@@ -112,10 +112,49 @@ export default function AIBuilder() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-3rem)]">
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
         <h1 className="font-semibold flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" /> AI Builder Chat
+          {selectedProvider === "lovable_gateway" ? (
+            <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+              Lovable AI Routed
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] bg-secondary text-secondary-foreground">
+              {availableKeys.find(k => k.id === selectedProvider)?.label || "Custom AI"}
+            </Badge>
+          )}
         </h1>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Settings2 className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Select AI Provider</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setSelectedProvider("lovable_gateway")}
+              className="flex items-center justify-between"
+            >
+              <span>Lovable Gateway</span>
+              {selectedProvider === "lovable_gateway" && <Zap className="h-3 w-3 text-primary" />}
+            </DropdownMenuItem>
+            {availableKeys.length > 0 && <DropdownMenuSeparator />}
+            {availableKeys.map(key => (
+              <DropdownMenuItem 
+                key={key.id} 
+                onClick={() => setSelectedProvider(key.id)}
+                className="flex items-center justify-between"
+              >
+                <span className="truncate">{key.label}</span>
+                {selectedProvider === key.id && <Zap className="h-3 w-3 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
