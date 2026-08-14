@@ -31,6 +31,14 @@ const apiServices = [
   { name: "Custom REST API", description: "Any REST API endpoint", docsUrl: "" },
 ];
 
+// Providers with well-known endpoints can be probed without a custom base URL
+const KNOWN_PROBE_SERVICES = ["openai", "nvidia", "deepgram", "google"];
+function canProbe(k: { service: string; base_url: string | null }) {
+  if (k.base_url) return true;
+  const s = (k.service || "").toLowerCase();
+  return KNOWN_PROBE_SERVICES.some((n) => s.includes(n));
+}
+
 export default function ApiManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -159,18 +167,22 @@ export default function ApiManager() {
     setRetrieving(id);
     try {
       const { data, error } = await supabase.functions.invoke("user-api-keys", {
-        body: { action: "proxy", id, path: "models" },
+        body: { action: "proxy", id, path: "/models" },
       });
       if (error) throw error;
-      
-      const models = data?.data?.map((m: any) => m.id) || data?.models?.map((m: any) => m.name || m.id) || [];
+
+      const raw = data?.data ?? data?.models ?? data?.stt_models ?? [];
+      const list = Array.isArray(raw) ? raw : [];
+      const models = list
+        .map((m: any) => (typeof m === "string" ? m : m.id || m.name || m.canonical_name))
+        .filter(Boolean);
       if (models.length > 0) {
-        toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "..." });
+        toast.success(`Found ${models.length} models`, { description: models.slice(0, 3).join(", ") + "…" });
       } else {
         toast.info("No models found in response");
       }
     } catch (e) {
-      toast.error("Model retrieval failed");
+      toast.error("Model retrieval failed", { description: (e as Error).message });
     } finally {
       setRetrieving(null);
     }
@@ -331,7 +343,7 @@ export default function ApiManager() {
                   <Button
                     size="sm" variant="ghost"
                     title="Check Health"
-                    disabled={checking[k.id] || !k.base_url}
+                    disabled={checking[k.id] || !canProbe(k)}
                     onClick={() => checkHealth(k.id)}
                     className={k.status === "healthy" ? "text-green-500" : k.status === "error" ? "text-destructive" : ""}
                   >
@@ -340,7 +352,7 @@ export default function ApiManager() {
                   <Button
                     size="sm" variant="ghost"
                     title="Auto-retrieve Models"
-                    disabled={retrieving === k.id || !k.base_url}
+                    disabled={retrieving === k.id || !canProbe(k)}
                     onClick={() => autoRetrieveModels(k.id)}
                   >
                     {retrieving === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}

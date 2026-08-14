@@ -131,15 +131,24 @@ Deno.serve(async (req) => {
       if (!data) return json(404, { error: "Not found" });
 
       const value = await decrypt(data.ciphertext, data.iv);
-      let url = data.base_url || "";
-      
-      // Default health/model paths if not provided
-      const finalPath = path || (action === "health" ? "" : "/models");
-      if (url && !url.endsWith("/") && finalPath && !finalPath.startsWith("/")) url += "/";
+      const svc = (data.service || "").toLowerCase();
+
+      // Known provider defaults so health/model checks work without a custom base URL
+      const defaults: { base: string; probe: string }[] = [];
+      if (svc.includes("openai")) defaults.push({ base: "https://api.openai.com/v1", probe: "/models" });
+      else if (svc.includes("nvidia")) defaults.push({ base: "https://integrate.api.nvidia.com/v1", probe: "/models" });
+      else if (svc.includes("deepgram")) defaults.push({ base: "https://api.deepgram.com/v1", probe: "/projects" });
+      else if (svc.includes("google")) defaults.push({ base: "https://generativelanguage.googleapis.com/v1beta", probe: "/models" });
+
+      let url = (data.base_url || defaults[0]?.base || "").trim().replace(/\/+$/, "");
+      const defaultProbe = defaults[0]?.probe ?? "/models";
+      const finalPath = path
+        ? (path.startsWith("/") ? path : `/${path}`)
+        : defaultProbe;
       const targetUrl = url + finalPath;
 
       if (!targetUrl.startsWith("http")) {
-         return json(400, { error: "No base URL configured for this key" });
+         return json(400, { error: "No base URL configured for this key and no known default for this service" });
       }
 
       try {
