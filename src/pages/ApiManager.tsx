@@ -74,6 +74,38 @@ export default function ApiManager() {
   }, [user, invoke]);
 
   useEffect(() => { void load(); }, [load]);
+  
+  useEffect(() => {
+    if (keys.length === 0 || !user) return;
+    
+    // Check health for all probe-able keys every 60 seconds
+    const interval = setInterval(() => {
+      const probeable = keys.filter(canProbe);
+      probeable.forEach(k => {
+        // Use a background version of checkHealth that doesn't show toasts or set checking state
+        void (async () => {
+          try {
+            const resp = await supabase.functions.invoke("user-api-keys", {
+              body: { action: "health", id: k.id },
+            });
+            const isHealthy = !resp.error;
+            const status = isHealthy ? "healthy" : "error";
+            
+            // Only update if status or timestamp needs updating
+            setKeys(prev => prev.map(p => p.id === k.id ? { 
+              ...p, 
+              status,
+              last_check: new Date().toISOString()
+            } : p));
+          } catch (e) {
+            console.error("Periodic health check failed for", k.label, e);
+          }
+        })();
+      });
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [keys.length, user]);
 
   const addKey = async () => {
     if (!newLabel.trim() || !newValue.trim()) {
