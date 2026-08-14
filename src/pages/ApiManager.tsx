@@ -36,7 +36,6 @@ export default function ApiManager() {
   const navigate = useNavigate();
   const [keys, setKeys] = useState<StoredKey[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<Record<string, boolean>>({});
   const [retrieving, setRetrieving] = useState<string | null>(null);
