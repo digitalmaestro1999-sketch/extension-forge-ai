@@ -503,8 +503,11 @@ ${(l.keywords ?? []).join(", ")}`);
         listing: a("storekit")?.listing ?? a("listing") ?? null,
         monetization: a("monetization") ?? null,
       };
+      const { data: profile } = await supabase.from("profiles").select("use_lovable_ai").eq("user_id", user.id).maybeSingle();
+      const gatewayProvider = (profile?.use_lovable_ai ?? true) ? "lovable_gateway" : null;
+
       const { data, error } = await supabase.functions.invoke("ext-intel-analyze", {
-        body: { stage: "launch", input, report_id: reportId, competitor_id: selected.id, provider: "lovable_gateway" },
+        body: { stage: "launch", input, report_id: reportId, competitor_id: selected.id, provider: gatewayProvider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
